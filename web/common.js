@@ -88,15 +88,21 @@
   // Suono e vibrazione per le notifiche (il suono parte dopo il primo tocco).
   var audio = null;
   function unlockAudio() {
-    if (audio) return;
-    try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) audio = new AC(); } catch (e) { audio = null; }
+    if (!audio) { try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) audio = new AC(); } catch (e) { audio = null; } }
+    if (!audio) return;
+    try { if (audio.state !== 'running') audio.resume(); } catch (e) { }
+    // iOS: a silent sample started inside the tap unlocks the context.
+    try { var b = audio.createBuffer(1, 1, 22050), s = audio.createBufferSource(); s.buffer = b; s.connect(audio.destination); s.start(0); } catch (e) { }
   }
+  // iPhone: let sound play even with the ring/silent switch on (Safari 17+).
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
   document.addEventListener('touchstart', unlockAudio, { passive: true });
+  document.addEventListener('touchend', unlockAudio, { passive: true });
   document.addEventListener('click', unlockAudio);
   function beep(freq, dur) {
     if (!audio) return;
     try {
-      if (audio.state === 'suspended') audio.resume();
+      if (audio.state !== 'running') audio.resume();
       var o = audio.createOscillator(), g = audio.createGain();
       o.frequency.value = freq || 660; o.type = 'triangle';
       g.gain.setValueAtTime(0.0001, audio.currentTime);

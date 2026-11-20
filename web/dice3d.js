@@ -343,10 +343,18 @@
     var ac = null, bufs = {}, loading = false;
     function ctx() {
       if (!ac) { try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) ac = new AC(); } catch (e) { ac = null; } }
-      if (ac && ac.state === 'suspended') { try { ac.resume(); } catch (e) { } }
+      // iOS leaves the context 'suspended' or 'interrupted' (screen lock, calls).
+      if (ac && ac.state !== 'running') { try { ac.resume(); } catch (e) { } }
       return ac;
     }
+    // iOS only unlocks audio when a sound starts inside a tap: play one silent sample.
+    function unlock() {
+      var c = ctx();
+      if (!c) return;
+      try { var b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { }
+    }
     function load() {
+      unlock();
       if (loading || !ctx()) return;
       loading = true;
       ['tok1', 'tok2', 'tok3', 'crit', 'fumble', 'turn'].forEach(function (n) {
@@ -365,7 +373,11 @@
       } catch (e) { return false; }
       return true;
     }
-    ['touchstart', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, load, { passive: true }); });
+    ['touchstart', 'touchend', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, load, { passive: true }); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && ac) ctx(); });
+    // iPhone: let sound play even with the ring/silent switch on (Safari 17+).
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+
     return {
       load: load,
       play: play,
