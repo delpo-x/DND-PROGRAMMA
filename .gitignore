@@ -1,0 +1,10 @@
+# Godot cache and local toolchain (Godot, JDK, Android SDK, signing key)
+.godot/
+.tools/
+*.keystore
+# Built apps: published as GitHub releases instead (too big for git)
+build/*.exe
+build/*.apk
+build/*.idsig
+# Test screenshots
+shots/
