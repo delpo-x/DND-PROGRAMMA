@@ -15,6 +15,7 @@ const ROUTES := {
 	"/index.html": ["index.html", "text/html; charset=utf-8"],
 	"/giocatore": ["player.html", "text/html; charset=utf-8"],
 	"/schermo": ["screen.html", "text/html; charset=utf-8"],
+	"/spettatore": ["screen.html", "text/html; charset=utf-8"],
 	"/common.js": ["common.js", "application/javascript; charset=utf-8"],
 	"/dice3d.js": ["dice3d.js", "application/javascript; charset=utf-8"],
 	"/style.css": ["style.css", "text/css; charset=utf-8"],
@@ -99,11 +100,13 @@ func base_url() -> String:
 	return "http://%s:%d" % [host, http_port]
 
 
+## Connected phones and screens shown to the master. Spectators are left out:
+## they only watch the public view and the master has nothing to manage.
 func client_list() -> Array:
 	var out: Array = []
 	for id in clients:
 		var c: Dictionary = clients[id]
-		if not c.open:
+		if not c.open or c.role == "spectator":
 			continue
 		out.append({"peer": id, "role": c.role, "char_id": c.char_id})
 	return out
@@ -349,7 +352,7 @@ func send(id: int, obj: Dictionary) -> void:
 
 func view_for(id: int) -> Dictionary:
 	var c: Dictionary = clients[id]
-	if c.role == "screen":
+	if c.role == "screen" or c.role == "spectator":
 		return state.screen_view()
 	return state.player_view(c.char_id)
 
@@ -392,7 +395,10 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 			if token.length() < 8:
 				token = "%08x%08x%08x" % [state.rng.randi(), state.rng.randi(), state.rng.randi()]
 			c.token = token
-			c.role = "screen" if str(msg.get("role", "")) == "screen" else "player"
+			# "spectator" = a phone that only watches: same public view as the
+			# shared screen, and every action message is refused (role != player)
+			var r := str(msg.get("role", ""))
+			c.role = r if r in ["screen", "spectator"] else "player"
 			if c.role == "player":
 				var cid := str(state.data.claims.get(token, ""))
 				if cid != "" and state.find_entity(cid).is_empty():

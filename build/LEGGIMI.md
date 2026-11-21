@@ -69,6 +69,12 @@ Una vista "da sala": caratteri grandi, sfondo scuro, nessun comando. Mostra ordi
 turno corrente, gli ultimi tiri pubblici con l'animazione dei dadi e le missioni visibili.
 Riceve esattamente le stesse informazioni pubbliche che vedono tutti.
 
+### Lo spettatore (pagina web sul telefono)
+Chi non gioca può seguire la partita dal proprio telefono: inquadra lo stesso QR dei giocatori e
+tocca **Guarda come spettatore**. Vede le stesse cose dello schermo condiviso, impaginate per il
+telefono, e non può fare nulla: niente tiri, niente PF, niente personaggio. Gli spettatori non
+compaiono nell'elenco dei collegati del master. "Esci" riporta alla pagina del giocatore.
+
 ---
 
 ## 3. Regole di visibilità
@@ -192,6 +198,7 @@ si possono ritoccare se la "sensazione" non convince.
 - Nel master premi **QR Giocatori**: i giocatori inquadrano il QR con la fotocamera
   (Safari su iPhone, Chrome su Android).
 - Sul PC o sulla TV apri lo stesso indirizzo e scegli **Schermo condiviso**, poi "Schermo intero".
+- Chi vuole solo guardare inquadra il QR e tocca **Guarda come spettatore**.
 
 ---
 

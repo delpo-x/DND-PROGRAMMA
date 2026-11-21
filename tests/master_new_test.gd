@@ -61,6 +61,41 @@ func _init() -> void:
 	root.add_child(sb)
 	sb.get_line_edit().text = "12"
 	_check("typed number used without Enter", UI.spin_value(sb) == 12)
+	# spectator: public view of the shared screen, read only, not listed for the master
+	var ws := WebSocketPeer.new()
+	ws.connect_to_url("ws://127.0.0.1:%d" % app.net.ws_port())
+	var msgs: Array = []
+	var t0 := Time.get_ticks_msec()
+	while ws.get_ready_state() != WebSocketPeer.STATE_OPEN and Time.get_ticks_msec() - t0 < 5000:
+		ws.poll()
+		await process_frame
+	ws.send_text(JSON.stringify({"t": "hello", "token": "spectator-test-1", "role": "spectator"}))
+	await _collect(ws, msgs, 20)
+	var view: Dictionary = {}
+	for m in msgs:
+		if m.get("t") == "state":
+			view = m.s
+	_check("spectator gets the shared-screen view", view.has("init") and view.has("log") and not view.has("me") and not view.has("requests"), view.keys())
+	var listed := false
+	for c in app.net.client_list():
+		listed = true
+	_check("spectator not listed for the master", not listed)
+	var log_before: int = st.data.log.size()
+	var hp_before := int(a.hp)
+	for bad in [{"t": "roll", "dice": [{"s": 20, "v": 20, "drop": false}], "mod": 0, "kind": "Libero"},
+			{"t": "hp", "d": 5}, {"t": "claim", "char_id": a.id}, {"t": "create_char", "name": "Intruso"}]:
+		ws.send_text(JSON.stringify(bad))
+	await _collect(ws, msgs, 20)
+	_check("spectator can't act", st.data.log.size() == log_before and int(a.hp) == hp_before and st.characters().size() == 1)
+	st.master_roll("", "Libero", [{"s": 20, "v": 11, "drop": false}], 0, "none", "prova pubblica", false, "1d20")
+	var got_roll := false
+	msgs.clear()
+	await _collect(ws, msgs, 20)
+	for m in msgs:
+		if m.get("t") == "roll" and int(m.e.total) == 11:
+			got_roll = true
+	_check("spectator sees public rolls", got_roll)
+	ws.close()
 	# death-save row: no roll buttons once dead
 	st.change_hp(a.id, -10)
 	st.set_death(a.id, 0, 3)
@@ -76,3 +111,13 @@ func _init() -> void:
 	for i in 3:
 		await process_frame
 	quit(0 if ok else 1)
+
+
+func _collect(ws: WebSocketPeer, into: Array, frames: int) -> void:
+	for i in frames:
+		ws.poll()
+		while ws.get_available_packet_count() > 0:
+			var m = JSON.parse_string(ws.get_packet().get_string_from_utf8())
+			if m is Dictionary:
+				into.append(m)
+		await process_frame

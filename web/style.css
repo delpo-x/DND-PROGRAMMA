@@ -254,3 +254,29 @@ button, img, .die, .chip { -webkit-touch-callout: none; }
 main { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
 #tabs { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 body.typing #tabs { display: none; }
+
+/* ---------- Spettatore: la vista dello schermo condiviso su un telefono */
+a.btnlink { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin-top: 10px; padding: 10px 14px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 7px; background: var(--panel2); color: var(--text); text-decoration: none; touch-action: manipulation; }
+#exitBtn { color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 7px; padding: 8px 14px; background: var(--panel2); flex: none; }
+body.screen.spect { overflow: auto; font-size: 16px; background-attachment: scroll; }
+.spect header { height: auto; flex-wrap: wrap; gap: 6px 12px; padding: calc(8px + var(--safe-t)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); position: sticky; top: 0; z-index: 5; }
+.spect header .logo-s { height: 30px; }
+.spect header .title { font-size: 19px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spect header .round { font-size: 16px; }
+.spect header .turn { flex-basis: 100%; text-align: left; font-size: 18px; }
+.spect .grid { grid-template-columns: 1fr; height: auto; gap: 10px; padding: 10px max(10px, env(safe-area-inset-right)) calc(14px + var(--safe-b)) max(10px, env(safe-area-inset-left)); }
+.spect .center { height: auto; }
+.spect #trayWrap { height: 40vh; min-height: 220px; flex: none; }
+.spect .col { padding: 10px 12px; border-radius: 8px; }
+.spect .col h2 { font-size: 19px; padding-bottom: 12px; background-size: 70% 8px; }
+.spect .col::before, .spect .col::after { width: 34px; height: 34px; }
+.spect .init-item { font-size: 18px; padding: 8px 10px; margin: 6px 0; }
+.spect .av { width: 36px; height: 36px; }
+.spect #lastRoll { font-size: 17px; min-height: 0; }
+.spect #lastRoll .die { font-size: 20px; }
+.spect #lastRoll .big { font-size: 34px; }
+.spect .logline { font-size: 15px; }
+.spect .quest h3 { font-size: 17px; }
+.spect .quest .check { font-size: 15px; }
+.spect #turnFx { font-size: 22px; }
+.spect #turnFx img { width: 56px; height: 56px; }

@@ -44,7 +44,7 @@
   // Collegamento WebSocket al tablet del master, con riconnessione automatica.
   function Link(role, onMessage, onStatus) {
     this.role = role; this.onMessage = onMessage; this.onStatus = onStatus || function () {};
-    this.ws = null; this.timer = 0; this.tokenKey = role === 'screen' ? 'dnd_tavolo_screen' : 'dnd_tavolo_token';
+    this.ws = null; this.timer = 0; this.tokenKey = role === 'screen' ? 'dnd_tavolo_screen' : (role === 'spectator' ? 'dnd_tavolo_spect' : 'dnd_tavolo_token');
     this.lastRx = Date.now(); this.hiddenAt = 0;
     var self = this;
     // iPhone: with the screen locked or the app in the background Safari stops
