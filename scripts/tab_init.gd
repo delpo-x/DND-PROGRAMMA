@@ -91,8 +91,8 @@ func refresh() -> void:
 		row.add_child(UI.spacer())
 		var amt := UI.spin(1, 999, int(amounts.get(c.ref, 5)), func(v): amounts[c.ref] = v, 76)
 		row.add_child(amt)
-		row.add_child(CombatUI.damage_btn(app, c.ref, func(): return amt.value, 52))
-		row.add_child(UI.color_btn("Cura", Color(0.18, 0.48, 0.25), func(): app.state.change_hp(c.ref, int(amt.value)), 52))
+		row.add_child(CombatUI.damage_btn(app, c.ref, func(): return UI.spin_value(amt), 52))
+		row.add_child(UI.color_btn("Cura", Color(0.18, 0.48, 0.25), func(): app.state.change_hp(c.ref, UI.spin_value(amt)), 52))
 		var cm: MenuButton = app.tab_players._cond_menu(e)
 		cm.text = "Cond."
 		cm.custom_minimum_size.y = 52

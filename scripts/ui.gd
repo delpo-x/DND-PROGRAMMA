@@ -145,6 +145,12 @@ static func spin(minv: int, maxv: int, val: int, cb: Callable = Callable(), w :=
 	return s
 
 
+## Value of a SpinBox including a number typed but not yet confirmed.
+static func spin_value(s: SpinBox) -> int:
+	s.apply()
+	return int(s.value)
+
+
 static func edit(text: String, placeholder := "", cb: Callable = Callable(), w := 0) -> LineEdit:
 	var e := LineEdit.new()
 	e.text = text

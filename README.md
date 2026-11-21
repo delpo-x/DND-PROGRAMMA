@@ -20,5 +20,5 @@ Gli eseguibili (Windows `.exe`, Android `.apk`) sono nelle [Releases](../../rele
 
 Progetto Godot 4.4.1 (GDScript). Le pagine per telefono e schermo condiviso sono in `web/` e vengono servite dall'app master sulla rete locale.
 
-- Test: `godot --headless --path . -- --self-test out.json` e `godot --headless --path . -s tests/rules_test.gd`
+- Test: `godot --headless --path . -- --self-test out.json`, `godot --headless --path . -s tests/rules_test.gd` e `godot --headless --path . -s tests/master_new_test.gd`
 - Build: `sh build.sh` (vedi i commenti nello script per la chiave di firma Android, che non è nel repository).

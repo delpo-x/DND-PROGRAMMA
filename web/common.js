@@ -17,11 +17,13 @@
   function skillMod(ch, id) {
     var s = skill(id); if (!s || !ch) return 0;
     var lv = Number((ch.skills || {})[id] || 0);
-    return abMod((ch.ab || {})[s[2]]) + Number(ch.prof || 2) * Math.min(2, Math.max(0, lv));
+    return abMod((ch.ab || {})[s[2]]) + prof(ch) * Math.min(2, Math.max(0, lv));
   }
+  // proficiency bonus of the sheet: 2 only when missing (0 is a valid value)
+  function prof(ch) { return (ch.prof === undefined || ch.prof === null || ch.prof === '') ? 2 : (Number(ch.prof) || 0); }
   function saveMod(ch, ab) {
     if (!ch) return 0;
-    return abMod((ch.ab || {})[ab]) + ((ch.saves || []).indexOf(ab) >= 0 ? Number(ch.prof || 2) : 0);
+    return abMod((ch.ab || {})[ab]) + ((ch.saves || []).indexOf(ab) >= 0 ? prof(ch) : 0);
   }
   function initMod(ch) { return ch ? abMod((ch.ab || {}).DES) + Number(ch.init_bonus || 0) : 0; }
 
@@ -43,11 +45,24 @@
   function Link(role, onMessage, onStatus) {
     this.role = role; this.onMessage = onMessage; this.onStatus = onStatus || function () {};
     this.ws = null; this.timer = 0; this.tokenKey = role === 'screen' ? 'dnd_tavolo_screen' : 'dnd_tavolo_token';
+    this.lastRx = Date.now(); this.hiddenAt = 0;
     var self = this;
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) self.ensure(); });
-    window.addEventListener('pageshow', function () { self.ensure(); });
-    window.addEventListener('online', function () { self.ensure(); });
-    setInterval(function () { self.send({ t: 'ping' }); }, 15000);
+    // iPhone: with the screen locked or the app in the background Safari stops
+    // the page, and on return the WebSocket often still looks open but is dead
+    // (what is sent is lost without errors). After a pause it is replaced.
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { self.hiddenAt = Date.now(); return; }
+      if (self.hiddenAt && Date.now() - self.hiddenAt > 4000) self.connect(); else self.ensure();
+      self.hiddenAt = 0;
+    });
+    window.addEventListener('pageshow', function (ev) { if (ev.persisted) self.connect(); else self.ensure(); });
+    window.addEventListener('online', function () { self.connect(); });
+    // the master answers every ping: no message for 40 s = dead connection
+    setInterval(function () {
+      if (document.hidden) return;
+      if (self.ws && self.ws.readyState === 1 && Date.now() - self.lastRx > 40000) { self.connect(); return; }
+      self.send({ t: 'ping' });
+    }, 15000);
     this.connect();
   }
   Link.prototype.url = function () {
@@ -66,10 +81,12 @@
     try { ws = new WebSocket(this.url()); } catch (e) { this.timer = setTimeout(function () { self.connect(); }, 2000); return; }
     this.ws = ws;
     ws.onopen = function () {
+      self.lastRx = Date.now();
       self.onStatus('open');
       ws.send(JSON.stringify({ t: 'hello', role: self.role, token: store(self.tokenKey) || '' }));
     };
     ws.onmessage = function (ev) {
+      self.lastRx = Date.now();
       var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (m.t === 'welcome' && m.token) store(self.tokenKey, m.token);
       self.onMessage(m);
@@ -125,6 +142,7 @@
     else out += '<span class="reason">' + esc(e.kind) + '</span> ';
     out += '<span class="formula">' + esc(e.formula || '') + (e.mod_hidden ? ' <span class="dim">(mod. nascosto)</span>' : '') + '</span> ';
     out += dice + ' <b class="total">= ' + e.total + '</b>';
+    if (e.manual) out += ' <span class="realdice">dadi veri</span>';
     if (e.outcome === 'success') out += ' <span class="ok">RIUSCITA</span>';
     if (e.outcome === 'fail') out += ' <span class="ko">FALLITA</span>';
     if (e.nat === 20) out += ' <span class="nat20t">20 naturale!</span>';

@@ -63,7 +63,7 @@
     var forced = DiceMath.forcedPhysical(e.dice || []);
     $('lastRoll').innerHTML = '<div><b>' + esc(e.who) + '</b> <span class="reason">' + esc(e.reason || e.kind) + '</span></div><div class="dim">tira...</div>';
     tray.roll(ph.specs, forced).then(function () {
-      $('lastRoll').innerHTML = '<div><b>' + esc(e.who) + '</b> <span class="reason">' + esc(e.reason || e.kind) + '</span> <span class="formula">' + esc(e.formula || '') + '</span></div>' +
+      $('lastRoll').innerHTML = '<div><b>' + esc(e.who) + '</b> <span class="reason">' + esc(e.reason || e.kind) + '</span> <span class="formula">' + esc(e.formula || '') + '</span>' + (e.manual ? ' <span class="realdice">dadi veri</span>' : '') + '</div>' +
         '<div>' + (e.dice || []).map(function (d) {
           var cls = d.drop ? 'die drop' : (d.s === 20 && d.v === 20 ? 'die nat20' : (d.s === 20 && d.v === 1 ? 'die nat1' : 'die'));
           return '<span class="' + cls + '">' + d.v + '</span>';

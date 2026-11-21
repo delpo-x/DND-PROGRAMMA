@@ -80,6 +80,16 @@ func _attack_row(at: Dictionary) -> void:
 	attacks_box.add_child(row)
 
 
+## Only the fields that differ from the sheet as it was when the form opened.
+func changed_values() -> Dictionary:
+	var all := values()
+	var out := {}
+	for k in all:
+		if not ch.has(k) or var_to_str(all[k]) != var_to_str(ch[k]):
+			out[k] = all[k]
+	return out
+
+
 func values() -> Dictionary:
 	var out := {}
 	for k in fields:

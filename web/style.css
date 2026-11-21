@@ -222,3 +222,35 @@ body.screen #turnFx, body.screen #fx { position: fixed; }
 .slotrow .dim { margin-left: auto; }
 .casts { margin-top: 8px; }
 .casts .cast b { color: var(--gold); }
+
+/* dadi veri: inserimento a tocchi dei numeri usciti sui dadi del tavolo */
+.realdice { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #1a120d; background: var(--gold); border-radius: 4px; padding: 1px 6px; vertical-align: middle; font-weight: bold; }
+body.manual #trayWrap { height: 116px; min-height: 116px; }
+body.manual #trayWrap canvas { visibility: hidden; }
+body.manual #trayWrap { background: linear-gradient(#22170f, #140d09); }
+#modeSeg button { font-size: 14px; }
+#pickModal { align-items: flex-end; padding: calc(10px + var(--safe-t)) 10px calc(10px + var(--safe-b)); overscroll-behavior: contain; }
+.modal .box.pick { max-width: 520px; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px - var(--safe-t) - var(--safe-b)); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px; }
+.pick .lbl { font-size: 20px; }
+.pick .q { font-size: 19px; margin: 10px 0 8px; }
+.pick .q b { color: var(--gold); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { display: inline-flex; flex-direction: column; align-items: center; min-width: 46px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: #1a120d; font-weight: bold; font-size: 18px; font-variant-numeric: tabular-nums; }
+.chip small { font-size: 11px; color: var(--dim); font-weight: normal; }
+.chip.cur { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(219,176,97,.35); }
+.chip.set { background: #4a3424; }
+.numgrid { display: grid; gap: 8px; }
+.numgrid button { min-height: 58px; font-size: 26px; font-weight: bold; padding: 4px; font-variant-numeric: tabular-nums; }
+.numgrid button.n20 { border-color: #ffd76a; color: #ffe9a0; }
+.numgrid button.n1 { border-color: #c0392b; color: #ff9a8a; }
+.pickbar { margin-top: 12px; flex-wrap: nowrap; }
+.pickbar button { min-height: 52px; }
+@media (max-height: 640px) { .numgrid button { min-height: 50px; font-size: 22px; } .pick .lbl { font-size: 17px; } }
+
+/* ---------- iPhone: rotazione, notch, doppio tocco, tastiera */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+button, img, .die, .chip { -webkit-touch-callout: none; }
+#top { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+main { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+#tabs { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+body.typing #tabs { display: none; }

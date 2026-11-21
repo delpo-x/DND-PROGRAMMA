@@ -188,24 +188,24 @@ static func merge_sheet(ch: Dictionary, src: Dictionary) -> void:
 		ch["spells"] = sp
 
 
-# ------------------------------------------------- from the Player's Handbook
-## Conditions (Appendix A), with a one-line reminder of their effect.
+# ------------------------------------------- from the Player's Handbook 2024
+## Conditions (Rules Glossary, 2024 rules), with a one-line reminder of their effect.
 const CONDITIONS: Array = [
-	["Accecato", "Fallisce le prove che richiedono la vista. Attacca con svantaggio, chi lo attacca ha vantaggio."],
-	["Affascinato", "Non può attaccare chi lo ha affascinato; questi ha vantaggio nelle prove sociali contro di lui."],
-	["Afferrato", "Velocità 0. Finisce se chi lo afferra è incapacitato o viene allontanato."],
+	["Accecato", "Non vede: fallisce le prove che richiedono la vista. Attacca con svantaggio, chi lo attacca ha vantaggio."],
+	["Affascinato", "Non può attaccare chi lo ha affascinato né colpirlo con effetti dannosi; questi ha vantaggio nelle prove sociali contro di lui."],
+	["Afferrato", "Velocità 0. Svantaggio agli attacchi contro chiunque non sia chi lo afferra, che può trascinarlo."],
 	["Assordato", "Non sente e fallisce le prove che richiedono l'udito."],
 	["Avvelenato", "Svantaggio ai tiri per colpire e alle prove di caratteristica."],
-	["Incapacitato", "Non può compiere azioni né reazioni."],
-	["Invisibile", "Non può essere visto senza aiuto. Attacca con vantaggio, chi lo attacca ha svantaggio."],
-	["Paralizzato", "Incapacitato, non si muove né parla. Fallisce TS di For e Des. Colpito da vicino = critico."],
-	["Pietrificato", "Trasformato in pietra: incapacitato, resistenza a tutti i danni, immune a veleno e malattie."],
-	["Privo di sensi", "Incapacitato, cade prono. Fallisce TS di For e Des. Colpito da vicino = critico."],
-	["Prono", "Si muove strisciando. Attacca con svantaggio; contro di lui vantaggio in mischia, svantaggio a distanza."],
+	["Incapacitato", "Niente azioni, azioni bonus né reazioni; non parla; perde la concentrazione; svantaggio all'iniziativa."],
+	["Invisibile", "Vantaggio all'iniziativa. Attacca con vantaggio, chi lo attacca ha svantaggio (se non lo vede)."],
+	["Paralizzato", "Incapacitato, velocità 0. Fallisce TS di For e Des. Chi lo attacca ha vantaggio; colpito entro 1,5 m = critico."],
+	["Pietrificato", "Pietra: incapacitato, velocità 0. Fallisce TS di For e Des, chi lo attacca ha vantaggio. Resistenza a tutti i danni, immune ad Avvelenato."],
+	["Privo di sensi", "Incapacitato e prono, velocità 0. Fallisce TS di For e Des. Chi lo attacca ha vantaggio; colpito entro 1,5 m = critico."],
+	["Prono", "Si muove strisciando (alzarsi costa metà velocità). Attacca con svantaggio; contro di lui vantaggio entro 1,5 m, altrimenti svantaggio."],
 	["Spaventato", "Svantaggio a prove e attacchi finché vede la fonte della paura; non può avvicinarsi a essa."],
-	["Stordito", "Incapacitato, parla a fatica. Fallisce TS di For e Des; chi lo attacca ha vantaggio."],
+	["Stordito", "Incapacitato. Fallisce TS di For e Des; chi lo attacca ha vantaggio."],
 	["Trattenuto", "Velocità 0. Attacca con svantaggio, chi lo attacca ha vantaggio. Svantaggio ai TS di Des."],
-	["Indebolimento", "6 livelli cumulativi: 1 svantaggio alle prove, 2 velocità dimezzata, 3 svantaggio ad attacchi e TS, 4 PF max dimezzati, 5 velocità 0, 6 morte."],
+	["Indebolimento", "Livelli cumulativi 1-6: -2 per livello a ogni tiro di d20, velocità -1,5 m per livello; al 6° muore. Il riposo lungo toglie 1 livello."],
 ]
 
 
@@ -271,6 +271,7 @@ const MONSTER_DEFENSES := {
 	"Zombi": {"immune": "Veleno"},
 	"Ghoul": {"immune": "Veleno"},
 	"Wight": {"resist": "Necrotico", "immune": "Veleno"},
+	"Mimic": {"immune": "Acido"},
 	"Cucciolo di drago rosso": {"immune": "Fuoco"},
 	"Giovane drago rosso": {"immune": "Fuoco"},
 }
@@ -319,7 +320,7 @@ static func defenses_text(e: Dictionary) -> String:
 
 # ------------------------------------------------------------ spell slots
 ## Spell slots of a full caster (bard, cleric, druid, sorcerer, wizard) by
-## level, from the Player's Handbook: slots of 1st..9th level.
+## level, from the Player's Handbook 2024: slots of 1st..9th level.
 const FULL_CASTER_SLOTS: Array = [
 	[2, 0, 0, 0, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0, 0, 0, 0], [4, 2, 0, 0, 0, 0, 0, 0, 0],
 	[4, 3, 0, 0, 0, 0, 0, 0, 0], [4, 3, 2, 0, 0, 0, 0, 0, 0], [4, 3, 3, 0, 0, 0, 0, 0, 0],
@@ -353,8 +354,9 @@ static func default_slots(cls: String, level: int) -> Array:
 		"full":
 			out = FULL_CASTER_SLOTS[lv - 1].duplicate()
 		"half":
-			if lv >= 2:
-				out = FULL_CASTER_SLOTS[int(ceil(lv / 2.0)) - 1].duplicate()
+			# 2024 rules: paladin and ranger cast spells from 1st level
+			# (2 slots), then follow the full-caster table at half their level.
+			out = FULL_CASTER_SLOTS[int(ceil(lv / 2.0)) - 1].duplicate()
 		"pact":
 			# Pact Magic: few slots, all of the same level, back on a short rest.
 			var n := 1 if lv == 1 else (2 if lv <= 10 else (3 if lv <= 16 else 4))

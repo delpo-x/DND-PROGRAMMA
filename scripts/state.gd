@@ -6,6 +6,7 @@ extends RefCounted
 signal changed
 signal roll_added(entry: Dictionary)
 signal request_added(req: Dictionary)
+signal notice(text: String)  # short message for the master (shown as a toast)
 
 const SAVE_DIR := "user://campagne"
 const SETTINGS := "user://impostazioni.json"
@@ -93,9 +94,15 @@ func save_now() -> void:
 	if f:
 		f.store_string(JSON.stringify(data))
 		f.close()
+		# the previous file stays as .bak until the new one is in place,
+		# so there is always a complete copy on disk (see _read_campaign)
+		var bak := path + ".bak"
 		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
-		DirAccess.rename_absolute(tmp, path)
+			if FileAccess.file_exists(bak):
+				DirAccess.remove_absolute(bak)
+			DirAccess.rename_absolute(path, bak)
+		if DirAccess.rename_absolute(tmp, path) == OK:
+			DirAccess.remove_absolute(bak)
 	var now := Time.get_unix_time_from_system()
 	if now - _last_backup >= BACKUP_EVERY:
 		backup_now("auto")
@@ -271,11 +278,19 @@ func list_campaigns() -> Array:
 	return out
 
 
+## Reads a campaign file; if the app stopped in the middle of a save, the
+## complete new copy (.tmp) or the previous one (.bak) is used instead.
+func _read_campaign(id: String):
+	for p in [campaign_path(id), campaign_path(id) + ".tmp", campaign_path(id) + ".bak"]:
+		if FileAccess.file_exists(p):
+			var j = JSON.parse_string(FileAccess.get_file_as_string(p))
+			if j is Dictionary:
+				return j
+	return null
+
+
 func load_campaign(id: String) -> bool:
-	if not FileAccess.file_exists(campaign_path(id)):
-		return false
-	var txt := FileAccess.get_file_as_string(campaign_path(id))
-	var j = JSON.parse_string(txt)
+	var j = _read_campaign(id)
 	if not (j is Dictionary):
 		return false
 	if not data.is_empty():
@@ -299,7 +314,8 @@ func load_last() -> bool:
 
 
 func delete_campaign(id: String) -> void:
-	DirAccess.remove_absolute(campaign_path(id))
+	for ext in ["", ".tmp", ".bak"]:
+		DirAccess.remove_absolute(campaign_path(id) + ext)
 
 
 func duplicate_campaign(id: String) -> void:
@@ -343,6 +359,7 @@ func _normalize(j: Dictionary) -> Dictionary:
 	for c in j.initiative.combatants:
 		c.score = int(c.get("score", Rules.NO_SCORE))
 		c.mod = int(c.get("mod", 0))
+		c.tie = int(c.get("tie", rng.randi()))
 	j.initiative.round = int(j.initiative.get("round", 1))
 	for q in j.quests:
 		for c in q.checks:
@@ -466,7 +483,10 @@ func update_character(id: String, fields: Dictionary) -> void:
 	var ch := find_entity(id)
 	if ch.is_empty() or not is_pc(id):
 		return
+	var before := int(ch.get("hp", 0))
 	Rules.merge_sheet(ch, fields)
+	if int(ch.hp) != before:
+		_hp_events(ch, id, before)
 	_sync_combatant_mod(id)
 	touch()
 
@@ -563,6 +583,8 @@ func duplicate_monster(id: String, count := 1) -> Array:
 		copy.id = new_id("m")
 		copy.name = "%s %d" % [base, top]
 		copy.hp = int(copy.hp_max)
+		copy.hp_temp = 0
+		copy.conditions = ""
 		data.monsters.append(copy)
 		made.append(copy)
 	touch()
@@ -576,9 +598,18 @@ func delete_monster(id: String) -> void:
 
 
 ## amount < 0 = damage (temporary HP first), amount > 0 = healing.
+## Characters (2024 rules): damage while at 0 PF = one failed death save
+## (and no longer stable); damage still left after reaching 0 PF that equals
+## or exceeds the PF maximum = instant death. A dead character can't be healed
+## until the master resets the death saves (e.g. after a revival spell).
 func change_hp(id: String, amount: int) -> void:
 	var e := find_entity(id)
 	if e.is_empty() or amount == 0:
+		return
+	var pc := is_pc(id)
+	if pc and is_dead(e):
+		if amount > 0:
+			notice.emit("%s è morto: per riportarlo in vita azzera prima i tiri contro la morte" % e.name)
 		return
 	var before := int(e.hp)
 	if amount < 0:
@@ -588,10 +619,29 @@ func change_hp(id: String, amount: int) -> void:
 			e.hp_temp = int(e.hp_temp) - absorb
 			dmg -= absorb
 		e.hp = maxi(0, int(e.hp) - dmg)
+		if pc and dmg > 0:
+			var left := dmg - maxi(0, before)
+			if left >= int(e.hp_max):
+				e.death_ok = 0
+				e.death_ko = 3
+				chronicle_add("sconfitta", "%s muore sul colpo" % e.name)
+				notice.emit("%s muore sul colpo: danni oltre i PF massimi" % e.name)
+			elif before <= 0:
+				if int(e.get("death_ok", 0)) >= 3:
+					e.death_ok = 0  # damage ends the stable state
+				e.death_ko = mini(3, int(e.get("death_ko", 0)) + 1)
+				notice.emit("%s subisce danni a 0 PF: un fallimento al tiro contro la morte (due se era un critico)" % e.name)
+				if int(e.death_ko) >= 3:
+					chronicle_add("sconfitta", "%s muore" % e.name)
 	else:
 		e.hp = mini(int(e.hp_max), int(e.hp) + amount)
 	_hp_events(e, id, before)
 	touch()
+
+
+## A character at 0 PF with three failed death saves.
+func is_dead(e: Dictionary) -> bool:
+	return int(e.get("hp", 0)) <= 0 and int(e.get("death_ko", 0)) >= 3
 
 
 ## Damage of a given type: immunity, resistance and vulnerability are applied
@@ -620,7 +670,8 @@ func _hp_events(e: Dictionary, id: String, before: int) -> void:
 	var pc := is_pc(id)
 	if before > 0 and int(e.hp) <= 0:
 		if pc:
-			chronicle_add("sconfitta", "%s cade a terra, privo di sensi" % e.name)
+			if not is_dead(e):
+				chronicle_add("sconfitta", "%s cade a terra, privo di sensi" % e.name)
 		else:
 			var r: int = int(ini().get("round", 1))
 			chronicle_add("sconfitta", ("%s viene sconfitto" % e.name) + ((" al round %d" % int(r)) if ini().active else ""), bool(e.get("revealed", false)))
@@ -629,10 +680,14 @@ func _hp_events(e: Dictionary, id: String, before: int) -> void:
 					ini()["defeated"] = []
 				if not ini().defeated.has(id):
 					ini().defeated.append(id)
-	elif before <= 0 and int(e.hp) > 0 and pc:
-		e.death_ok = 0
-		e.death_ko = 0
-		chronicle_add("personaggio", "%s torna in piedi (%d PF)" % [e.name, int(e.hp)])
+	elif before <= 0 and int(e.hp) > 0:
+		if pc:
+			e.death_ok = 0
+			e.death_ko = 0
+			chronicle_add("personaggio", "%s torna in piedi (%d PF)" % [e.name, int(e.hp)])
+		elif ini().has("defeated"):
+			# healed back up: no longer counts as defeated (no XP for it)
+			ini().defeated.erase(id)
 
 
 ## Experience shared equally among the characters (rule of the Player's Handbook).
@@ -649,16 +704,25 @@ func award_xp(total: int, reason := "") -> void:
 
 
 ## Short rest: just noted (hit dice are spent by the players).
-## Long rest: every character back to full PF, death saves cleared.
+## Long rest: characters with at least 1 PF back to full PF and spell slots;
+## a character at 0 PF (stable or dead) gets no benefit (2024 rules).
 func rest(long: bool) -> void:
 	if long:
+		var left_out: Array = []
 		for ch in characters():
+			if int(ch.hp) <= 0:
+				left_out.append(str(ch.name))
+				continue
 			ch.hp = int(ch.hp_max)
 			ch.hp_temp = 0
 			ch.death_ok = 0
 			ch.death_ko = 0
 			ch.slots_used = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-		chronicle_add("riposo", "Il gruppo fa un riposo lungo: punti ferita e slot incantesimo recuperati")
+		var txt := "Il gruppo fa un riposo lungo: punti ferita e slot incantesimo recuperati"
+		if left_out.size() > 0:
+			txt += " (tranne %s: a 0 PF il riposo lungo non ha effetto)" % ", ".join(left_out)
+			notice.emit("Riposo lungo senza effetto per %s (0 PF)" % ", ".join(left_out))
+		chronicle_add("riposo", txt)
 	else:
 		# Pact Magic slots come back on a short rest.
 		for ch in characters():
@@ -674,6 +738,8 @@ func death_save(id: String, roll: int) -> String:
 	var ch := find_entity(id)
 	if ch.is_empty() or not is_pc(id) or int(ch.hp) > 0:
 		return ""
+	if int(ch.get("death_ok", 0)) >= 3 or int(ch.get("death_ko", 0)) >= 3:
+		return ""  # already stable or dead
 	var out := ""
 	if roll == 20:
 		ch.hp = 1
@@ -832,7 +898,7 @@ func _combat_add(ref: String) -> void:
 		return
 	ini().combatants.append({
 		"id": new_id("x"), "ref": ref, "type": "pc" if is_pc(ref) else "monster",
-		"name": e.name, "score": Rules.NO_SCORE, "mod": entity_init_mod(e),
+		"name": e.name, "score": Rules.NO_SCORE, "mod": entity_init_mod(e), "tie": rng.randi(),
 	})
 
 
@@ -840,13 +906,13 @@ func sort_combatants() -> void:
 	ini().combatants.sort_custom(_cmp_combatants)
 
 
+## Highest initiative first. Ties are broken at random (table choice): each
+## combatant draws a random number when it joins, so the order stays put.
 func _cmp_combatants(a, b) -> bool:
 	if int(a.score) != int(b.score):
 		return int(a.score) > int(b.score)
-	if int(a.mod) != int(b.mod):
-		return int(a.mod) > int(b.mod)
-	if a.type != b.type:
-		return a.type == "pc"
+	if int(a.get("tie", 0)) != int(b.get("tie", 0)):
+		return int(a.get("tie", 0)) > int(b.get("tie", 0))
 	return str(a.name) < str(b.name)
 
 
@@ -1091,7 +1157,8 @@ func _mod_suffix(m: int) -> String:
 
 
 ## Adds a roll to the log. info: who, who_id, who_type, kind, dice [{s,v,drop}],
-## mod, adv, reason, secret, formula, optional dc, check_hidden.
+## mod, adv, reason, secret, formula, optional dc, check_hidden, manual
+## (true = values typed in from real dice instead of the app's dice).
 func add_roll(info: Dictionary, emit := true) -> Dictionary:
 	var dice: Array = []
 	var total := int(info.get("mod", 0))
@@ -1121,6 +1188,7 @@ func add_roll(info: Dictionary, emit := true) -> Dictionary:
 		"total": total, "reason": str(info.get("reason", "")).left(120), "secret": bool(info.get("secret", false)),
 		"adv": str(info.get("adv", "none")), "nat": nat, "dc": dc, "outcome": outcome,
 		"check_hidden": bool(info.get("check_hidden", false)),
+		"manual": bool(info.get("manual", false)),
 	}
 	data.log.append(entry)
 	if nat != 0 and not entry.secret and str(entry.kind) != "Danni":
@@ -1134,7 +1202,7 @@ func add_roll(info: Dictionary, emit := true) -> Dictionary:
 
 
 ## Master roll from the 3D tray.
-func master_roll(who_id: String, kind: String, dice: Array, mod: int, adv: String, reason: String, secret: bool, formula: String) -> Dictionary:
+func master_roll(who_id: String, kind: String, dice: Array, mod: int, adv: String, reason: String, secret: bool, formula: String, manual := false) -> Dictionary:
 	var e := find_entity(who_id)
 	var who_type := "master"
 	var who := "Master"
@@ -1142,7 +1210,7 @@ func master_roll(who_id: String, kind: String, dice: Array, mod: int, adv: Strin
 		who = str(e.name)
 		who_type = "pc" if is_pc(who_id) else "monster"
 	var entry := add_roll({"who": who, "who_id": who_id, "who_type": who_type, "kind": kind, "dice": dice,
-		"mod": mod, "adv": adv, "reason": reason, "secret": secret, "formula": formula}, false)
+		"mod": mod, "adv": adv, "reason": reason, "secret": secret, "formula": formula, "manual": manual}, false)
 	if kind == "Iniziativa" and who_id != "" and in_combat(who_id):
 		set_score_for_ref(who_id, int(entry.total))
 	touch()
@@ -1173,7 +1241,7 @@ func player_roll(char_id: String, msg: Dictionary) -> Dictionary:
 	var info := {"who": ch.name, "who_id": char_id, "who_type": "pc", "kind": kind, "dice": dice,
 		"mod": clampi(int(msg.get("mod", 0)), -50, 50), "adv": str(msg.get("adv", "none")).left(8),
 		"reason": str(msg.get("reason", "")).left(120), "secret": false,
-		"formula": str(msg.get("formula", "")).left(80)}
+		"formula": str(msg.get("formula", "")).left(80), "manual": bool(msg.get("manual", false))}
 	var req := find_request(str(msg.get("request_id", "")))
 	var check := {}
 	if not req.is_empty() and req.chars.has(char_id) and not req.done.has(char_id):
@@ -1228,7 +1296,7 @@ func public_entry(e: Dictionary) -> Dictionary:
 			who = "Master"
 	var p := {"id": e.id, "time": e.time, "who": who, "who_id": e.who_id if e.who_type == "pc" else "",
 		"kind": e.kind, "dice": e.dice, "total": e.total, "reason": e.reason, "adv": e.adv, "nat": e.nat,
-		"secret": false}
+		"secret": false, "manual": bool(e.get("manual", false))}
 	if mod_hidden:
 		p.formula = _dice_formula(e.dice)
 		p.mod_hidden = true
@@ -1352,7 +1420,7 @@ func char_choices(token: String) -> Array:
 
 # ---------------------------------------------------------------- csv export
 func log_csv() -> String:
-	var lines: Array = ["Data;Ora;Sessione;Chi;Tipo;Formula;Dadi;Modificatore;Totale;Motivo;Visibilita;CD;Esito"]
+	var lines: Array = ["Data;Ora;Sessione;Chi;Tipo;Formula;Dadi;Modificatore;Totale;Motivo;Visibilita;CD;Esito;Dadi veri"]
 	for e in data.get("log", []):
 		var dice: Array = []
 		for d in e.dice:
@@ -1363,7 +1431,8 @@ func log_csv() -> String:
 		elif e.outcome == "fail":
 			esito = "Fallita"
 		var row: Array = [e.get("date", ""), e.time, e.get("session", 1), e.who, e.kind, e.formula, " ".join(dice),
-			e.mod, e.total, e.reason, "Segreto" if e.secret else "Pubblico", "" if int(e.dc) < 0 else str(e.dc), esito]
+			e.mod, e.total, e.reason, "Segreto" if e.secret else "Pubblico", "" if int(e.dc) < 0 else str(e.dc), esito,
+			"Sì" if bool(e.get("manual", false)) else ""]
 		var cells: Array = []
 		for c in row:
 			var s := str(c).replace("\"", "\"\"")
