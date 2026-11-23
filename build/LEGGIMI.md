@@ -361,3 +361,9 @@ telefono (dettatura). Durante il suo turno di combattimento ha il pulsante **Fin
 scrive un riassunto e lo salva come file `.md`, così il narratore ricorda la storia senza
 rileggerla tutta. Il pulsante "Diario" apre la cartella con `riassunto.md` e
 `capitolo_01.md`, `capitolo_02.md`...: riassunto, fatti registrati dal tavolo e trascrizione.
+
+**Scrivere avventure per il narratore.** Il narratore legge solo l'inizio di ogni capitolo e
+ricorda solo il riassunto. Come scrivere storie che lo aiutano (scheda del capitolo, nomi dei
+mostri, condizione di fine capitolo, consigli per i giocatori) è spiegato in `GUIDA_STORIE.md`
+nel codice sorgente:
+https://github.com/delpo-x/DND-PROGRAMMA/blob/main/GUIDA_STORIE.md

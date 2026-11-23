@@ -12,6 +12,8 @@ Cosa fa:
 
 Istruzioni d'uso complete in [build/LEGGIMI.md](build/LEGGIMI.md).
 
+C'è anche **Dnd The Game**, un'app gemella in cui il master lo fa il computer: i mostri giocano con regole fisse e la storia la racconta un modello che gira sul PC con Ollama, senza Internet. Per scrivere avventure adatte al narratore locale: [GUIDA_STORIE.md](GUIDA_STORIE.md). Test del narratore: [tests/llm_results](tests/llm_results/LEGGIMI.md).
+
 ## Scaricare l'app
 
 Gli eseguibili (Windows `.exe`, Android `.apk`) sono nelle [Releases](../../releases).
