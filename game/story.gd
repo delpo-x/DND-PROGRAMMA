@@ -11,6 +11,15 @@ extends RefCounted
 ## Files: user://the_game/<campaign id>/
 
 const RECENT := 14  # lines of the chapter sent with each request
+const PASSAGE_CHARS := 600  # text of the adventure added to one request
+const PARA_CHARS := 420     # longest piece of one paragraph
+const STOP := ["sono", "siamo", "della", "delle", "dello", "degli", "nella", "nelle", "nello", "negli",
+	"sulla", "sulle", "dalla", "dalle", "alla", "alle", "allo", "agli", "questo", "questa", "quello",
+	"quella", "quelli", "quelle", "cosa", "fate", "come", "dove", "quando", "anche", "ancora",
+	"verso", "dentro", "fuori", "sopra", "sotto", "molto", "tutto", "tutti", "tutte", "ogni", "loro",
+	"essere", "avere", "fare", "andiamo", "vado", "provo", "voglio", "vediamo", "chiedo", "guardo",
+	"cerco", "prendo", "mentre", "perché", "però", "ecco", "inizia", "capitolo", "storia",
+	"master", "gruppo", "tavolo", "risultato", "vostro", "vostra", "vostri", "nostro", "nostra"]
 const TAG_RE := "\\[\\[\\s*([A-Za-zÀ-ÿ ]+?)\\s*(?::\\s*([^\\]]*))?\\]\\]"
 
 var st  # GameState
@@ -107,6 +116,9 @@ func system_prompt() -> String:
 	p.append("- Quando inizia un combattimento scrivi alla fine: [[COMBATTIMENTO: Goblin x2, Lupo]] usando i nomi dei mostri qui sotto. Poi non narrare i colpi: li risolve il tavolo.")
 	p.append("- Quando il capitolo arriva a una conclusione naturale scrivi alla fine [[FINE CAPITOLO]].")
 	p.append("- I marcatori tra doppie parentesi quadre vanno solo alla fine e solo quando servono.")
+	p.append("- La traccia del capitolo può essere scritta ad appunti, senza articoli: tu racconta sempre in italiano pieno e scorrevole, senza sigle.")
+	p.append("- Se la traccia ha una linea temporale, porta il gruppo da un momento al successivo seguendo le loro scelte, senza saltare avanti. Quando arriva il momento indicato come fine, chiudi il capitolo.")
+	p.append("- A volte ricevi un brano dal testo dell'avventura: usalo per luoghi, dialoghi e indizi, riassumendolo con parole tue.")
 	p.append("Esempio di risposta giusta. Giocatore: Entriamo nella grotta. Master: L'aria si fa umida e un odore di fumo vi punge la gola. Oltre una curva tremola la luce di un fuoco e si sentono voci gracchianti. Cosa fate?")
 	p.append("")
 	p.append("Il gruppo: " + "; ".join(party) + ".")
@@ -146,9 +158,109 @@ func messages(extra := "") -> Array:
 		else:
 			out.append({"role": "user", "content": "%s: %s" % [t.who, t.text]})
 	var last := table_line()
+	var passage := passages()
+	if passage != "":
+		last = "[Dal testo dell'avventura, usalo se serve: " + passage + "]\n" + last
 	if extra != "":
 		last = extra + "\n" + last
 	out.append({"role": "user", "content": last})
+	return out
+
+
+# ---------------------------------------------------------------- passages
+## Paragraphs of the full chapter text that talk about what was just said:
+## the narrator reads only the start of a chapter, so the details further on
+## (a room, a NPC, a clue) are looked up by their words and sent with that
+## one request. Words of the players count double, names count double too.
+func passages(limit := PASSAGE_CHARS) -> String:
+	var text := str(chapter_info().get("text", ""))
+	if text.length() <= StoryImport.READ_CHARS or transcript.is_empty():
+		return ""
+	var want := {}
+	var seen := 0
+	for i in range(transcript.size() - 1, -1, -1):
+		var t: Dictionary = transcript[i]
+		if str(t.who) == "Tavolo":
+			continue
+		var w := 2.0 if t.role == "user" else 1.0
+		for word in _words(str(t.text), true):
+			var k: String = word.trim_prefix("!")
+			var v := w * (2.0 if word.begins_with("!") else 1.0)
+			want[k] = maxf(float(want.get(k, 0.0)), v)
+		seen += 1
+		if seen >= 2:
+			break
+	if want.is_empty():
+		return ""
+	# paragraphs past the part the narrator already reads
+	var scored: Array = []
+	var at := 0
+	for para in _pieces(text):
+		at += para.length() + 1
+		if at <= StoryImport.READ_CHARS or para.length() < 40:
+			continue
+		var have := {}
+		for word in _words(para, false):
+			have[word] = true
+		var score := 0.0
+		for k in want:
+			if have.has(k):
+				score += want[k]
+		if score >= 3.0:
+			scored.append([score, para.strip_edges().trim_prefix("## ")])
+	scored.sort_custom(func(a, b): return a[0] > b[0])
+	var out := PackedStringArray()
+	var used := 0
+	for sc in scored:
+		var piece: String = sc[1]
+		if piece.length() > PARA_CHARS:
+			piece = piece.left(PARA_CHARS)
+			piece = piece.left(piece.rfind(" ")) + "..."
+		if used + piece.length() > limit:
+			continue
+		out.append(piece)
+		used += piece.length()
+	return " ".join(out)
+
+
+## The text cut into paragraphs; a long paragraph is cut at sentence ends into
+## pieces of about PARA_CHARS, so the matching part of it can be sent alone.
+static func _pieces(text: String) -> Array:
+	var out: Array = []
+	for para in text.split("\n\n"):
+		var p := para.strip_edges()
+		while p.length() > PARA_CHARS:
+			var cut := -1
+			for mark in [". ", "! ", "? "]:
+				cut = maxi(cut, p.left(PARA_CHARS).rfind(mark))
+			if cut < PARA_CHARS / 3:
+				cut = p.left(PARA_CHARS).rfind(" ")
+			if cut <= 0:  # one very long word
+				cut = PARA_CHARS - 1
+			out.append(p.left(cut + 1).strip_edges())
+			p = p.substr(cut + 1).strip_edges()
+		out.append(p)
+	return out
+
+
+## Words worth looking up: no short or common words, cut to a rough stem so
+## "gabbia" and "gabbie" match. With names = true, capitalised words that do
+## not start a sentence are marked with "!".
+static func _words(text: String, names: bool) -> Array:
+	var out: Array = []
+	var sentence_start := true
+	for raw in text.replace("\n", " ").replace("'", " ").replace("’", " ").split(" ", false):
+		var w := ""
+		for c in raw:
+			if c.to_lower() != c.to_upper():
+				w += c
+		var low := w.to_lower()
+		var is_name := names and not sentence_start and w != "" and w.left(1) != low.left(1)
+		sentence_start = raw.ends_with(".") or raw.ends_with("!") or raw.ends_with("?") or raw.ends_with(":")
+		if low.length() < 4 or STOP.has(low):
+			continue
+		var stem := low.left(low.length() - 1) if low.length() > 5 else low
+		out.append(("!" if is_name else "") + stem)
 	return out
 
 

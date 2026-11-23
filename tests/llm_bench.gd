@@ -58,8 +58,18 @@ var SCENARIOS := [
 		["user", "Il gruppo", "Li liberiamo e torniamo al villaggio."]]},
 ]
 
+## --story prosa|elenco: the same chapter with its outline written as prose
+## or as a short list with a timeline. The long text after the outline holds
+## details the narrator gets only through GameStory.passages().
+const SHEETS := {
+	"prosa": "Obiettivo: ritrovare i mercanti rapiti della carovana. I personaggi arrivano all'imbocco della grotta, umido e con un forte odore di fumo. Più avanti c'è la sala del fuoco, dove tre goblin dormono attorno alle braci. In fondo ci sono le gabbie, dove sono chiusi i mercanti; tra loro c'è Tobia, un mercante anziano e spaventato che sa dove si trova la chiave. Vicino alle gabbie veglia il capo goblin. Mostri: Goblin x3 nella sala del fuoco, Capo goblin vicino alle gabbie. Prove: Furtività CD 12 per passare la sala senza svegliare i goblin; Atletica CD 14 per forzare le gabbie. Il capitolo finisce quando i mercanti sono liberi e il gruppo esce dalla grotta.",
+	"elenco": "Obiettivo: liberare mercanti rapiti, carovana.\nLuoghi: imbocco grotta, umido, odore fumo; sala fuoco, 3 goblin dormono su braci; gabbie in fondo, mercanti chiusi.\nPNG: Tobia, mercante anziano, spaventato, sa dove sta chiave.\nMostri: Goblin x3 nella sala fuoco, Capo goblin vicino gabbie\nProve: Furtività CD 12 passare sala senza svegliare; Atletica CD 14 forzare gabbie.\nLinea temporale:\n1. imbocco grotta, tracce carovana\n2. sala fuoco: passare o combattere\n3. gabbie: Tobia, chiave\n4. capo goblin\nFine: mercanti liberi, gruppo fuori dalla grotta.",
+}
+const FULL_TEXT := "\n\n## La sala del fuoco\n\nLa sala è bassa e annerita dal fumo. Sul fuoco gira uno spiedo con mezza capra. Accanto alle braci c'è una pila di sacchi della carovana: stoffe, sale e una cassetta di spezie.\n\n## Le gabbie\n\nLe gabbie sono di legno legato con corde. Tobia sa che il capo goblin porta la chiave delle gabbie appesa a un dente d'orco intorno al collo, e lo dice solo se il gruppo promette di cercare sua figlia Lisetta, portata via dai goblin il giorno prima.\n\n## Il capo goblin\n\nIl capo goblin si chiama Sgnacco e ha paura del fuoco: se il gruppo lo minaccia con una torcia, prova a trattare."
+
 var g
 var model := ""
+var story := ""
 var runs := 2
 var only := ""
 var reply := {}
@@ -73,11 +83,23 @@ func _init() -> void:
 			"--model": model = v
 			"--runs": runs = maxi(1, int(v))
 			"--only": only = v
+			"--story": story = v
 	g = load("res://game/game_main.gd").new()
 	g.test_mode = true  # no files, no opening scene
 	root.add_child(g)
 	for i in 5:
 		await process_frame
+	if story != "":
+		if not SHEETS.has(story):
+			print("--story: prosa oppure elenco")
+			quit(1)
+			return
+		g.state.set_story({"title": "La carovana scomparsa", "chapters": [
+			{"title": "La grotta dei goblin", "text": SHEETS[story] + FULL_TEXT}]})
+		g.story.chapter = 1
+		SCENARIOS.append({"name": "dettaglio_dal_testo", "expect": "libero", "any": ["dente", "lisetta", "figlia", "collo"], "lines": [
+			["assistant", "Master", "In fondo alla grotta, dentro una gabbia di legno, un vecchio mercante vi fissa tremando. Cosa fate?"],
+			["user", "Aria", "Mi avvicino piano e chiedo a Tobia se sa dove il capo tiene la chiave delle gabbie."]]})
 	# the bench reads the replies itself: the game must not react to them
 	g.narrator.chunk.disconnect(g._on_chunk)
 	g.narrator.finished.disconnect(g._on_finished)
@@ -177,6 +199,16 @@ func _reply_checks(full: String, sc: Dictionary) -> Dictionary:
 				acts = true
 	c["non fa agire i personaggi"] = not acts
 	c["marcatori solo alla fine"] = not full.contains("[[") or full.strip_edges().ends_with("]]")
+	# notes written without articles must not make the replies telegraphic
+	var words := text.to_lower().replace("'", "' ").split(" ", false)
+	var arts := 0
+	for w in words:
+		if w in ["il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "l'", "un'"]:
+			arts += 1
+	c["italiano pieno, non ad appunti"] = words.size() < 10 or arts * 12 >= words.size()
+	if sc.has("any"):
+		var low := text.to_lower()
+		c["usa un dettaglio del testo (%s)" % "/".join(sc.any)] = sc.any.any(func(w): return low.contains(w))
 	var tags := GameStory.tags(full)
 	var kinds: Array = tags.map(func(t): return t[0])
 	match str(sc.expect):
@@ -279,7 +311,7 @@ func _report(results: Array, load_s: float) -> void:
 
 	var dir := "res://tests/llm_results"
 	DirAccess.make_dir_recursive_absolute(dir)
-	var safe := model.replace(":", "-").replace("/", "-")
+	var safe := model.replace(":", "-").replace("/", "-") + ("_storia-" + story if story != "" else "")
 	var path := "%s/%s_%s.md" % [dir, date.left(10), safe]
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string("\n".join(md) + "\n")
@@ -287,7 +319,7 @@ func _report(results: Array, load_s: float) -> void:
 	var csv := dir + "/storico.csv"
 	var lines := FileAccess.get_file_as_string(csv) if FileAccess.file_exists(csv) else "data,modello,prompt,ripetizioni,superati,controlli,punteggio,prima_parola_s,risposta_s,token_s\n"
 	if only == "":
-		lines += "%s,%s,%s,%d,%d,%d,%.0f,%.1f,%.1f,%.1f\n" % [date, model, prompt_id, runs, passed, total, score, first_sum / n, time_sum / n, tps_sum / n]
+		lines += "%s,%s,%s,%d,%d,%d,%.0f,%.1f,%.1f,%.1f\n" % [date, model + (" storia-" + story if story != "" else ""), prompt_id, runs, passed, total, score, first_sum / n, time_sum / n, tps_sum / n]
 		var fc := FileAccess.open(csv, FileAccess.WRITE)
 		fc.store_string(lines)
 		fc.close()

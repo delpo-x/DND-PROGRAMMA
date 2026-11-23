@@ -192,5 +192,25 @@ Altro.".repeat(300)}
 	check("outline: no end condition", all.contains("finisce quando"), iss)
 	check("outline: dice and abbreviations", all.contains("1d6"), iss)
 	check("outline: unknown monster only", all.contains("Guardiano di vetro") and not all.contains("\"Goblin") and not all.contains("Furtivit"), iss)
+	check("outline: short list form accepted", StoryImport.check({"chapters": [{"title": "x", "text": "Obiettivo: mercanti liberi.\nFine: gruppo fuori con mercanti."}]}, known).is_empty())
+
+	# passages of the full chapter text sent with one request
+	var filler := "\n\nLa pioggia cade sui tetti di Roccalta e i contadini parlano del raccolto.".repeat(30)
+	st.set_story({"title": "Prova", "chapters": [{"title": "La grotta", "text": "Obiettivo: liberare mercanti.\nFine: mercanti fuori." + filler
+		+ "\n\nTobia il mercante tiene nascosta una chiave d'osso sotto la lingua: la mostra solo a chi gli promette di salvare sua figlia Lisetta."
+		+ "\n\nLa sala del fuoco ha il soffitto basso annerito dal fumo e tre giacigli di paglia." + filler}]})
+	g.story.chapter = 1
+	g.story.transcript = [{"role": "assistant", "who": "Master", "text": "Nelle gabbie c'è un vecchio mercante. Cosa fate?"},
+		{"role": "user", "who": "Aria", "text": "Chiedo a Tobia se sa dove sia la chiave."}]
+	var pas: String = g.story.passages()
+	check("passage found by name and word", pas.contains("chiave d'osso") and not pas.contains("giacigli"), pas)
+	check("passage in the request", str(g.story.messages().back().content).contains("chiave d'osso"))
+	check("passage kept short", pas.length() <= GameStory.PASSAGE_CHARS, pas.length())
+	g.story.transcript = [{"role": "user", "who": "Aria", "text": "Aspetto e osservo il gruppo."}]
+	check("no passage when nothing matches", g.story.passages() == "", g.story.passages())
+	g.story.transcript = [{"role": "user", "who": "Bruno", "text": "Entro nella sala del fuoco e guardo i giacigli."}]
+	check("passage for a room", g.story.passages().contains("giacigli"), g.story.passages())
+	check("long paragraphs cut", GameStory._pieces("Frase uno. ".repeat(100)).all(func(p): return p.length() <= GameStory.PARA_CHARS))
+	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

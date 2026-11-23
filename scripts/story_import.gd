@@ -141,8 +141,8 @@ static func check(story: Dictionary, known: Array) -> Array:
 		var issues: Array = []
 		if text.length() > READ_CHARS and not low.contains("obiettivo"):
 			issues.append("Il narratore legge solo i primi %d caratteri (su %d) e lì non c'è una scheda con l'obiettivo." % [READ_CHARS, text.length()])
-		if not low.contains("finisce quando"):
-			issues.append("Manca \"Il capitolo finisce quando...\" nella parte che il narratore legge.")
+		if not low.contains("finisce quando") and not _re("(?im)^\\s*fine\\s*:").search(head):
+			issues.append("Manca la fine del capitolo (\"Fine: ...\" o \"Il capitolo finisce quando...\") nella parte che il narratore legge.")
 		if _re("\\b\\d+d\\d+|\\b(PF|CA)\\b").search(head):
 			issues.append("Dadi o sigle (1d6, PF, CA) nella parte letta: il narratore tende a ripeterli.")
 		var m := _re("(?im)^\\s*mostri\\s*:\\s*(.+)$").search(head)
