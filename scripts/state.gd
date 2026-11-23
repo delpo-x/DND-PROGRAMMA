@@ -16,6 +16,8 @@ const BACKUP_KEEP := 40
 const BACKUP_EVERY := 600.0  # seconds between automatic snapshots
 const VIEW_LOG := 40
 const MAP_DIR := "user://mappe"
+const PORTRAIT_DIR := "user://ritratti"
+const PORTRAIT_SIDE := 384
 const MAP_MAX_SIDE := 3072  # bigger pictures are scaled down (phones)
 
 var data: Dictionary = {}
@@ -511,13 +513,65 @@ func update_character(id: String, fields: Dictionary) -> void:
 
 
 func delete_character(id: String) -> void:
+	var gone := characters().filter(func(c): return c.id == id)
 	data.characters = characters().filter(func(c): return c.id != id)
 	for t in data.claims.keys():
 		if data.claims[t] == id:
 			data.claims.erase(t)
 	_remove_ref_from_combat(id)
 	_remove_ref_from_maps(id)
+	if gone.size() == 1:
+		_drop_portrait_file(str(gone[0].get("portrait", "")))
 	touch()
+
+
+# ---------------------------------------------------------------- portraits
+static func portrait_path(file: String) -> String:
+	return "%s/%s.jpg" % [PORTRAIT_DIR, file]
+
+
+## Saves a character's picture: a square cut from the middle (from the upper
+## part of a tall picture, where the face usually is), at most 384 px.
+## Each change gets a new file name, so phones never show a cached old one.
+func set_portrait(char_id: String, img: Image) -> bool:
+	var ch := find_entity(char_id)
+	if ch.is_empty() or not is_pc(char_id) or img == null or img.is_empty():
+		return false
+	var im: Image = img.duplicate()
+	im.convert(Image.FORMAT_RGB8)
+	var s := mini(im.get_width(), im.get_height())
+	im = im.get_region(Rect2i((im.get_width() - s) / 2, (im.get_height() - s) / 4, s, s))
+	if s > PORTRAIT_SIDE:
+		im.resize(PORTRAIT_SIDE, PORTRAIT_SIDE, Image.INTERPOLATE_LANCZOS)
+	DirAccess.make_dir_recursive_absolute(PORTRAIT_DIR)
+	var file := "%s_%d" % [char_id, int(Time.get_unix_time_from_system() * 1000.0)]
+	if im.save_jpg(portrait_path(file), 0.88) != OK:
+		return false
+	var old := str(ch.get("portrait", ""))
+	ch.portrait = file
+	_drop_portrait_file(old)
+	touch()
+	return true
+
+
+func clear_portrait(char_id: String) -> void:
+	var ch := find_entity(char_id)
+	if ch.is_empty() or str(ch.get("portrait", "")) == "":
+		return
+	var old := str(ch.portrait)
+	ch.portrait = ""
+	_drop_portrait_file(old)
+	touch()
+
+
+## Removes the file unless a copy of this campaign still uses it.
+func _drop_portrait_file(file: String) -> void:
+	if file == "" or not Art.valid_file(file):
+		return
+	for c in list_campaigns():
+		if c.id != data.id and FileAccess.get_file_as_string(campaign_path(c.id)).contains(file):
+			return
+	DirAccess.remove_absolute(portrait_path(file))
 
 
 func _remove_ref_from_maps(ref: String) -> void:
@@ -1397,7 +1451,7 @@ func _party() -> Array:
 	var out: Array = []
 	for c in characters():
 		out.append({"id": c.id, "name": c.name, "cls": c.cls, "race": c.race, "level": c.level,
-			"status": status_of(c), "online": online_chars.has(c.id)})
+			"status": status_of(c), "online": online_chars.has(c.id), "img": Art.key_for(c, "pc")})
 	return out
 
 
@@ -1422,6 +1476,7 @@ func player_view(char_id: String) -> Dictionary:
 		"quests": _public_quests(), "log": _public_log(), "requests": reqs,
 		"chronicle": _public_chronicle(), "xp_total": int(data.get("xp_total", 0)),
 		"map": _public_map(char_id),
+		"me_img": Art.key_for(me, "pc") if not me.is_empty() else "",
 	}
 
 
@@ -1442,7 +1497,8 @@ func char_choices(token: String) -> Array:
 		for t in char_claimed_by(c.id):
 			if t != token and online_chars.has(c.id):
 				taken = true
-		out.append({"id": c.id, "name": c.name, "cls": c.cls, "level": c.level, "player": c.player, "taken": taken})
+		out.append({"id": c.id, "name": c.name, "cls": c.cls, "level": c.level, "player": c.player, "taken": taken,
+			"img": Art.key_for(c, "pc")})
 	return out
 
 

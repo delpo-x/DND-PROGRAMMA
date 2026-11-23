@@ -239,7 +239,13 @@ I dadi fanno rumore (nell'app master, sul telefono e sullo schermo condiviso) qu
 
 I mostri del bestiario e dell'iniziativa mostrano un ritratto quando il nome contiene una di queste parole: goblin, capo goblin, coboldo, orco, scheletro, zombi, lupo, drago, bandito. Il ritratto compare nell'app master, sul telefono e sullo schermo condiviso.
 
-Per aggiungere un ritratto a un personaggio, salva un'immagine JPG quadrata in `web/img/p/` con il nome del personaggio in minuscolo (ad esempio `aelyra.jpg`) e ricompila l'app. Per un nuovo tipo di mostro, salva l'immagine in `web/img/m/` e aggiungi la parola in `scripts/art.gd`.
+**Ritratti dei personaggi.** Ogni personaggio può avere il suo ritratto, che compare nella scheda del master, nell'iniziativa, sulle pedine della mappa, nella scelta del personaggio e in alto sul telefono.
+- Il giocatore lo carica dal telefono: scheda **Scheda** → **Carica ritratto**, poi sceglie una foto o un'immagine dalla galleria.
+- Il master lo sceglie dal computer: scheda **Giocatori** → **Ritratto…** sul personaggio. Con **Togli ritratto** lo rimuove.
+
+L'immagine viene tagliata quadrata al centro; da una foto verticale viene tenuta la parte alta, dove di solito c'è il viso. I ritratti sono salvati nella cartella dati dell'app (`ritratti`) e non serve ricompilare.
+
+In alternativa, un'immagine JPG quadrata in `web/img/p/` con il nome del personaggio in minuscolo (ad esempio `aelyra.jpg`) vale per tutti i personaggi con quel nome, ma richiede di ricompilare l'app. Per un nuovo tipo di mostro, salva l'immagine in `web/img/m/` e aggiungi la parola in `scripts/art.gd`.
 
 Animazioni:
 - quando cambia il turno compare un banner con il nome (e il ritratto) di chi deve agire;

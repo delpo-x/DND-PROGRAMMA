@@ -110,7 +110,7 @@ static func blank_character(cname: String) -> Dictionary:
 		"hp": 10, "hp_max": 10, "hp_temp": 0, "ac": 10, "speed": 9, "prof": 2,
 		"ab": {"FOR": 10, "DES": 10, "COS": 10, "INT": 10, "SAG": 10, "CAR": 10},
 		"saves": [], "skills": {}, "init_bonus": 0, "attacks": [], "notes": "", "conditions": "",
-		"resist": "", "vuln": "", "immune": "",
+		"resist": "", "vuln": "", "immune": "", "portrait": "",
 		"spells": [], "slots_auto": true, "slots_max": [0, 0, 0, 0, 0, 0, 0, 0, 0], "slots_used": [0, 0, 0, 0, 0, 0, 0, 0, 0],
 	}
 

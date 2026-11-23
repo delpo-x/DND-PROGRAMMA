@@ -30,6 +30,7 @@ const ROUTES := {
 
 var state: GameState
 var _img_path := RegEx.create_from_string("^/img/(m/|p/)?[a-z0-9_]+[.](jpg|png)$")
+var _portrait_path := RegEx.create_from_string("^/img/r/([a-z0-9_]+)[.]jpg$")
 var _map_path := RegEx.create_from_string("^/mappa/(map_[0-9_]+)[.]jpg$")
 var http := TCPServer.new()
 var ws_server := TCPServer.new()
@@ -213,6 +214,8 @@ func _respond_post(tcp: StreamPeerTCP, head: String, body: PackedByteArray) -> v
 	var res := {"ok": false, "error": "Richiesta non valida"}
 	if path.begins_with("/importa-scheda"):
 		res = import_sheet_for(str(q.get("token", "")), body, str(q.get("player", "")).left(40))
+	elif path.begins_with("/ritratto"):
+		res = portrait_for(str(q.get("token", "")), body)
 	_send(tcp, "200 OK" if res.ok else "400 Bad Request", "application/json; charset=utf-8", JSON.stringify(res).to_utf8_buffer())
 
 
@@ -244,6 +247,25 @@ func import_sheet_for(token: String, bytes: PackedByteArray, player: String) -> 
 	return {"ok": true, "name": ch.name, "found": res.found}
 
 
+## Picture sent by a phone (already made small by the page) for its own character.
+func portrait_for(token: String, bytes: PackedByteArray) -> Dictionary:
+	var cid := ""
+	for id in clients:
+		if token.length() >= 8 and clients[id].token == token and clients[id].role == "player":
+			cid = str(clients[id].char_id)
+	if cid == "":
+		return {"ok": false, "error": "Telefono non collegato a un personaggio: ricarica la pagina"}
+	if bytes.size() > 8 * 1024 * 1024:
+		return {"ok": false, "error": "Immagine troppo grande"}
+	var img := Image.new()
+	if img.load_jpg_from_buffer(bytes) != OK and img.load_png_from_buffer(bytes) != OK and img.load_webp_from_buffer(bytes) != OK:
+		return {"ok": false, "error": "Immagine non leggibile: usa una foto JPG o PNG"}
+	if not state.set_portrait(cid, img):
+		return {"ok": false, "error": "Ritratto non salvato"}
+	player_message.emit("%s ha cambiato ritratto" % state.find_entity(cid).get("name", "?"))
+	return {"ok": true}
+
+
 func _respond(tcp: StreamPeerTCP, head: String) -> void:
 	var first := head.split("\r\n")[0]
 	var parts := first.split(" ")
@@ -269,6 +291,16 @@ func _respond(tcp: StreamPeerTCP, head: String) -> void:
 		body.append_array(state.log_csv().to_utf8_buffer())
 		ctype = "text/csv; charset=utf-8"
 		extra = "Content-Disposition: attachment; filename=\"registro_tiri.csv\"\r\n"
+	elif _portrait_path.search(path):
+		# portrait saved by the app (user://ritratti): only those of this campaign
+		var want := _portrait_path.search(path).get_string(1)
+		for ch in state.characters():
+			if str(ch.get("portrait", "")) == want:
+				body = FileAccess.get_file_as_bytes(GameState.portrait_path(want))
+		ctype = "image/jpeg"
+		if body.is_empty():
+			code = "404 Not Found"
+			body = "Immagine mancante".to_utf8_buffer()
 	elif _img_path.search(path):
 		body = _file(path.substr(1))
 		ctype = "image/png" if path.ends_with(".png") else "image/jpeg"

@@ -3,7 +3,8 @@ extends RefCounted
 ## Pictures for monsters and characters. The files live in web/img/ (shared
 ## with the phone pages, exported as-is) and are matched by name:
 ##   monsters  -> web/img/m/<key>.jpg  (key from a word in the name, e.g. "Goblin 2" -> goblin)
-##   characters -> web/img/p/<first name>.jpg  (e.g. "Aelyra, Figlia delle Stelle" -> aelyra)
+##   characters -> the portrait chosen in the app (user://ritratti, key "r/<file>"),
+##                 else web/img/p/<first name>.jpg  (e.g. "Aelyra, Figlia delle Stelle" -> aelyra)
 
 ## Ordered: the first match wins, so specific names come before generic ones.
 const MONSTER_WORDS := [
@@ -21,14 +22,32 @@ const MONSTER_WORDS := [
 static var _tex: Dictionary = {}
 
 
+static var _file_re := RegEx.create_from_string("^[a-z0-9_]+$")
+
+
+## Path of a picture key: "r/..." are portraits saved by the app, the rest
+## ship with it.
+static func path_of(key: String) -> String:
+	if key.begins_with("r/"):
+		return "user://ritratti/%s.jpg" % key.substr(2)
+	return "res://web/img/%s.jpg" % key
+
+
+static func valid_file(file: String) -> bool:
+	return _file_re.search(file) != null
+
+
 static func _exists(key: String) -> bool:
-	return FileAccess.file_exists("res://web/img/%s.jpg" % key)
+	return FileAccess.file_exists(path_of(key))
 
 
 ## Picture key for a monster or character dictionary, "" if none.
 static func key_for(e: Dictionary, type: String) -> String:
 	var name := str(e.get("name", "")).to_lower()
 	if type == "pc":
+		var own := str(e.get("portrait", ""))
+		if own != "" and valid_file(own) and _exists("r/" + own):
+			return "r/" + own
 		var first := name.split(",")[0].strip_edges().split(" ")[0]
 		first = first.replace("'", "").replace("à", "a").replace("è", "e").replace("é", "e").replace("ì", "i").replace("ò", "o").replace("ù", "u")
 		return "p/" + first if first != "" and _exists("p/" + first) else ""
@@ -47,7 +66,7 @@ static func texture(key: String) -> Texture2D:
 	if _tex.has(key):
 		return _tex[key]
 	var tex: Texture2D = null
-	var b := FileAccess.get_file_as_bytes("res://web/img/%s.jpg" % key)
+	var b := FileAccess.get_file_as_bytes(path_of(key))
 	if not b.is_empty():
 		var img := Image.new()
 		if img.load_jpg_from_buffer(b) == OK:

@@ -18,6 +18,7 @@
 <div id="banner" class="hidden">Connessione al tavolo del master...</div>
 <div id="top">
   <div class="dot" id="conn"></div>
+  <img class="topav hidden" id="topAv" alt="">
   <div class="name" id="topName">D&amp;D Tavolo</div>
   <div class="hp" id="topHp"></div>
 </div>
@@ -85,7 +86,18 @@
   </section>
 
   <!-- scheda -->
-  <section id="v-sheet" class="view hidden"><div id="sheet"></div></section>
+  <section id="v-sheet" class="view hidden">
+    <div class="card portrait">
+      <div class="pframe" id="pFrame"></div>
+      <div class="ptext">
+        <h3>Ritratto</h3>
+        <p class="dim" id="pHint">Appare sulla mappa, nell'iniziativa e sullo schermo del tavolo.</p>
+        <input type="file" id="pFile" accept="image/*" class="hidden">
+        <button id="pBtn">Carica ritratto</button>
+      </div>
+    </div>
+    <div id="sheet"></div>
+  </section>
   <!-- iniziativa -->
   <section id="v-init" class="view hidden"><h1>Iniziativa</h1><div id="initBox"></div></section>
   <!-- mappa -->
@@ -186,13 +198,14 @@
     $('joinCampaign').textContent = S.campaign ? 'Campagna: ' + S.campaign : '';
     if (joined) return;
     $('topName').textContent = 'D&D Tavolo';
+    $('topAv').classList.add('hidden');
     $('topHp').textContent = '';
     $('topHp').className = 'hp';
     var h = '';
     if (!S.chars.length) h = '<p class="dim">Il master non ha ancora creato personaggi: creane uno qui sotto.</p>';
     S.chars.forEach(function (c) {
-      h += '<button class="charbtn" data-id="' + esc(c.id) + '"' + (c.taken ? ' disabled' : '') + '>' + esc(c.name) +
-        '<small>' + esc([c.cls, c.level ? 'liv. ' + c.level : '', c.player].filter(Boolean).join(' - ')) + (c.taken ? ' (in uso su un altro telefono)' : '') + '</small></button>';
+      h += '<button class="charbtn' + (c.img ? ' withav' : '') + '" data-id="' + esc(c.id) + '"' + (c.taken ? ' disabled' : '') + '>' + T.avatar(c.img) + '<span>' + esc(c.name) +
+        '<small>' + esc([c.cls, c.level ? 'liv. ' + c.level : '', c.player].filter(Boolean).join(' - ')) + (c.taken ? ' (in uso su un altro telefono)' : '') + '</small></span></button>';
     });
     $('charList').innerHTML = h;
   }
@@ -226,6 +239,45 @@
       .then(function () { $('pdfBtn').disabled = false; });
   });
 
+  // ---------- ritratto: the picture is cut square and made small here, so
+  // even a 12 MP phone photo becomes a ~40 KB upload
+  function renderPortrait() {
+    var img = S.view.me_img || '';
+    var top = $('topAv');
+    if (img) { if (top.getAttribute('src') !== '/img/' + img + '.jpg') top.src = '/img/' + img + '.jpg'; top.classList.remove('hidden'); }
+    else top.classList.add('hidden');
+    var fr = $('pFrame'), want = img ? '<img src="/img/' + esc(img) + '.jpg" alt="Ritratto di ' + esc(S.me.name) + '">' : '<span>' + esc((S.me.name || '?').charAt(0).toUpperCase()) + '</span>';
+    if (fr.getAttribute('data-k') !== img + '|' + S.me.name) { fr.innerHTML = want; fr.setAttribute('data-k', img + '|' + S.me.name); }
+    if (!$('pBtn').disabled) $('pBtn').textContent = img ? 'Cambia ritratto' : 'Carica ritratto';
+  }
+  $('pBtn').addEventListener('click', function () { $('pFile').click(); });
+  $('pFile').addEventListener('change', function () {
+    var f = this.files && this.files[0]; this.value = '';
+    if (!f) return;
+    var token = localStorage.getItem('dnd_tavolo_token') || '';
+    if (!token) { toast('Connessione non pronta, riprova tra un attimo'); return; }
+    var url = URL.createObjectURL(f), im = new Image();
+    var done = function () { $('pBtn').disabled = false; renderPortrait(); };
+    $('pBtn').disabled = true; $('pBtn').textContent = 'Invio...';
+    im.onerror = function () { URL.revokeObjectURL(url); toast('Immagine non leggibile'); done(); };
+    im.onload = function () {
+      URL.revokeObjectURL(url);
+      var w = im.naturalWidth, h = im.naturalHeight, s = Math.min(w, h), out = Math.min(512, s);
+      var cv = document.createElement('canvas'); cv.width = cv.height = out;
+      // square from the middle; on a tall photo keep the upper part, where the face is
+      cv.getContext('2d').drawImage(im, (w - s) / 2, (h - s) / 4, s, s, 0, 0, out, out);
+      cv.toBlob(function (blob) {
+        if (!blob) { toast('Immagine non leggibile'); done(); return; }
+        fetch('/ritratto?token=' + encodeURIComponent(token), { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { toast(j.ok ? 'Ritratto salvato' : (j.error || 'Errore')); })
+          .catch(function () { toast('Invio non riuscito: controlla la connessione al tavolo.'); })
+          .then(done);
+      }, 'image/jpeg', 0.86);
+    };
+    im.src = url;
+  });
+
   // ---------- schede (tab)
   $('tabs').addEventListener('click', function (ev) {
     var b = ev.target.closest('button[data-tab]'); if (!b) return;
@@ -248,6 +300,7 @@
     $('topHp').textContent = hp;
     $('topHp').className = 'hp' + (S.me.hp <= 0 ? ' down' : (S.me.hp * 2 <= S.me.hp_max ? ' low' : ''));
     renderShortcuts();
+    renderPortrait();
     renderSheet();
     renderInit();
     renderMap();

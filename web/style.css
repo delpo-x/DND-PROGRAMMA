@@ -299,3 +299,16 @@ body.screen.withmap .center #mapWrap { display: block; }
 body.screen.withmap .center #trayWrap { position: absolute; inset: 0; z-index: 5; background: transparent; border: 0; box-shadow: none; opacity: 0; pointer-events: none; transition: opacity .3s; }
 body.screen.withmap .center.rolling #trayWrap { opacity: 1; }
 body.screen.withmap .center { position: relative; }
+
+/* portraits */
+#top .topav { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex: none; }
+.charbtn.withav { display: flex; align-items: center; gap: 12px; }
+.charbtn .av { width: 52px; height: 52px; }
+.card.portrait { display: flex; gap: 14px; align-items: center; }
+.portrait .pframe { width: 104px; height: 104px; flex: none; border-radius: 10px; border: 2px solid var(--gold); background: #0d0907; overflow: hidden; display: grid; place-items: center; }
+.portrait .pframe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.portrait .pframe span { font-family: var(--display); font-size: 42px; color: var(--gold); }
+.portrait .ptext { flex: 1; min-width: 0; }
+.portrait h3 { margin: 0 0 4px; }
+.portrait p { margin: 0 0 10px; font-size: 14px; }
+.portrait button { width: 100%; }

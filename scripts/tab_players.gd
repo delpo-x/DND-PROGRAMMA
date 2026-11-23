@@ -71,6 +71,9 @@ func refresh() -> void:
 		var id: String = ch.id
 		var online: bool = st.online_chars.has(id)
 		var top := UI.hbox([], 12)
+		var img_key := Art.key_for(ch, "pc")
+		if img_key != "":
+			top.add_child(Art.avatar(img_key, 72))
 		top.add_child(UI.lbl("●", 22, UI.GREEN if online else Color(0.4, 0.4, 0.4)))
 		top.add_child(UI.lbl(str(ch.name), 26, Color.WHITE))
 		var sub := "%s %s liv. %d  -  %d PE" % [ch.race, ch.cls, int(ch.level), int(ch.get("xp", 0))]
@@ -99,6 +102,7 @@ func refresh() -> void:
 			UI.btn("Incantesimi", _spells_dialog.bind(id), 48),
 			_cond_menu(ch),
 			UI.btn("Richiedi tiro", func(): request_dialog([id]), 48),
+			UI.btn("Cambia ritratto" if img_key != "" else "Ritratto…", _pick_portrait.bind(id), 48),
 			UI.btn("Libera", func(): app.net.release_char(id), 48),
 			UI.color_btn("Elimina", Color(0.35, 0.12, 0.1), func(): app.confirm("Eliminare %s?" % ch.name, func(): st.delete_character(id)), 48),
 		])
@@ -115,8 +119,33 @@ func refresh() -> void:
 			rows.append(UI.wrap_lbl(Rules.defenses_text(ch), 18, Color(0.95, 0.75, 0.45)))
 		if int(ch.hp) <= 0:
 			rows.append(_death_row(ch))
+		if str(ch.get("portrait", "")) != "":
+			actions.add_child(UI.btn("Togli ritratto", func(): st.clear_portrait(id), 48))
 		rows.append(actions)
 		list.add_child(UI.card(UI.vbox(rows, 6), UI.PANEL, 12))
+
+
+## Picture for a character from a file on this computer (JPG, PNG, WebP).
+func _pick_portrait(id: String) -> void:
+	var fd := FileDialog.new()
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	fd.use_native_dialog = true
+	fd.title = "Scegli il ritratto di %s" % app.state.find_entity(id).get("name", "")
+	fd.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Immagini"])
+	fd.size = Vector2i(900, 600)
+	add_child(fd)
+	fd.file_selected.connect(func(path: String):
+		fd.queue_free()
+		var bytes := FileAccess.get_file_as_bytes(path)
+		var img := Image.new()
+		var ok := img.load_png_from_buffer(bytes) == OK or img.load_jpg_from_buffer(bytes) == OK or img.load_webp_from_buffer(bytes) == OK
+		if not ok or not app.state.set_portrait(id, img):
+			app.toast("Immagine non leggibile")
+		else:
+			app.toast("Ritratto salvato"))
+	fd.canceled.connect(fd.queue_free)
+	fd.popup_centered()
 
 
 func _new_char() -> void:
