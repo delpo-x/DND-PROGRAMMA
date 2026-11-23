@@ -25,6 +25,9 @@ var _tag := ""
 var _clock := 0.0
 var _tried_start := false
 var _err_body := ""
+## Numbers Ollama gives at the end of the last reply: prompt_eval_count,
+## eval_count, eval_duration (ns), load_duration (ns)...
+var last_stats := {}
 
 
 ## Sends a chat. messages: [{role, content}]. opts: {max: tokens, tag, temp}.
@@ -37,6 +40,7 @@ func ask(messages: Array, opts := {}) -> bool:
 	_tag = str(opts.get("tag", ""))
 	_buf = PackedByteArray()
 	_err_body = ""
+	last_stats = {}
 	var options := {"temperature": float(opts.get("temp", 0.8)), "num_ctx": 4096,
 		"num_predict": int(opts.get("max", 170)), "repeat_penalty": 1.1}
 	_body = JSON.stringify({"model": model, "messages": messages, "stream": true,
@@ -153,6 +157,7 @@ func _drain() -> void:
 			if _tag != "warm":
 				chunk.emit(piece)
 		if bool(j.get("done", false)):
+			last_stats = j
 			_done(true, "")
 
 

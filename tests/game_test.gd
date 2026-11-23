@@ -28,6 +28,7 @@ func _init() -> void:
 	check("tags hidden from the text", GameStory.strip_tags("Ciao.\n[[FINE CAPITOLO]]") == "Ciao.")
 	check("half tag hidden", GameStory.strip_tags("Ciao. [[COMBATT") == "Ciao.")
 	check("voice skips tags", Voice.clean("Attenti! (1d6) [[PROVA: x]]") == "Attenti!", Voice.clean("Attenti! (1d6) [[PROVA: x]]"))
+	check("voice reads the question after a tag", Voice.clean("Un rumore. [[PROVA: Percezione CD 15: Aria]] Cosa fate?") == "Un rumore. Cosa fate?")
 
 	# combat from a tag: the campaign's goblin plus copies and a wolf from the bestiary
 	check("combat starts", g.start_combat("Goblin x2, Lupo"))

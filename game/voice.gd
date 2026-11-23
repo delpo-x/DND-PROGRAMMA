@@ -12,7 +12,8 @@ var rate := 1.0
 var volume := 90
 
 var _buf := ""
-var _muted_rest := false  # set once the reply reaches its [[TAGS]]
+var _muted_rest := false  # set by stop(): the rest of the reply stays silent
+var _in_tag := false  # inside a [[TAG]], which is never read aloud
 
 
 func setup(wanted_id := "") -> void:
@@ -43,7 +44,7 @@ func voices() -> Array:
 
 ## Text as it should be read aloud: no tags, markdown or stage symbols.
 static func clean(t: String) -> String:
-	var s := t
+	var s := RegEx.create_from_string("\\[\\[[^\\]]*\\]\\]").sub(t, " ", true)
 	var cut := s.find("[[")
 	if cut >= 0:
 		s = s.left(cut)
@@ -78,6 +79,7 @@ func speaking() -> bool:
 func begin() -> void:
 	_buf = ""
 	_muted_rest = false
+	_in_tag = false
 
 
 ## A new piece of the reply: every finished sentence is spoken right away.
@@ -85,12 +87,20 @@ func feed(piece: String) -> void:
 	if _muted_rest:
 		return
 	_buf += piece
-	var tag := _buf.find("[[")
-	if tag >= 0:
+	# markers are skipped, the text after them (often "Cosa fate?") is read
+	while true:
+		if _in_tag:
+			var close := _buf.find("]]")
+			if close < 0:
+				return
+			_buf = _buf.substr(close + 2)
+			_in_tag = false
+		var tag := _buf.find("[[")
+		if tag < 0:
+			break
 		say(_buf.left(tag))
-		_buf = ""
-		_muted_rest = true
-		return
+		_buf = _buf.substr(tag + 2)
+		_in_tag = true
 	while true:
 		var best := -1
 		for mark in [". ", "! ", "? ", "… ", ".\n", "!\n", "?\n", "\n\n"]:
@@ -105,6 +115,6 @@ func feed(piece: String) -> void:
 
 ## End of the reply: what is left is spoken.
 func end() -> void:
-	if not _muted_rest:
+	if not _muted_rest and not _in_tag:
 		say(_buf)
 	_buf = ""
