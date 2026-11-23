@@ -340,7 +340,7 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 - Un sottofondo del luogo (grotta, locanda, bosco, pioggia, mare...) parte quando il narratore
   nomina il posto e si abbassa mentre parla la voce (casella "Ambiente" in alto).
 - I paragrafi del PDF che cominciano con "Da leggere:" vengono letti subito dalla voce, senza
-  aspettare il narratore. "Pausa" la ferma, "Riprendi lettura" continua; se un giocatore agisce,
+  aspettare il narratore. "Pausa" la ferma, "Riprendi lettura" continua (anche dai telefoni); se un giocatore agisce,
   risponde il narratore. Quando la lettura riprende dopo le scelte dei giocatori, il narratore
   legge il paragrafo successivo così com'è, lo adatta a ciò che è successo o lo salta.
 - Il "Tono" dell'avventura (in "Impostazioni" o nella scheda Campagne del master) dice al

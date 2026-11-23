@@ -118,6 +118,7 @@ func _ready() -> void:
 	net.player_message.connect(toast)
 	net.player_said.connect(_on_player_said)
 	net.player_end_turn.connect(func(cid): _end_pc_turn(cid))
+	net.player_read.connect(_on_player_read)
 	net.player_action.connect(_on_player_action)
 	_open_story()
 	if screenshot_path != "":
@@ -762,6 +763,18 @@ func _make_read_btn() -> Button:
 	return btn_read
 
 
+## A phone pressed Pausa or Riprendi lettura.
+func _on_player_read(cid: String, on: bool) -> void:
+	var who := str(state.find_entity(cid).get("name", "Un giocatore"))
+	if on and not _reading and story.reading_left():
+		add_feed("Tavolo", "%s riprende la lettura." % who, "info")
+		start_reading()
+	elif not on and _reading:
+		add_feed("Tavolo", "%s mette in pausa la lettura." % who, "info")
+		pause_reading()
+		_sync_phones()
+
+
 func _toggle_reading() -> void:
 	if _reading:
 		pause_reading()
@@ -770,6 +783,10 @@ func _toggle_reading() -> void:
 
 
 func _refresh_read_btn() -> void:
+	var mode := "on" if _reading else ("paused" if story.reading_left() else "")
+	if mode != state.ai_reading:
+		state.ai_reading = mode
+		state.changed.emit()  # the phones show Pausa / Riprendi
 	if btn_read == null:
 		return
 	btn_read.visible = _reading or story.reading_left()

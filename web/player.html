@@ -839,7 +839,7 @@
     if (!ai) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
     if (!$('aiFeed')) {
-      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span></div><div id="aiFeed" class="aifeed"></div>' +
+      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
         '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Cosa fai? Scrivi, o detta col microfono della tastiera"></textarea><button class="primary" id="aiSend">Invia</button></div>';
       $('aiSend').addEventListener('click', function () {
         var t = $('aiText').value.trim();
@@ -847,7 +847,16 @@
         if (link.send({ t: 'say', text: t })) { $('aiText').value = ''; T.buzz([30]); }
         else toast('Non collegato al tavolo');
       });
+      // pause or resume the reading of the chapter text, for everyone
+      $('aiRead').addEventListener('click', function () {
+        var r = S.view && S.view.ai && S.view.ai.reading;
+        if (!link.send({ t: 'read', on: r !== 'on' })) toast('Non collegato al tavolo');
+        else T.buzz([20]);
+      });
     }
+    var rd = ai.reading || '', rb = $('aiRead');
+    rb.classList.toggle('hidden', !rd);
+    rb.textContent = rd === 'on' ? 'Pausa' : 'Riprendi lettura';
     var feed = ai.feed || [], live = feed.filter(function (x) { return x.live; })[0];
     $('aiState').textContent = !ai.busy ? '' : (live && live.text ? 'sta raccontando...' : 'sta pensando...');
     var f = $('aiFeed');

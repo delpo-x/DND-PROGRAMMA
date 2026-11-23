@@ -92,7 +92,8 @@ Da leggere: La pioggia vi accompagna per tutta la salita. Tra i cespugli, le tra
 carovana piegano verso una grotta da cui esce un filo di fumo.
 ```
 
-- **Pausa** ferma la lettura; **Riprendi lettura** continua dal paragrafo successivo.
+- **Pausa** ferma la lettura; **Riprendi lettura** continua dal paragrafo successivo. I due
+  pulsanti ci sono sul PC e sui telefoni dei giocatori, nel riquadro del master.
 - Se un giocatore scrive o dice cosa fa, la lettura si ferma e risponde il narratore, che sa
   cosa è già stato letto e non lo ripete.
 - **Le scelte dei giocatori cambiano il testo.** Se dall'ultimo paragrafo letto è successo

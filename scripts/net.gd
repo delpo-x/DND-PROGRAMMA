@@ -13,6 +13,7 @@ signal player_action(char_id: String, title: String, lines: Array)
 ## ends their turn in combat.
 signal player_said(char_id: String, text: String)
 signal player_end_turn(char_id: String)
+signal player_read(char_id: String, on: bool)  # Dnd The Game: Pausa / Riprendi lettura
 
 const WEB_DIR := "res://web/"
 const MAX_UPLOAD := 40 * 1024 * 1024
@@ -562,6 +563,9 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 				var txt := str(msg.get("text", "")).strip_edges().left(400)
 				if txt != "":
 					player_said.emit(c.char_id, txt)
+		"read":
+			if c.role == "player" and c.char_id != "" and state.ai_master:
+				player_read.emit(c.char_id, bool(msg.get("on", false)))
 		"end_turn":
 			if c.role == "player" and c.char_id != "" and state.ai_master:
 				var cur := state.current_combatant()

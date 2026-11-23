@@ -350,7 +350,9 @@ body.screen.withmap .center { position: relative; }
 
 /* Dnd The Game: the AI master's lines and the box to talk to it */
 .aibox{border-color:var(--gold)}
-.aihead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.aihead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-bottom:6px}
+.aihead b,.aihead .dim{white-space:nowrap}
+.airead{margin-left:auto;padding:6px 14px;min-height:36px;font-size:.9em;white-space:nowrap}
 .aifeed{max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .aifeed p{margin:0;line-height:1.45}
 .aifeed .aim{font-size:17px}
