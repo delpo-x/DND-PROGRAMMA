@@ -5,6 +5,7 @@ extends VBoxContainer
 var app
 var head_lbl: Label
 var list: VBoxContainer
+var panel  # turn panel: what the current combatant does (turn_panel.gd)
 var amounts: Dictionary = {}
 var last_turn := ""  # "round:combatant id" shown last time, to animate changes
 var last_hp: Dictionary = {}  # ref -> hp shown last time
@@ -30,8 +31,10 @@ func setup(a) -> void:
 		UI.btn("Richiedi iniziativa ai giocatori", _ask_players, 56),
 		UI.color_btn("Termina combattimento", Color(0.45, 0.15, 0.12), func(): app.confirm("Terminare il combattimento?", func(): app.state.combat_end()), 56),
 	]))
+	panel = preload("res://scripts/turn_panel.gd").new()
+	panel.setup(app)
 	list = UI.vbox([], 8)
-	add_child(UI.scroll(list))
+	add_child(UI.scroll(UI.vbox([panel, list], 10)))
 
 
 func _ask_players() -> void:
@@ -40,6 +43,7 @@ func _ask_players() -> void:
 
 
 func refresh() -> void:
+	panel.refresh()
 	var ini: Dictionary = app.state.ini()
 	var cur: Dictionary = app.state.current_combatant()
 	if not ini.active:
@@ -87,8 +91,15 @@ func refresh() -> void:
 		hp_l.custom_minimum_size = Vector2(116, 0)
 		row.add_child(hp_l)
 		row.add_child(UI.lbl("CA %d" % int(e.ac), 22))
-		row.add_child(UI.lbl(app.state.status_of(e), 18, UI.DIM))
-		row.add_child(UI.spacer())
+		# the status may be long ("Sconfitto", conditions...): it takes the free
+		# space and is cut, so the row never grows past the window
+		var status := UI.lbl(app.state.status_of(e), 18, UI.DIM)
+		status.clip_text = true
+		status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		status.tooltip_text = status.text
+		status.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(status)
 		var amt := UI.spin(1, 999, int(amounts.get(c.ref, 5)), func(v): amounts[c.ref] = v, 76)
 		row.add_child(amt)
 		row.add_child(CombatUI.damage_btn(app, c.ref, func(): return UI.spin_value(amt), 52))

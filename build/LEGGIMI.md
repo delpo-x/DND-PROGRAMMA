@@ -152,7 +152,7 @@ si possono ritoccare se la "sensazione" non convince.
 | Scheda | Cosa fa |
 |---|---|
 | **Dadi** | Dadi 3D, modificatore, vantaggio/svantaggio, interruttore Tiro pubblico / Tiro segreto, chi tira e motivo |
-| **Iniziativa** | Nuovo combattimento, tiri automatici dei mostri, richiesta ai giocatori, classifica con punteggi, turno successivo, round, danni e cure |
+| **Iniziativa** | Nuovo combattimento, tiri automatici dei mostri, richiesta ai giocatori, classifica con punteggi, turno successivo, round, danni e cure, pannello del turno (azione, bersagli, tiro con tutti gli effetti) |
 | **Giocatori** | Telefoni collegati, schede dei personaggi, richieste di tiro in attesa |
 | **Bestiario** | Mostri e PNG con CA, PF, iniziativa e note; duplicazione (Goblin 1, Goblin 2…); rivela ai giocatori |
 | **Missioni** | Missioni con prove richieste (abilità + CD), nascondi/rivela, esito automatico |
@@ -303,3 +303,12 @@ Scheda **Mappa** del master.
 - **Mostra ai giocatori**: la mappa va sullo schermo condiviso (al centro; i dadi compaiono sopra durante i tiri) e nella scheda *Mappa* dei telefoni. I mostri nascosti non si vedono.
 - Sul telefono ogni giocatore trascina solo la propria pedina (*La mia pedina* la mette al centro, due dita per lo zoom). Il turno in corso ha l'anello giallo, chi è a 0 PF una X rossa.
 - Le immagini delle mappe restano sul dispositivo del master (cartella dati dell'app, sottocartella `mappe`): l'esportazione della campagna in JSON salva griglia e pedine ma non l'immagine.
+
+## Pannello del turno (Iniziativa)
+Durante un combattimento, in cima alla scheda Iniziativa c'è il pannello di chi ha il turno.
+- **Cosa fa**: un pulsante per ogni azione. Per un personaggio sono gli attacchi della scheda e gli incantesimi preparati (numeri presi dalla scheda: bonus d'attacco, CD, caratteristica da incantatore). Per un mostro sono gli attacchi letti dalle note del Bestiario ("Scimitarra +4, 1d6+2", "Due attacchi", "Soffio... TS Des CD 13", "Incantesimi CD 14: ..."). L'ultima voce, "Azione personalizzata", si compila a mano.
+- **Dettagli**: prima di tirare si può cambiare tutto: tipo di tiro (per colpire, tiro salvezza, colpisce sempre, cura, solo effetto), bonus, numero di attacchi, vantaggio, CD e caratteristica del TS, metà danni se superato, danni e tipo (anche un secondo tipo), condizione applicata, slot da spendere.
+- **Su chi**: si spuntano i bersagli, con CA e PF. Per le aree (palla di fuoco, soffio) si spuntano tutti quelli presi. Il pannello propone da solo il primo nemico in piedi, l'alleato più ferito per una cura, sé stessi per un potenziamento.
+- **ESEGUI: TIRA I DADI** fa tutto: tiro per colpire contro la CA (20 critico, colpo in mischia su paralizzato o privo di sensi critico), vantaggio automatico per le condizioni (prono, accecato, trattenuto...), tiri salvezza dei bersagli con metà danni, resistenze e immunità, condizioni applicate, slot spesi (rifiuta se finiti), livelli superiori (dadi in più, dardi in più), concentrazione (sostituita da un nuovo incantesimo, prova di Costituzione quando il concentrato subisce danni, fine a 0 PF), cure anche da 0 PF. Ogni tiro finisce nel registro e sul telefono come gli altri.
+- Il riepilogo resta sotto il pulsante fino all'azione successiva; "Fine concentrazione" chiude a mano un incantesimo in corso.
+- Gli incantesimi conosciuti (circa 60 del manuale, livelli 0-5, nomi italiani e inglesi) hanno già danni, TS, area e condizione. Quelli sconosciuti diventano "Solo effetto": si compilano i dettagli a mano.
