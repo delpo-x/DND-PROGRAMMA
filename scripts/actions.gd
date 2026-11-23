@@ -738,3 +738,112 @@ static func _apply_conds(st, tid: String, conds: String, lines: Array) -> void:
 			continue
 		st.toggle_condition(tid, cc)
 		lines.append("   %s ora è %s" % [t.name, cc.to_lower()])
+
+
+# ------------------------------------------------------------ phone players
+## The turn panel of a player's phone: only on their own turn, while
+## standing. Actions are the character's attacks and prepared spells (the
+## custom action stays with the master); targets are the combatants the
+## players can see, without monster AC or HP.
+static func phone_turn(st, char_id: String) -> Dictionary:
+	var ini: Dictionary = st.ini()
+	var cur: Dictionary = st.current_combatant()
+	if not bool(ini.active) or cur.is_empty() or str(cur.ref) != char_id or not st.is_pc(char_id):
+		return {}
+	var me: Dictionary = st.find_entity(char_id)
+	if me.is_empty() or int(me.hp) <= 0:
+		return {}
+	var acts: Array = []
+	for a in phone_actions(st, char_id):
+		acts.append({"name": a.name, "group": a.group, "mode": a.mode, "bonus": int(a.bonus), "dc": int(a.dc),
+			"save": ABILITY_NAMES.get(str(a.save), str(a.save)), "dmg": a.dmg, "type": a.type, "dmg2": a.dmg2, "type2": a.type2,
+			"half": bool(a.half), "cond": a.cond, "times": int(a.times), "targets": int(a.targets), "lvl": int(a.lvl),
+			"conc": bool(a.conc), "ranged": bool(a.ranged), "note": a.note, "upcast": a.upcast, "up_times": bool(a.up_times),
+			"friendly": a.mode == "heal" or (a.mode == "effect" and str(a.cond) in ["", "Invisibile"] and not norm(a.name).contains("anatema"))})
+	var targets: Array = []
+	for c in ini.combatants:
+		var e: Dictionary = st.find_entity(c.ref)
+		if e.is_empty() or not target_visible(st, str(c.ref)):
+			continue
+		targets.append({"ref": c.ref, "name": e.name, "ally": st.is_pc(c.ref), "me": c.ref == char_id,
+			"status": st.status_of(e), "cond": str(e.get("conditions", "")), "down": int(e.hp) <= 0,
+			"img": Art.key_for(e, "pc" if st.is_pc(c.ref) else "monster")})
+	return {"actions": acts, "targets": targets, "round": int(ini.round),
+		"concentration": str(me.get("concentration", ""))}
+
+
+## Character actions offered on the phone: no custom action, no spells that
+## aren't prepared.
+static func phone_actions(st, char_id: String) -> Array:
+	var me: Dictionary = st.find_entity(char_id)
+	var spells: Array = me.get("spells", [])
+	var out: Array = []
+	for a in list_for(st, char_id):
+		if a.group == "Personalizzata":
+			continue
+		var si := int(a.get("spell_idx", -1))
+		if si >= 0 and si < spells.size() and int(spells[si].get("lvl", 0)) > 0 and spells[si].get("prep", true) == false:
+			continue
+		out.append(a)
+	return out
+
+
+## A combatant a player may pick: characters, and monsters the master revealed.
+static func target_visible(st, ref: String) -> bool:
+	if st.is_pc(ref):
+		return true
+	var e: Dictionary = st.find_entity(ref)
+	return not e.is_empty() and bool(e.get("revealed", false)) and st.in_combat(ref)
+
+
+## An action sent by a phone: {name, i, targets, adv, slot}. Same checks as
+## the panel plus: it must be that character's turn, the action must still be
+## theirs, targets must be in combat and visible.
+static func phone_act(st, char_id: String, msg: Dictionary) -> Dictionary:
+	if phone_turn(st, char_id).is_empty():
+		return {"ok": false, "error": "Non è il tuo turno", "lines": []}
+	var acts := phone_actions(st, char_id)
+	var i := int(msg.get("i", -1))
+	if i < 0 or i >= acts.size() or str(acts[i].name) != str(msg.get("name", "")):
+		return {"ok": false, "error": "Azione non più disponibile: riprova", "lines": []}
+	var a: Dictionary = acts[i]
+	var combat: Dictionary = {}
+	for c in st.ini().combatants:
+		combat[str(c.ref)] = true
+	var targets: Array = []
+	var sent = msg.get("targets", [])
+	if sent is Array:
+		for t in sent:
+			var ref := str(t)
+			if combat.has(ref) and target_visible(st, ref) and not targets.has(ref):
+				targets.append(ref)
+	var cap := int(a.targets)
+	if cap > 0:
+		targets = targets.slice(0, maxi(cap, int(a.times)))
+	var adv := str(msg.get("adv", "auto"))
+	if not adv in ["auto", "adv", "none", "dis"]:
+		adv = "auto"
+	return resolve(st, char_id, a, targets, {"adv": adv, "slot": clampi(int(msg.get("slot", a.lvl)), 0, 9)})
+
+
+static var _re_ca := RegEx.create_from_string(" vs CA [0-9]+")
+static var _re_pf := RegEx.create_from_string(": PF -?[0-9]+ → -?[0-9]+")
+static var _re_bonus := RegEx.create_from_string(" [(][0-9]+[+-][0-9]+[)]")
+
+
+## Outcome lines as players may read them: no monster AC, HP or bonuses.
+static func public_lines(st, lines: Array) -> Array:
+	var names: Array = []
+	for m in st.monsters():
+		names.append(str(m.name))
+	var out: Array = []
+	for l in lines:
+		var s := _re_ca.sub(str(l), "", true)
+		var head := s.strip_edges()
+		for n in names:
+			if head.begins_with(n + " "):
+				s = _re_pf.sub(s, "", true)
+				s = _re_bonus.sub(s, "", true)
+				break
+		out.append(s)
+	return out

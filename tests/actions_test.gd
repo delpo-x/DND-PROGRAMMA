@@ -120,5 +120,37 @@ func _init() -> void:
 	res = Actions.resolve(st, cleric.id, heal, [wiz.id])
 	check("healed from 0", int(wiz.hp) > 0, res.lines)
 	check("no target refused", not Actions.resolve(st, cleric.id, heal, []).ok)
+
+	# phone turn panel
+	var p2 := GameState.new()
+	p2.persist = false
+	p2.new_campaign("Test telefono")
+	p2.rng.seed = 5
+	var hero: Dictionary = p2.add_character("Ugo", "")
+	p2.update_character(hero.id, {"cls": "Mago", "level": 3, "ab": {"INT": 16}, "hp_max": 20, "hp": 20,
+		"attacks": [{"name": "Spada lunga", "bonus": 5, "damage": "1d8+3"}],
+		"spells": [{"name": "Dardo incantato", "lvl": 1, "prep": true}, {"name": "Sonno", "lvl": 1, "prep": false}]})
+	var orc: Dictionary = p2.add_monster({"name": "Orco", "ac": 13, "hp": 30, "revealed": true, "notes": "Ascia +5, 1d12+3"})
+	var spy: Dictionary = p2.add_monster({"name": "Ombra", "ac": 12, "hp": 10, "revealed": false})
+	p2.combat_start([hero.id, orc.id, spy.id])
+	while str(p2.current_combatant().get("ref", "")) != orc.id:
+		p2.next_turn()
+	check("no panel when it's not my turn", Actions.phone_turn(p2, hero.id).is_empty() and p2.player_view(hero.id).turn.is_empty())
+	check("refused off turn", not Actions.phone_act(p2, hero.id, {"i": 0, "name": "Spada lunga", "targets": [orc.id]}).ok)
+	while str(p2.current_combatant().get("ref", "")) != hero.id:
+		p2.next_turn()
+	var tr: Dictionary = p2.player_view(hero.id).turn
+	var tnames: Array = tr.targets.map(func(t): return t.name)
+	check("my turn: attacks and prepared spells only", names(tr.actions) == ["Spada lunga", "Dardo incantato"], names(tr.actions))
+	check("hidden monster not offered, no AC/HP sent", tnames.has("Orco") and not tnames.has("Ombra") and not tr.targets[0].has("hp") and not tr.targets[0].has("ac"), tnames)
+	check("hidden monster can't be hit", not Actions.phone_act(p2, hero.id, {"i": 0, "name": "Spada lunga", "targets": [spy.id]}).ok)
+	check("stale action refused", not Actions.phone_act(p2, hero.id, {"i": 0, "name": "Altro", "targets": [orc.id]}).ok)
+	var hp_orc := int(orc.hp)
+	res = Actions.phone_act(p2, hero.id, {"i": 1, "name": "Dardo incantato", "targets": [orc.id], "slot": 2})
+	check("phone magic missile: slot 2, 4 darts", res.ok and int(hero.slots_used[1]) == 1 and int(orc.hp) < hp_orc and str(res.lines).count("1d4+1 =") == 4, res)
+	var pub := Actions.public_lines(p2, res.lines)
+	check("public lines hide monster HP", not str(pub).contains("PF ") and str(pub).contains("Orco subisce"), pub)
+	var atk_pub := Actions.public_lines(p2, ["Spada lunga contro Orco: 17 (12+5) vs CA 13, colpito", "Orco - TS Destrezza: 9 (8+1) vs CD 13, fallito"])
+	check("public lines hide AC and monster bonus", atk_pub == ["Spada lunga contro Orco: 17 (12+5), colpito", "Orco - TS Destrezza: 9 vs CD 13, fallito"], atk_pub)
 	print("actions test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

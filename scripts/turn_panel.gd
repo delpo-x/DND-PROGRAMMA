@@ -323,6 +323,13 @@ func _result_box() -> Control:
 	return UI.card(res, Color(0.1, 0.07, 0.05), 10)
 
 
+## Outcome of an action a player ran from their phone.
+func show_result(_actor_id: String, title: String, lines: Array) -> void:
+	p_result = lines
+	p_result_title = title + "  (dal telefono)"
+	refresh(true)
+
+
 func _execute() -> void:
 	var st: GameState = app.state
 	var targets: Array = []

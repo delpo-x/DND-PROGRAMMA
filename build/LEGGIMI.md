@@ -165,7 +165,7 @@ si possono ritoccare se la "sensazione" non convince.
 |---|---|
 | **Dadi** | Dadi 3D, scorciatoie per abilità, tiri salvezza, attacchi e iniziativa, con il modificatore preso dalla scheda |
 | **Scheda** | Caratteristiche, competenze, PF, CA, attacchi e note, modificabili |
-| **Iniziativa** | Ordine dei turni, con il proprio turno evidenziato |
+| **Iniziativa** | Ordine dei turni, con il proprio turno evidenziato; nel proprio turno il pannello "Cosa fai?" (anche nella scheda Dadi) |
 | **Missioni** | Solo le missioni e le prove rese visibili dal master |
 | **Registro** | Tiri pubblici del gruppo |
 
@@ -312,3 +312,9 @@ Durante un combattimento, in cima alla scheda Iniziativa c'è il pannello di chi
 - **ESEGUI: TIRA I DADI** fa tutto: tiro per colpire contro la CA (20 critico, colpo in mischia su paralizzato o privo di sensi critico), vantaggio automatico per le condizioni (prono, accecato, trattenuto...), tiri salvezza dei bersagli con metà danni, resistenze e immunità, condizioni applicate, slot spesi (rifiuta se finiti), livelli superiori (dadi in più, dardi in più), concentrazione (sostituita da un nuovo incantesimo, prova di Costituzione quando il concentrato subisce danni, fine a 0 PF), cure anche da 0 PF. Ogni tiro finisce nel registro e sul telefono come gli altri.
 - Il riepilogo resta sotto il pulsante fino all'azione successiva; "Fine concentrazione" chiude a mano un incantesimo in corso.
 - Gli incantesimi conosciuti (circa 60 del manuale, livelli 0-5, nomi italiani e inglesi) hanno già danni, TS, area e condizione. Quelli sconosciuti diventano "Solo effetto": si compilano i dettagli a mano.
+
+### Il pannello sul telefono del giocatore
+Quando tocca al suo personaggio, il giocatore trova lo stesso pannello in cima alle schede Dadi e Iniziativa: "Cosa fai?".
+- Sceglie l'attacco o l'incantesimo preparato (numeri presi dalla sua scheda), lo slot da usare, il vantaggio (Auto lascia decidere alle condizioni) e su chi: i nemici che il master ha mostrato e gli alleati, senza CA né PF dei mostri.
+- "TIRA!" manda l'azione al tavolo: i dadi li tira l'app del master e applica tutto come dal pannello del master. Il giocatore vede il riepilogo senza i numeri segreti dei mostri (CA, PF, bonus); il master vede il riepilogo completo nel suo pannello, segnato "dal telefono".
+- Fuori dal proprio turno, o a 0 PF, il pannello non c'è. L'azione personalizzata e gli incantesimi non preparati restano al master. Se è concentrato, il giocatore può chiudere la concentrazione con "Fine".

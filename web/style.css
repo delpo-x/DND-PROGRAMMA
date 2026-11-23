@@ -312,3 +312,38 @@ body.screen.withmap .center { position: relative; }
 .portrait h3 { margin: 0 0 4px; }
 .portrait p { margin: 0 0 10px; font-size: 14px; }
 .portrait button { width: 100%; }
+
+/* pannello del turno (telefono) */
+.turnpanel { border: 2px solid var(--gold); box-shadow: 0 0 14px rgba(230,192,106,0.25); }
+.turnhead { display: flex; justify-content: space-between; align-items: baseline; }
+.turnhead b { font-family: Georgia, serif; font-size: 22px; color: var(--gold); }
+.turnpanel .conc { color: #9cc8ff; font-size: 15px; margin: 6px 0; display: flex; align-items: center; gap: 8px; }
+.turnpanel .conc button { min-height: 36px; padding: 4px 12px; font-size: 14px; }
+.tacts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.tact { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; font-size: 15px; }
+.tact b { color: var(--gold); font-size: 14px; font-weight: normal; }
+.tact.sel b { color: #fff; }
+.tact.spell { background: #23324d; border-color: #3f5d8c; }
+.tact small { color: var(--dim); }
+.tdet { color: #b9c6ee; font-size: 14px; margin: 10px 0 4px; }
+.tlabel { color: var(--dim); font-size: 14px; margin: 12px 0 6px; }
+.tslots { margin-top: 0; flex-wrap: wrap; }
+.tslots small { color: var(--dim); font-size: 12px; }
+.ttargets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ttarget { display: flex; align-items: center; gap: 8px; text-align: left; font-size: 15px; padding: 6px 10px; }
+.ttarget .av { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: none; }
+.ttarget span { display: flex; flex-direction: column; min-width: 0; }
+.ttarget small { font-size: 12px; }
+.ttarget.foe { border-color: #7a3a2a; }
+.ttarget.down { opacity: 0.5; }
+.ttarget.sel { background: #6b4718; border-color: var(--gold); }
+.tgo { width: 100%; margin-top: 14px; font-size: 22px; min-height: 60px; letter-spacing: 1px; }
+.tfoot { font-size: 13px; margin: 8px 0 0; }
+.turnres { border-color: var(--gold); }
+.turnres b { display: block; color: var(--gold); margin-bottom: 4px; }
+.turnres .rl { font-size: 15px; padding: 2px 0; }
+.turnres .rl.hot { color: #ffc84d; font-weight: bold; }
+.turnres .rl.dim { color: var(--dim); }
+.turnres .rl.note { color: #b9c6ee; }
+.turnpanel .bad { color: #ff8a7a; }
+.tadv button { padding: 8px 4px; font-size: 14px; min-width: 0; }

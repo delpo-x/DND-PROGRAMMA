@@ -1477,6 +1477,7 @@ func player_view(char_id: String) -> Dictionary:
 		"chronicle": _public_chronicle(), "xp_total": int(data.get("xp_total", 0)),
 		"map": _public_map(char_id),
 		"me_img": Art.key_for(me, "pc") if not me.is_empty() else "",
+		"turn": Actions.phone_turn(self, char_id) if not me.is_empty() else {},
 	}
 
 

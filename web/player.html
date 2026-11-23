@@ -55,6 +55,7 @@
   <!-- dadi -->
   <section id="v-dice" class="view">
     <div id="deathCard" class="card hidden death"></div>
+    <div class="turnbox"></div>
     <div id="slotCard" class="card hidden"></div>
     <div id="reqCard" class="card hidden" style="border-color:var(--gold)"></div>
     <div id="trayWrap"><canvas id="tray"></canvas><div id="result"></div></div>
@@ -99,7 +100,7 @@
     <div id="sheet"></div>
   </section>
   <!-- iniziativa -->
-  <section id="v-init" class="view hidden"><h1>Iniziativa</h1><div id="initBox"></div></section>
+  <section id="v-init" class="view hidden"><div class="turnbox"></div><h1>Iniziativa</h1><div id="initBox"></div></section>
   <!-- mappa -->
   <section id="v-map" class="view hidden">
     <div class="maphead"><b id="mapName">Mappa</b><button id="mapMe">La mia pedina</button><button id="mapFit">Intera</button></div>
@@ -133,7 +134,9 @@
   var SIDES = [4, 6, 8, 10, 12, 20, 100];
   var S = { me: null, view: null, chars: [], myId: '', counts: {}, mod: 0, adv: 'none', tab: 'dice', rolling: false,
     reqs: [], seenReq: {}, dismissed: {}, sheetDirty: false, sheetTimer: 0, sheetFor: '', wasMyTurn: false, campaign: '',
-    manual: T.store('dnd_tavolo_manual') === '1' };
+    manual: T.store('dnd_tavolo_manual') === '1',
+    // turn panel: chosen action, targets, advantage, slot; last outcome
+    act: { name: '', targets: {}, adv: 'auto', slot: 0, key: '', busy: false, result: null } };
   var tray = new DiceTray($('tray'), { hint: 'Tocca i dadi e premi LANCIA' });
 
   // ---------- rete
@@ -170,7 +173,13 @@
       var e = m.e;
       if (e.who_id && e.who_id === S.myId) return;
       toast(stripTags(T.rollLine(e)));
+    } else if (m.t === 'act_result') {
+      S.act.busy = false;
+      S.act.result = { title: m.title, lines: m.lines || [] };
+      T.buzz([60]);
+      renderTurn();
     } else if (m.t === 'toast') {
+      if (S.act.busy) { S.act.busy = false; renderTurn(); }
       toast(m.text);
     } else if (m.t === 'error') {
       toast(m.text);
@@ -303,6 +312,7 @@
     renderPortrait();
     renderSheet();
     renderInit();
+    renderTurn();
     renderMap();
     renderQuests();
     renderChronicle();
@@ -772,6 +782,134 @@
     if (myTurn && !S.wasMyTurn) { T.buzz([300, 120, 300]); if (!DiceSfx.play('turn', 0.8)) T.beep(620, 0.4); T.turnBanner('Tocca a te!', S.me ? S.me.name : '', null); }
     S.wasMyTurn = myTurn;
   }
+
+  // ---------- pannello del turno: cosa fai, su chi, tira con tutti gli effetti
+  var ADV_LABELS = [['auto', 'Auto'], ['adv', 'Vantaggio'], ['none', 'Normale'], ['dis', 'Svantaggio']];
+  var HURT = { 'A terra': 0, 'Gravemente ferito': 1, 'Ferito': 2, 'Illeso': 3 };
+  function sign(n) { return (n >= 0 ? '+' : '') + n; }
+  function actSummary(a) {
+    var t = '';
+    if (a.mode === 'attack') t = sign(a.bonus) + (a.times > 1 ? ' x' + a.times : '');
+    else if (a.mode === 'save') t = 'TS ' + a.save.slice(0, 3) + ' CD ' + a.dc;
+    else if (a.mode === 'heal') t = 'cura';
+    if (a.dmg && a.mode !== 'effect') t += (t ? ' · ' : '') + a.dmg;
+    return t;
+  }
+  function actDetail(a) {
+    var p = [];
+    var dmg = a.dmg ? a.dmg + (a.type ? ' ' + a.type.toLowerCase() : '') + (a.dmg2 ? ' + ' + a.dmg2 + ' ' + (a.type2 || '').toLowerCase() : '') : '';
+    if (a.mode === 'attack') p.push('Tiro per colpire ' + sign(a.bonus) + (a.times > 1 ? ', ' + a.times + ' attacchi' : '') + (dmg ? ', danni ' + dmg : ''));
+    else if (a.mode === 'save') p.push('Tiro salvezza su ' + a.save + ' CD ' + a.dc + (dmg ? ', danni ' + dmg + (a.half ? ' (metà se lo supera)' : '') : ''));
+    else if (a.mode === 'auto') p.push('Colpisce sempre' + (a.times > 1 ? ', ' + a.times + ' volte' : '') + (dmg ? ', danni ' + dmg : ''));
+    else if (a.mode === 'heal') p.push('Cura ' + a.dmg + ' PF');
+    if (a.cond) p.push((a.mode === 'save' ? 'Se fallisce: ' : 'Applica: ') + a.cond.toLowerCase());
+    if (a.lvl > 0 && a.upcast) p.push('+' + a.upcast + ' per ogni livello di slot in più');
+    if (a.up_times) p.push('+1 per ogni livello di slot in più');
+    if (a.conc) p.push('Concentrazione');
+    if (a.note) p.push(a.note);
+    return p.join(' · ');
+  }
+  function turnAction(tr) {
+    for (var i = 0; i < tr.actions.length; i++) if (tr.actions[i].name === S.act.name) return i;
+    return -1;
+  }
+  // first enemy still standing; most wounded ally for a healing; oneself for a buff; nobody for an area
+  function chooseAction(tr, i) {
+    var a = tr.actions[i], st = S.act;
+    st.name = a.name; st.adv = 'auto'; st.targets = {}; st.slot = a.lvl;
+    if (a.lvl > 0) {
+      var mx = S.me.slots_max || [], used = S.me.slots_used || [];
+      for (var l = a.lvl; l <= 9; l++) if ((mx[l - 1] || 0) - (used[l - 1] || 0) > 0) { st.slot = l; break; }
+    }
+    if (a.targets === 0 && !a.friendly) return;
+    if (a.friendly && a.mode !== 'heal') { tr.targets.forEach(function (t) { if (t.me) st.targets[t.ref] = true; }); return; }
+    var pick = null;
+    tr.targets.forEach(function (t) {
+      if (a.mode === 'heal') { if (t.ally && (!pick || HURT[t.status] < HURT[pick.status])) pick = t; }
+      else if (!t.ally && !t.down && !pick) pick = t;
+    });
+    if (pick) st.targets[pick.ref] = true;
+  }
+  function renderTurn() {
+    var boxes = document.querySelectorAll('.turnbox');
+    var tr = S.view && S.view.turn, st = S.act, h = '';
+    var res = st.result ? '<div class="card turnres"><b>' + esc(st.result.title) + '</b>' + st.result.lines.map(function (l) {
+      var cls = /CRITICO|SCONFITTO|A TERRA/.test(l) ? ' hot' : (/mancato|perde la concentrazione/.test(l) ? ' dim' : (/^Nota/.test(l) ? ' note' : ''));
+      return '<div class="rl' + cls + '">' + esc(l) + '</div>';
+    }).join('') + '</div>' : '';
+    if (!tr || !tr.actions) {
+      boxes.forEach(function (b) { b.innerHTML = res; });
+      st.key = '';
+      return;
+    }
+    var key = tr.round + ':' + S.myId;
+    if (key !== st.key) { st.key = key; st.name = ''; st.busy = false; }
+    h += '<div class="card turnpanel"><div class="turnhead"><b>Cosa fai?</b><span class="dim">Round ' + tr.round + '</span></div>';
+    if (tr.concentration) h += '<div class="conc">Concentrato su ' + esc(tr.concentration) + ' <button class="tendc">Fine</button></div>';
+    if (!tr.actions.length) {
+      h += '<p class="dim">Nessun attacco o incantesimo nella scheda: aggiungili nella Scheda o chiedi al master.</p></div>';
+      boxes.forEach(function (b) { b.innerHTML = h + res; });
+      return;
+    }
+    var ai = turnAction(tr);
+    if (ai < 0) { chooseAction(tr, 0); ai = 0; }
+    h += '<div class="tacts">' + tr.actions.map(function (a, i) {
+      var c = i === ai ? ' sel' : (a.group === 'Incantesimi' ? ' spell' : '');
+      return '<button class="tact' + c + '" data-i="' + i + '"><span>' + esc(a.name) + (a.lvl > 0 ? ' <small>' + a.lvl + '&deg;</small>' : (a.lvl === 0 ? ' <small>T</small>' : '')) + '</span><b>' + esc(actSummary(a)) + '</b></button>';
+    }).join('') + '</div>';
+    var a = tr.actions[ai];
+    h += '<p class="tdet">' + esc(actDetail(a)) + '</p>';
+    if (a.lvl > 0) {
+      var mx = S.me.slots_max || [], used = S.me.slots_used || [], sl = '';
+      for (var l = a.lvl; l <= 9; l++) {
+        if (!(mx[l - 1] > 0)) continue;
+        var free = mx[l - 1] - (used[l - 1] || 0);
+        sl += '<button class="tslot' + (st.slot === l ? ' sel' : '') + '" data-l="' + l + '"' + (free > 0 ? '' : ' disabled') + '>' + l + '&deg; <small>(' + free + ' liberi)</small></button>';
+      }
+      h += sl ? '<div class="tlabel">Slot</div><div class="seg tslots">' + sl + '</div>' : '<p class="bad">Nessuno slot di questo livello</p>';
+    }
+    if (a.mode === 'attack') h += '<div class="seg tadv">' + ADV_LABELS.map(function (x) { return '<button data-adv="' + x[0] + '"' + (st.adv === x[0] ? ' class="sel"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
+    var hint = 'Su chi';
+    if (a.targets === 0) hint += ' (area: tocca tutti quelli presi)';
+    else if (a.targets > 1) hint += ' (fino a ' + a.targets + ')';
+    else if (a.times > 1) hint += ' (gli attacchi vanno a turno ai bersagli scelti)';
+    h += '<div class="tlabel">' + hint + '</div><div class="ttargets">';
+    tr.targets.filter(function (t) { return !t.ally; }).concat(tr.targets.filter(function (t) { return t.ally; })).forEach(function (t) {
+      h += '<button class="ttarget' + (st.targets[t.ref] ? ' sel' : '') + (t.ally ? ' ally' : ' foe') + (t.down ? ' down' : '') + '" data-ref="' + esc(t.ref) + '">' + T.avatar(t.img) +
+        '<span>' + esc(t.name) + (t.me ? ' (tu)' : '') + '<small class="' + T.statusClass(t.status) + '">' + esc(t.status) + (t.cond ? ' · ' + esc(t.cond) : '') + '</small></span></button>';
+    });
+    h += '</div>';
+    var n = Object.keys(st.targets).length;
+    h += '<button class="primary tgo"' + (st.busy || !n ? ' disabled' : '') + '>' + (st.busy ? 'Tiro in corso...' : (n ? 'TIRA!' : 'Scegli un bersaglio')) + '</button>';
+    h += '<p class="dim tfoot">I dadi li tira il tavolo e applica tutto: colpi, danni, tiri salvezza, condizioni, slot.</p></div>';
+    boxes.forEach(function (b) { b.innerHTML = h + res; });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('.turnbox button');
+    if (!b || b.disabled) return;
+    var tr = S.view && S.view.turn, st = S.act;
+    if (b.classList.contains('tendc')) { link.send({ t: 'end_conc' }); return; }
+    if (!tr || !tr.actions) return;
+    if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
+    else if (b.classList.contains('tslot')) { st.slot = +b.getAttribute('data-l'); }
+    else if (b.hasAttribute('data-adv')) { st.adv = b.getAttribute('data-adv'); }
+    else if (b.classList.contains('ttarget')) {
+      var ref = b.getAttribute('data-ref'), a = tr.actions[turnAction(tr)];
+      if (st.targets[ref]) delete st.targets[ref];
+      else {
+        var cap = a && a.targets > 0 ? Math.max(a.targets, a.times) : 99;
+        if (cap === 1) st.targets = {};
+        if (Object.keys(st.targets).length >= cap) { toast('Al massimo ' + cap + ' bersagli'); return; }
+        st.targets[ref] = true;
+      }
+    } else if (b.classList.contains('tgo')) {
+      var i = turnAction(tr);
+      if (i < 0) return;
+      st.busy = true;
+      if (!link.send({ t: 'act', i: i, name: tr.actions[i].name, targets: Object.keys(st.targets), adv: st.adv, slot: st.slot })) { st.busy = false; toast('Non collegato al tavolo'); }
+    }
+    renderTurn();
+  });
 
   // ---------- missioni
   // ---------- slot incantesimo: tocca un rombo pieno per usarlo, vuoto per recuperarlo

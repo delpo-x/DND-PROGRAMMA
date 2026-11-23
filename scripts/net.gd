@@ -7,6 +7,8 @@ extends Node
 
 signal clients_changed
 signal player_message(text: String)
+## A player ran an action from the turn panel of their phone.
+signal player_action(char_id: String, title: String, lines: Array)
 
 const WEB_DIR := "res://web/"
 const MAX_UPLOAD := 40 * 1024 * 1024
@@ -533,6 +535,24 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 				if err != "":
 					send(id, {"t": "toast", "text": err})
 					send(id, {"t": "state", "s": view_for(id)})
+		"act":
+			# turn panel of the phone: action, targets, roll with every effect
+			if c.role == "player" and c.char_id != "":
+				var res := Actions.phone_act(state, c.char_id, msg)
+				if not res.ok:
+					send(id, {"t": "toast", "text": str(res.error)})
+					send(id, {"t": "state", "s": view_for(id)})
+				else:
+					var title := "Round %d - %s: %s" % [int(state.ini().round), state.find_entity(c.char_id).get("name", "?"), str(msg.get("name", ""))]
+					send(id, {"t": "act_result", "title": title, "lines": Actions.public_lines(state, res.lines)})
+					player_action.emit(c.char_id, title, res.lines)
+		"end_conc":
+			if c.role == "player" and c.char_id != "":
+				var me := state.find_entity(c.char_id)
+				if str(me.get("concentration", "")) != "":
+					player_message.emit("%s smette di concentrarsi su %s" % [me.name, me.concentration])
+					me.concentration = ""
+					state.touch()
 		"ping":
 			send(id, {"t": "pong"})
 	return false

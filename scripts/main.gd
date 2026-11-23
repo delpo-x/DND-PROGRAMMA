@@ -98,6 +98,7 @@ func _ready() -> void:
 	state.changed.connect(_on_state_changed)
 	net.clients_changed.connect(_on_state_changed)
 	net.player_message.connect(toast)
+	net.player_action.connect(func(cid, title, lines): tab_init.panel.show_result(cid, title, lines))
 	state.notice.connect(toast)
 	state.roll_added.connect(_on_roll_toast)
 	_refresh_all()
