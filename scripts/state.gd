@@ -496,6 +496,12 @@ func import_story_pcs() -> Array:
 	return made
 
 
+## Tone of the adventure for the narrator of Dnd The Game ("cupo, PNG sospettosi").
+func set_tone(t: String) -> void:
+	data.tone = t.strip_edges().left(StoryImport.TONE_MAX)
+	touch()
+
+
 ## Replaces the campaign story (chapters imported from a PDF). Master only.
 func set_story(story: Dictionary) -> void:
 	data.story = story

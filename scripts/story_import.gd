@@ -5,6 +5,9 @@ extends RefCounted
 ## Chapters start at the biggest headings; smaller headings become "## " lines
 ## inside the text. Repeated page headers/footers are dropped.
 
+const READ_CHARS := 1400  # how much of a chapter the narrator of Dnd The Game reads
+const TONE_MAX := 240     # length of the "tone of the adventure" line
+
 
 static func _re(p: String) -> RegEx:
 	var r := RegEx.new()
@@ -117,6 +120,61 @@ static func parse(doc: Dictionary, source: String) -> Dictionary:
 		var txt := "\n\n".join(ch.lines).replace("\n\n## ", "\n\n## ")
 		out.append({"title": str(ch.title).left(90), "text": txt})
 	return {"title": title.left(90), "source": source.get_file(), "chapters": out, "pcs": find_pcs(pages)}
+
+
+## Checks each chapter for what the narrator of Dnd The Game needs (see
+## GUIDA_STORIE.md). It reads only the first READ_CHARS characters of a chapter.
+## known: monster names prepared in the campaign or in the bestiary.
+## Returns [{chapter (1-based), title, issues: [String]}] for chapters with issues.
+static func check(story: Dictionary, known: Array) -> Array:
+	var names: Array = []
+	for k in known:
+		var n := str(k).strip_edges().to_lower()
+		if n.length() >= 3:
+			names.append(n)
+	var out: Array = []
+	var chs: Array = story.get("chapters", [])
+	for i in chs.size():
+		var text := str(chs[i].get("text", ""))
+		var head := text.left(READ_CHARS)
+		var low := head.to_lower()
+		var issues: Array = []
+		if text.length() > READ_CHARS and not low.contains("obiettivo"):
+			issues.append("Il narratore legge solo i primi %d caratteri (su %d) e lì non c'è una scheda con l'obiettivo." % [READ_CHARS, text.length()])
+		if not low.contains("finisce quando"):
+			issues.append("Manca \"Il capitolo finisce quando...\" nella parte che il narratore legge.")
+		if _re("\\b\\d+d\\d+|\\b(PF|CA)\\b").search(head):
+			issues.append("Dadi o sigle (1d6, PF, CA) nella parte letta: il narratore tende a ripeterli.")
+		var m := _re("(?im)^\\s*mostri\\s*:\\s*(.+)$").search(head)
+		if m:
+			# the PDF import may join the next line ("... Capo goblin Prove: ..."):
+			# the list stops at a full stop, a semicolon or the next "Label:"
+			var list := m.get_string(1)
+			var stop := _re("[.;]|\\s[A-ZÀ-Ý][a-zà-ÿ]+\\s*:").search(list)
+			if stop:
+				list = list.left(stop.get_start())
+			for item in list.split(","):
+				var it := item.strip_edges().to_lower()
+				if it == "" or it.begins_with("nessun"):
+					continue
+				var ok := false
+				for n in names:
+					if it == n or it.begins_with(n + " "):  # "guardia" is not "guardiano"
+						ok = true
+						break
+				if not ok:
+					issues.append("Mostro non preparato: \"%s\". Preparalo nell'app del master o usa un nome del bestiario." % item.strip_edges().get_slice(" x", 0).left(40))
+		if not issues.is_empty():
+			out.append({"chapter": i + 1, "title": str(chs[i].get("title", "")), "issues": issues})
+	return out
+
+
+## Monster names the narrator can use: the campaign's and the bestiary's.
+static func known_monsters(st) -> Array:
+	var out: Array = GameStory.bestiary_names()
+	for m in st.monsters():
+		out.append(st._base_name(str(m.name)))
+	return out
 
 
 ## Ready-made characters listed in the adventure: a name followed (just below)

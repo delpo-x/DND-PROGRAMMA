@@ -165,6 +165,7 @@ func _open_story() -> void:
 	for t in story.transcript.slice(maxi(0, story.transcript.size() - 20)):
 		add_feed(str(t.who), str(t.text), "master" if t.role == "assistant" else "player")
 	_guess_place()
+	_check_chapter()
 	if story.is_new():
 		add_feed("Tavolo", "Benvenuti. Il master è pronto: tra poco descrive la scena iniziale.", "info")
 		_event("Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
@@ -375,7 +376,11 @@ func _open_diary() -> void:
 
 func _show_settings() -> void:
 	var model := UI.edit(str(settings.model), Narrator.DEFAULT_MODEL, Callable(), 300)
-	var box := UI.vbox([UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
+	var tone := UI.edit(str(state.data.get("tone", "")), "es. cupo, poca luce, PNG sospettosi")
+	tone.max_length = StoryImport.TONE_MAX
+	var box := UI.vbox([UI.lbl("Tono dell'avventura (lo segue in ogni risposta)", 20, UI.DIM), tone,
+		UI.wrap_lbl("Una riga breve e concreta: atmosfera, ritmo, come si comportano i PNG. Vale per questa campagna.", 17, UI.DIM),
+		UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
 		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Provati: gemma4:e4b-it-q4_K_M (consigliato), qwen3.5:4b (più veloce), qwen2.5:7b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
 	var opt: OptionButton = null
 	var vlist := voice.voices()
@@ -389,11 +394,13 @@ func _show_settings() -> void:
 		opt = UI.option(names, sel)
 		box.add_child(UI.lbl("Voce del master", 20, UI.DIM))
 		box.add_child(opt)
-	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist), 50))
+	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone), 50))
 	_modal("Impostazioni", box, 640)
 
 
-func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array) -> void:
+func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit) -> void:
+	if tone.text.strip_edges() != str(state.data.get("tone", "")):
+		state.set_tone(tone.text)
 	settings.model = model.text.strip_edges() if model.text.strip_edges() != "" else Narrator.DEFAULT_MODEL
 	narrator.model = str(settings.model)
 	if opt:
@@ -603,6 +610,17 @@ func _wait_for_narrator(cb: Callable) -> void:
 	_wait_call = func(): _wait_for_narrator(cb)
 
 
+## Warns the person at the PC when the current chapter outline lacks what the
+## narrator needs (toast only: the phones must not see monster names).
+func _check_chapter() -> void:
+	var ch := story.chapter_info()
+	if ch.is_empty():
+		return
+	var pr := StoryImport.check({"chapters": [ch]}, StoryImport.known_monsters(state))
+	if not pr.is_empty():
+		toast("Capitolo %d: %s" % [story.chapter, str(pr[0].issues[0])])
+
+
 ## Picks the background sound at the start: the place of the last master
 ## reply, or else the place named in the chapter outline.
 func _guess_place() -> void:
@@ -623,6 +641,7 @@ func _finish_chapter(new_summary: String) -> void:
 	if _chapter_prose != "":
 		add_feed("Riassunto", _chapter_prose, "info")
 	_chapter_prose = ""
+	_check_chapter()
 	_event("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 
 

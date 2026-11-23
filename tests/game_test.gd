@@ -162,5 +162,35 @@ func _init() -> void:
 	var sys: String = g.story.system_prompt()
 	check("prompt lists the party and the bestiary", sys.contains("Aria") and sys.contains("Goblin") and sys.contains("[[COMBATTIMENTO"))
 	check("prompt stays short", sys.length() < 4500, sys.length())
+
+	# tone of the adventure: read by the narrator, kept short
+	st.set_tone("Cupo, poca luce, PNG sospettosi. " + "x".repeat(400))
+	sys = g.story.system_prompt()
+	check("tone in the prompt", sys.contains("Tono dell'avventura") and sys.contains("PNG sospettosi"))
+	check("tone kept short", str(st.data.tone).length() == StoryImport.TONE_MAX, str(st.data.tone).length())
+	st.set_tone("")
+	check("no tone, no line", not g.story.system_prompt().contains("Tono dell'avventura"))
+
+	# chapter outlines checked for what the narrator needs
+	var known := StoryImport.known_monsters(st)
+	var good := {"title": "La grotta", "text": "Obiettivo: liberare i mercanti.
+Mostri: Goblin x3 nella sala, Capo goblin, Lupo
+Il capitolo finisce quando i mercanti escono." + "
+
+Testo lungo.".repeat(200)}
+	var bad := {"title": "Il ponte", "text": "Il troll chiede un pedaggio di 5 monete. Ha 84 PF e attacca con 2d6+4.
+Mostri: Guardiano di vetro, Goblin x2 Prove: Atletica CD 14, Furtività CD 12
+" + "
+
+Altro.".repeat(300)}
+	var res := StoryImport.check({"chapters": [good, bad]}, known)
+	check("good outline passes", res.size() == 1 and res[0].chapter == 2, res)
+	var iss: Array = res[0].issues if res.size() > 0 else []
+	var all := "
+".join(iss)
+	check("outline: no objective in the part read", all.contains("obiettivo"), iss)
+	check("outline: no end condition", all.contains("finisce quando"), iss)
+	check("outline: dice and abbreviations", all.contains("1d6"), iss)
+	check("outline: unknown monster only", all.contains("Guardiano di vetro") and not all.contains("\"Goblin") and not all.contains("Furtivit"), iss)
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

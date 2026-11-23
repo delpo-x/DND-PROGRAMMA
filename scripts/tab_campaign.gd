@@ -169,10 +169,20 @@ func _story_section(st: GameState) -> void:
 			btns.add_child(UI.color_btn("Crea i PG pronti (%d)" % pcs.size(), Color(0.18, 0.42, 0.25), _create_pcs, 52))
 		btns.add_child(UI.color_btn("Rimuovi storia", Color(0.35, 0.12, 0.1), func(): app.confirm("Rimuovere la storia importata da questa campagna?", func(): st.set_story({})), 52))
 	body.add_child(btns)
+	body.add_child(_tone_row(st))
 	if story.is_empty():
 		body.add_child(UI.wrap_lbl("Nessuna storia. Importa il PDF dell'avventura: il testo viene diviso in capitoli e resta visibile solo a te.", 18, UI.DIM))
 		return
 	body.add_child(UI.wrap_lbl("%s  -  %d capitoli  -  da %s, importata %s" % [story.get("title", ""), story.get("chapters", []).size(), story.get("source", ""), str(story.get("imported", "")).replace("T", " ").left(16)], 18, UI.DIM))
+	var problems := StoryImport.check(story, StoryImport.known_monsters(st))
+	if not problems.is_empty():
+		var pbox := UI.vbox([UI.lbl("Da sistemare per il narratore di Dnd The Game (%d capitoli)" % problems.size(), 19, UI.GOLD)], 4)
+		for pr in problems:
+			pbox.add_child(UI.wrap_lbl("Capitolo %d, %s:
+- %s" % [pr.chapter, pr.title, "
+- ".join(pr.issues)], 17, UI.DIM))
+		pbox.add_child(UI.wrap_lbl("Come scrivere la scheda di un capitolo: GUIDA_STORIE.md.", 16, UI.DIM))
+		body.add_child(UI.card(pbox, Color(0.2, 0.15, 0.08, 0.9), 10))
 	var chapters: Array = story.get("chapters", [])
 	for i in chapters.size():
 		var c: Dictionary = chapters[i]
@@ -190,6 +200,19 @@ func _story_section(st: GameState) -> void:
 			rt.text = _story_bbcode(str(c.text))
 			box.add_child(rt)
 		body.add_child(UI.card(box, UI.PANEL, 8))
+
+
+## Tone of the adventure, read by the narrator of Dnd The Game in every reply.
+func _tone_row(st: GameState) -> Control:
+	var e := UI.edit(str(st.data.get("tone", "")), "Tono per il narratore di Dnd The Game, es. cupo, poca luce, PNG sospettosi")
+	e.max_length = StoryImport.TONE_MAX
+	var save := func(_t = ""):
+		if e.text.strip_edges() != str(st.data.get("tone", "")):
+			st.set_tone(e.text)
+			app.toast("Tono salvato")
+	e.text_submitted.connect(save)
+	e.focus_exited.connect(save)
+	return UI.hbox([UI.lbl("Tono", 19, UI.DIM), e], 10)
 
 
 func _story_bbcode(t: String) -> String:
@@ -234,7 +257,11 @@ func _story_bytes(bytes: PackedByteArray, fname: String) -> void:
 	var apply := func():
 		open_chapters = {}
 		app.state.set_story(story)
-		app.toast("Storia importata: %d capitoli" % story.chapters.size())
+		var problems := StoryImport.check(story, StoryImport.known_monsters(app.state))
+		if problems.is_empty():
+			app.toast("Storia importata: %d capitoli" % story.chapters.size())
+		else:
+			app.toast("Storia importata: %d capitoli, %d da sistemare per il narratore (vedi sotto)" % [story.chapters.size(), problems.size()])
 		if story.pcs.size() > 0:
 			var names: Array = []
 			for pc in story.pcs:

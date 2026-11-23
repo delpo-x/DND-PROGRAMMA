@@ -16,6 +16,7 @@ Ogni volta che deve rispondere, il narratore riceve solo:
 | Cosa | Quanto | Da dove |
 |---|---|---|
 | Le regole del master | Fisse | `game/story.gd`, uguali per tutto il capitolo |
+| Il tono dell'avventura | Una riga, massimo 240 caratteri | Campo "Tono" della campagna |
 | Il gruppo | Nome, razza, classe, livello | Schede dei personaggi |
 | I mostri | Solo i nomi | Mostri della campagna e bestiario |
 | La traccia del capitolo | **I primi 1400 caratteri** (circa 220 parole) | Il PDF della storia importata |
@@ -84,6 +85,38 @@ Il capitolo finisce quando: i mercanti sono liberi e il gruppo esce dalla grotta
   narratore tende a ripeterli.
 - **Niente cose dette o fatte dai personaggi dei giocatori.** Il narratore le imita e poi fa agire
   i personaggi al posto dei giocatori.
+
+### Il tono dell'avventura
+
+Il tono si scrive una volta per tutta la campagna: nell'app del master (scheda Campagne,
+sezione Storia, campo "Tono") oppure in Dnd The Game ("Impostazioni"). Il narratore lo legge
+a ogni risposta, in tutti i capitoli.
+
+- **Breve e concreto:** "Cupo, poca luce, PNG sospettosi, più dialoghi che combattimenti".
+- **Niente indicazioni astratte** ("una storia epica e profonda"): il modello non sa cosa farne.
+- **Niente fatti della trama:** quelli vanno nella scheda del capitolo, dove servono.
+
+Un'indicazione che vale solo per un capitolo va nella sua scheda, per esempio
+"Tono: si ride, l'oste è un buffone".
+
+### Il controllo delle schede
+
+Quando importi il PDF, l'app del master controlla ogni capitolo e mostra sotto la storia
+cosa sistemare. Dnd The Game avvisa quando comincia un capitolo con una scheda incompleta.
+I controlli, tutti sulla parte che il narratore legge (i primi 1400 caratteri):
+
+- capitolo più lungo di 1400 caratteri senza "Obiettivo" all'inizio;
+- manca "Il capitolo finisce quando...";
+- dadi o sigle (`1d6`, PF, CA);
+- nella riga "Mostri:" c'è un nome che non è tra i mostri preparati né nel bestiario.
+
+Gli avvisi non bloccano niente: il capitolo si gioca lo stesso, ma il narratore sbaglia di più.
+
+### Segreti e colpi di scena
+
+I modelli piccoli tengono male i segreti: se la scheda dice "Tobia è il traditore", prima o poi
+lo fanno capire. Scrivi il segreto come istruzione, con la condizione per rivelarlo:
+"Tobia mente sulla chiave; lo ammette solo se minacciato o scoperto".
 
 ### Lunghezza dei capitoli
 

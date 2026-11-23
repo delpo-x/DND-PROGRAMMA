@@ -339,6 +339,9 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
   compare "il master sta pensando...", poi il racconto parola per parola.
 - Un sottofondo del luogo (grotta, locanda, bosco, pioggia, mare...) parte quando il narratore
   nomina il posto e si abbassa mentre parla la voce (casella "Ambiente" in alto).
+- Il "Tono" dell'avventura (in "Impostazioni" o nella scheda Campagne del master) dice al
+  narratore che atmosfera tenere. All'import del PDF il master vede quali capitoli vanno
+  sistemati per il narratore (vedi `GUIDA_STORIE.md`).
 
 **Il narratore (opzionale).** Racconta la storia un modello di linguaggio che gira sul PC con
 [Ollama](https://ollama.com). Una volta sola:

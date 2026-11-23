@@ -76,7 +76,6 @@ static func bestiary_names() -> Array:
 	return out
 
 
-## Fixed part of the prompt: it changes only between chapters.
 ## The outline of the current chapter from the imported story, or {} if none.
 func chapter_info() -> Dictionary:
 	var story: Dictionary = st.data.get("story", {})
@@ -86,6 +85,7 @@ func chapter_info() -> Dictionary:
 	return chs[clampi(chapter - 1, 0, chs.size() - 1)]
 
 
+## Fixed part of the prompt: it changes only between chapters.
 func system_prompt() -> String:
 	var party: Array = []
 	for e in st.characters():
@@ -113,13 +113,17 @@ func system_prompt() -> String:
 	if not known.is_empty():
 		p.append("Mostri e PNG preparati per questa avventura: " + ", ".join(known) + ".")
 	p.append("Altri mostri che puoi usare: " + ", ".join(bestiary_names()) + ".")
+	var tone := str(st.data.get("tone", "")).strip_edges()
+	if tone != "":
+		p.append("")
+		p.append("Tono dell'avventura (seguilo in ogni risposta): %s" % tone.left(StoryImport.TONE_MAX))
 	var story: Dictionary = st.data.get("story", {})
 	if not story.is_empty():
 		p.append("")
 		p.append("Avventura: %s." % str(story.get("title", "")))
 		var ch := chapter_info()
 		if not ch.is_empty():
-			p.append("Traccia del capitolo (seguila liberamente): %s. %s" % [str(ch.get("title", "")), str(ch.get("text", "")).left(1400)])
+			p.append("Traccia del capitolo (seguila liberamente): %s. %s" % [str(ch.get("title", "")), str(ch.get("text", "")).left(StoryImport.READ_CHARS)])
 	p.append("")
 	p.append("La storia finora: " + (summary.strip_edges() if summary.strip_edges() != "" else "è l'inizio della campagna."))
 	p.append("Capitolo attuale: %d%s." % [chapter, (" - " + chapter_title) if chapter_title != "" else ""])
