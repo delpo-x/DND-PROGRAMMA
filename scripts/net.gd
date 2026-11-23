@@ -18,6 +18,7 @@ const ROUTES := {
 	"/spettatore": ["screen.html", "text/html; charset=utf-8"],
 	"/common.js": ["common.js", "application/javascript; charset=utf-8"],
 	"/dice3d.js": ["dice3d.js", "application/javascript; charset=utf-8"],
+	"/mapview.js": ["mapview.js", "application/javascript; charset=utf-8"],
 	"/style.css": ["style.css", "text/css; charset=utf-8"],
 	"/sfx/tok1.wav": ["sfx/tok1.wav", "audio/wav"],
 	"/sfx/tok2.wav": ["sfx/tok2.wav", "audio/wav"],
@@ -29,6 +30,7 @@ const ROUTES := {
 
 var state: GameState
 var _img_path := RegEx.create_from_string("^/img/(m/|p/)?[a-z0-9_]+[.](jpg|png)$")
+var _map_path := RegEx.create_from_string("^/mappa/(map_[0-9_]+)[.]jpg$")
 var http := TCPServer.new()
 var ws_server := TCPServer.new()
 var http_port := 0
@@ -273,6 +275,16 @@ func _respond(tcp: StreamPeerTCP, head: String) -> void:
 		if body.is_empty():
 			code = "404 Not Found"
 			body = "Immagine mancante".to_utf8_buffer()
+	elif _map_path.search(path):
+		# battle map picture (user://mappe), only the one the players are shown
+		var mp := state.find_map(str(state.data.get("map_active", "")))
+		var want := _map_path.search(path).get_string(1)
+		if not mp.is_empty() and str(mp.file) == want:
+			body = FileAccess.get_file_as_bytes(GameState.map_path(want))
+		ctype = "image/jpeg"
+		if body.is_empty():
+			code = "404 Not Found"
+			body = "Mappa non disponibile".to_utf8_buffer()
 	elif path == "/favicon.ico":
 		body = _file("img/icona.png")
 		ctype = "image/png"
@@ -482,6 +494,13 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 					var how := " (dado vero)" if real else ""
 					send(id, {"t": "toast", "text": "TS contro la morte: %d%s. %s" % [r, how, res]})
 					player_message.emit("%s - TS contro la morte: %d%s. %s" % [state.find_entity(c.char_id).get("name", "?"), r, how, res])
+		"move":
+			# a player moves their own piece on the map in play
+			if c.role == "player" and c.char_id != "":
+				var err := state.player_move(c.char_id, int(msg.get("x", -1)), int(msg.get("y", -1)))
+				if err != "":
+					send(id, {"t": "toast", "text": err})
+					send(id, {"t": "state", "s": view_for(id)})
 		"ping":
 			send(id, {"t": "pong"})
 	return false

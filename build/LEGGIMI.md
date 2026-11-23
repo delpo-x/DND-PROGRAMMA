@@ -288,3 +288,12 @@ Nel Bestiario il menu "Dal Manuale dei Mostri" compila il modulo con 29 creature
 - Per gli incantatori l'app calcola CD del tiro salvezza e bonus di attacco (8 + competenza + modificatore della caratteristica della classe).
 - Sul telefono, nella schermata Dadi, ogni incantesimo preparato è un pulsante: toccandolo si usa uno slot del suo livello, o il primo libero di livello più alto. I trucchetti non consumano slot. Se non ci sono slot liberi compare un avviso.
 - Si scrivono solo i nomi: la descrizione degli incantesimi resta sul Manuale del Giocatore.
+
+## Mappe di battaglia
+Scheda **Mappa** del master.
+- **Da PDF…**: sceglie il PDF dell'avventura; compaiono le immagini grandi trovate dentro (pagina e dimensioni), tocca quella della mappa. Funziona con le mappe salvate come immagine nel PDF (quasi tutte); se la mappa è disegnata a linee dal PDF stesso, fai uno screenshot e usa **Da immagine…** (PNG, JPG, WebP).
+- La griglia delle caselle viene cercata da sola. Se non combacia: **Lato casella** (in pixel dell'immagine), **Inizio X / Y** per spostarla, oppure **Rileva griglia** di nuovo. **Griglia visibile** la mostra o la nasconde.
+- **Pedine** (a destra): *Metti* / *Togli* per ogni personaggio e mostro, *Metti tutto il gruppo*. Si trascinano sulle caselle come a dama: una pedina per casella. Tasto destro su una pedina la toglie. Rotellina o +/− per lo zoom, trascina il vuoto per spostare la vista, *Adatta* per vederla intera.
+- **Mostra ai giocatori**: la mappa va sullo schermo condiviso (al centro; i dadi compaiono sopra durante i tiri) e nella scheda *Mappa* dei telefoni. I mostri nascosti non si vedono.
+- Sul telefono ogni giocatore trascina solo la propria pedina (*La mia pedina* la mette al centro, due dita per lo zoom). Il turno in corso ha l'anello giallo, chi è a 0 PF una X rossa.
+- Le immagini delle mappe restano sul dispositivo del master (cartella dati dell'app, sottocartella `mappe`): l'esportazione della campagna in JSON salva griglia e pedine ma non l'immagine.

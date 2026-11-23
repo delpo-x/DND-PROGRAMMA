@@ -15,6 +15,8 @@ const BACKUP_DIR := "user://campagne/backup"
 const BACKUP_KEEP := 40
 const BACKUP_EVERY := 600.0  # seconds between automatic snapshots
 const VIEW_LOG := 40
+const MAP_DIR := "user://mappe"
+const MAP_MAX_SIDE := 3072  # bigger pictures are scaled down (phones)
 
 var data: Dictionary = {}
 var persist := true
@@ -65,6 +67,10 @@ func empty_campaign(cname: String) -> Dictionary:
 		# {id, t (date-time), s (session), cat, text, auto, public}
 		"chronicle": [],
 		"xp_total": 0,
+		# battle maps: {id, name, file, w, h, cell, ox, oy, grid, tokens: [{ref, x, y}]}
+		# the picture is user://mappe/<file>.jpg; cell/ox/oy in picture pixels,
+		# token x/y in squares. map_active = the map the players see ("" = none).
+		"maps": [], "map_active": "",
 	}
 
 
@@ -377,6 +383,19 @@ func _normalize(j: Dictionary) -> Dictionary:
 	for e in j.chronicle:
 		e.s = int(e.get("s", 1))
 	j.xp_total = int(j.get("xp_total", 0))
+	for mp in j.maps:
+		for k in ["w", "h"]:
+			mp[k] = int(mp.get(k, 0))
+		for k in ["cell", "ox", "oy"]:
+			mp[k] = float(mp.get(k, 0.0))
+		mp.cell = maxf(4.0, mp.cell)
+		mp.grid = bool(mp.get("grid", true))
+		if not mp.has("tokens"):
+			mp.tokens = []
+		for t in mp.tokens:
+			t.x = int(t.x)
+			t.y = int(t.y)
+	j.map_active = str(j.get("map_active", ""))
 	for ch in j.characters:
 		ch.death_ok = int(ch.get("death_ok", 0))
 		ch.death_ko = int(ch.get("death_ko", 0))
@@ -497,7 +516,13 @@ func delete_character(id: String) -> void:
 		if data.claims[t] == id:
 			data.claims.erase(t)
 	_remove_ref_from_combat(id)
+	_remove_ref_from_maps(id)
 	touch()
+
+
+func _remove_ref_from_maps(ref: String) -> void:
+	for mp in data.get("maps", []):
+		mp.tokens = mp.tokens.filter(func(t): return t.ref != ref)
 
 
 func char_claimed_by(id: String) -> Array:
@@ -594,6 +619,7 @@ func duplicate_monster(id: String, count := 1) -> Array:
 func delete_monster(id: String) -> void:
 	data.monsters = monsters().filter(func(m): return m.id != id)
 	_remove_ref_from_combat(id)
+	_remove_ref_from_maps(id)
 	touch()
 
 
@@ -1395,11 +1421,13 @@ func player_view(char_id: String) -> Dictionary:
 		"party": _party(), "monsters": _public_monsters(), "init": _public_init(char_id),
 		"quests": _public_quests(), "log": _public_log(), "requests": reqs,
 		"chronicle": _public_chronicle(), "xp_total": int(data.get("xp_total", 0)),
+		"map": _public_map(char_id),
 	}
 
 
 func screen_view() -> Dictionary:
 	return {
+		"map": _public_map(""),
 		"campaign": data.get("name", ""), "session": int(data.get("session", 1)),
 		"party": _party(), "monsters": _public_monsters(), "init": _public_init(""),
 		"quests": _public_quests(), "log": _public_log(),
@@ -1416,6 +1444,192 @@ func char_choices(token: String) -> Array:
 				taken = true
 		out.append({"id": c.id, "name": c.name, "cls": c.cls, "level": c.level, "player": c.player, "taken": taken})
 	return out
+
+
+# ---------------------------------------------------------------- battle maps
+func find_map(id: String) -> Dictionary:
+	for mp in data.get("maps", []):
+		if mp.id == id:
+			return mp
+	return {}
+
+
+static func map_path(file: String) -> String:
+	return "%s/%s.jpg" % [MAP_DIR, file]
+
+
+## Number of whole squares across and down.
+static func map_size(mp: Dictionary) -> Vector2i:
+	var c := maxf(4.0, float(mp.cell))
+	return Vector2i(maxi(1, int((float(mp.w) - fposmod(float(mp.ox), c)) / c)),
+		maxi(1, int((float(mp.h) - fposmod(float(mp.oy), c)) / c)))
+
+
+## Saves the picture and adds the map. The grid is detected when possible,
+## otherwise 20 squares across is assumed (the master can fix it).
+func add_map(map_name: String, img: Image) -> Dictionary:
+	if img == null or img.is_empty():
+		return {}
+	img = img.duplicate()
+	if img.get_format() != Image.FORMAT_RGB8:
+		img.convert(Image.FORMAT_RGB8)
+	var big := maxi(img.get_width(), img.get_height())
+	if big > MAP_MAX_SIDE:
+		var f := float(MAP_MAX_SIDE) / big
+		img.resize(int(img.get_width() * f), int(img.get_height() * f), Image.INTERPOLATE_LANCZOS)
+	DirAccess.make_dir_recursive_absolute(MAP_DIR)
+	var file := "map_%d_%05d" % [int(Time.get_unix_time_from_system()), rng.randi() % 100000]
+	if img.save_jpg(map_path(file), 0.9) != OK:
+		return {}
+	var g := MapGrid.detect(img)
+	var mp := {"id": new_id("map"), "name": map_name.strip_edges().left(60), "file": file,
+		"w": img.get_width(), "h": img.get_height(),
+		"cell": float(g.get("cell", img.get_width() / 20.0)), "ox": float(g.get("ox", 0.0)), "oy": float(g.get("oy", 0.0)),
+		"grid": true, "tokens": [], "auto_grid": not g.is_empty()}
+	if mp.name == "":
+		mp.name = "Mappa"
+	data.maps.append(mp)
+	touch()
+	return mp
+
+
+func update_map(id: String, fields: Dictionary) -> void:
+	var mp := find_map(id)
+	if mp.is_empty():
+		return
+	if fields.has("name"):
+		mp.name = str(fields.name).strip_edges().left(60)
+	for k in ["cell", "ox", "oy"]:
+		if fields.has(k):
+			mp[k] = float(fields[k])
+	mp.cell = clampf(mp.cell, 4.0, float(maxi(int(mp.w), int(mp.h))))
+	if fields.has("grid"):
+		mp.grid = bool(fields.grid)
+	# squares may have changed: keep every piece on the board
+	var n := map_size(mp)
+	for t in mp.tokens:
+		t.x = clampi(int(t.x), 0, n.x - 1)
+		t.y = clampi(int(t.y), 0, n.y - 1)
+	touch()
+
+
+func delete_map(id: String) -> void:
+	var mp := find_map(id)
+	if mp.is_empty():
+		return
+	data.maps = data.maps.filter(func(m): return m.id != id)
+	if data.map_active == id:
+		data.map_active = ""
+	# the picture may be shared with a copy of this campaign
+	var used := false
+	for c in list_campaigns():
+		if c.id != data.id and FileAccess.get_file_as_string(campaign_path(c.id)).contains(str(mp.file)):
+			used = true
+	if not used:
+		DirAccess.remove_absolute(map_path(mp.file))
+	touch()
+
+
+func set_map_active(id: String) -> void:
+	data.map_active = id if not find_map(id).is_empty() else ""
+	touch()
+
+
+func token_at(mp: Dictionary, x: int, y: int) -> Dictionary:
+	for t in mp.tokens:
+		if int(t.x) == x and int(t.y) == y and not find_entity(t.ref).is_empty():
+			return t
+	return {}
+
+
+## Puts (or moves) the piece of a character/monster on square x, y.
+## Like checkers: one piece per square. Returns false if it can't go there.
+func place_token(map_id: String, ref: String, x: int, y: int) -> bool:
+	var mp := find_map(map_id)
+	if mp.is_empty() or find_entity(ref).is_empty():
+		return false
+	var n := map_size(mp)
+	if x < 0 or y < 0 or x >= n.x or y >= n.y:
+		return false
+	var other := token_at(mp, x, y)
+	if not other.is_empty() and other.ref != ref:
+		return false
+	for t in mp.tokens:
+		if t.ref == ref:
+			t.x = x
+			t.y = y
+			touch()
+			return true
+	mp.tokens.append({"ref": ref, "x": x, "y": y})
+	touch()
+	return true
+
+
+## First free square nearest to (x, y), or Vector2i(-1, -1) if the board is full.
+func free_square(map_id: String, x: int, y: int) -> Vector2i:
+	var mp := find_map(map_id)
+	if mp.is_empty():
+		return Vector2i(-1, -1)
+	var n := map_size(mp)
+	x = clampi(x, 0, n.x - 1)
+	y = clampi(y, 0, n.y - 1)
+	for r in range(0, maxi(n.x, n.y)):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var p := Vector2i(x + dx, y + dy)
+				if p.x >= 0 and p.y >= 0 and p.x < n.x and p.y < n.y and token_at(mp, p.x, p.y).is_empty():
+					return p
+	return Vector2i(-1, -1)
+
+
+func remove_token(map_id: String, ref: String) -> void:
+	var mp := find_map(map_id)
+	if mp.is_empty():
+		return
+	mp.tokens = mp.tokens.filter(func(t): return t.ref != ref)
+	touch()
+
+
+## A player moves their own piece on the map they are shown. "" = done.
+func player_move(char_id: String, x: int, y: int) -> String:
+	var mp := find_map(str(data.get("map_active", "")))
+	if mp.is_empty():
+		return "Nessuna mappa in gioco"
+	var mine := false
+	for t in mp.tokens:
+		if t.ref == char_id:
+			mine = true
+	if not mine:
+		return "La tua pedina non è sulla mappa"
+	if not place_token(mp.id, char_id, x, y):
+		return "Casella occupata"
+	return ""
+
+
+func _public_map(char_id: String) -> Variant:
+	var mp := find_map(str(data.get("map_active", "")))
+	if mp.is_empty():
+		return null
+	var cur_ref := ""
+	if bool(ini().active):
+		cur_ref = str(current_combatant().get("ref", ""))
+	var toks: Array = []
+	for t in mp.tokens:
+		var e := find_entity(t.ref)
+		if e.is_empty():
+			continue
+		var pc := is_pc(t.ref)
+		if not pc and not bool(e.get("revealed", false)):
+			continue
+		toks.append({"ref": t.ref, "x": int(t.x), "y": int(t.y), "name": e.name, "kind": "pc" if pc else "monster",
+			"img": Art.key_for(e, "pc" if pc else "monster"), "status": status_of(e),
+			"me": t.ref == char_id, "cur": t.ref == cur_ref})
+	var n := map_size(mp)
+	return {"id": mp.id, "name": mp.name, "url": "/mappa/%s.jpg" % mp.file, "w": int(mp.w), "h": int(mp.h),
+		"cell": float(mp.cell), "ox": fposmod(float(mp.ox), float(mp.cell)), "oy": fposmod(float(mp.oy), float(mp.cell)),
+		"cols": n.x, "rows": n.y, "grid": bool(mp.grid), "tokens": toks}
 
 
 # ---------------------------------------------------------------- csv export

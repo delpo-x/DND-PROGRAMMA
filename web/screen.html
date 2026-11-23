@@ -27,7 +27,8 @@
     <h2>Ordine di iniziativa</h2>
     <div id="initBox" style="overflow:hidden"></div>
   </div>
-  <div class="center">
+  <div class="center" id="center">
+    <div id="mapWrap"><canvas id="mapCanvas"></canvas></div>
     <div id="trayWrap"><canvas id="tray"></canvas></div>
     <div class="col" id="lastRoll"><span class="dim">In attesa dei tiri pubblici...</span></div>
   </div>
@@ -40,6 +41,7 @@
 </div>
 <script src="/common.js"></script>
 <script src="/dice3d.js"></script>
+<script src="/mapview.js"></script>
 <script>
 (function () {
   'use strict';
@@ -54,6 +56,7 @@
   }
   var tray = new DiceTray($('tray'), { hint: 'In attesa dei dadi...', tableH: 5 });
   var queue = [], playing = false, view = null, lastTurn = null;
+  var mapView = new MapView($('mapCanvas')), hadMap = false;
 
   new T.Link(spect ? 'spectator' : 'screen', function (m) {
     if (m.t === 'state') { view = m.s; render(); }
@@ -66,6 +69,7 @@
   function play() {
     if (playing || !queue.length) return;
     playing = true;
+    $('center').classList.add('rolling');
     var e = queue.shift();
     var logical = (e.dice || []).map(function (d) { return { s: d.s }; });
     var ph = DiceMath.physicalFor(logical);
@@ -79,13 +83,22 @@
         }).join('') + ' <span class="big">' + e.total + '</span>' +
         (e.outcome === 'success' ? ' <span class="ok">RIUSCITA</span>' : e.outcome === 'fail' ? ' <span class="ko">FALLITA</span>' : '') + '</div>';
       if (e.nat === 20) { tray.celebrate('crit'); DiceSfx.play('crit', 0.9); T.flash('crit', $('trayWrap')); } else if (e.nat === 1) { tray.celebrate('fumble'); DiceSfx.play('fumble', 0.9); T.flash('fumble', $('trayWrap')); }
-      setTimeout(function () { playing = false; play(); }, queue.length ? 1500 : 200);
+      setTimeout(function () {
+        playing = false;
+        // with a map in play the dice fade away a few seconds after the roll
+        if (!queue.length) setTimeout(function () { if (!playing) $('center').classList.remove('rolling'); }, 3500);
+        play();
+      }, queue.length ? 1500 : 200);
     });
   }
 
   function render() {
     if (!view) return;
     $('campaign').textContent = (view.campaign || 'D&D Tavolo') + (spect ? ' · spettatore' : '');
+    var hasMap = !!view.map;
+    document.body.classList.toggle('withmap', hasMap);
+    mapView.set(view.map || null);
+    if (hasMap !== hadMap) { hadMap = hasMap; setTimeout(function () { mapView.resize(); tray.resize(); }, 50); }
     var ini = view.init;
     if (ini && ini.active && ini.order.length) {
       $('round').textContent = 'Round ' + ini.round;
@@ -125,7 +138,7 @@
     if (req) req.call(el);
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen'); } catch (e) { }
   });
-  document.addEventListener('fullscreenchange', function () { setTimeout(function () { tray.resize(); }, 200); });
+  document.addEventListener('fullscreenchange', function () { setTimeout(function () { tray.resize(); mapView.resize(); }, 200); });
 })();
 </script>
 </body>

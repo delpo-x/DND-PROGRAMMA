@@ -25,7 +25,7 @@ func _init() -> void:
 	for c in st.characters():
 		print("[import-ui] PG %s | %s %s liv %d CA %d PF %d" % [c.name, c.race, c.cls, c.level, c.ac, c.hp_max])
 	main.tab_campaign.open_chapters = {1: true}
-	main.tabs.current_tab = 6
+	main.tabs.current_tab = 7
 	main.tab_campaign.refresh()
 	for i in 10:
 		await process_frame

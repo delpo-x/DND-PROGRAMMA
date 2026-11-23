@@ -9,6 +9,7 @@ const TabQuests := preload("res://scripts/tab_quests.gd")
 const TabLog := preload("res://scripts/tab_log.gd")
 const TabCampaign := preload("res://scripts/tab_campaign.gd")
 const TabChronicle := preload("res://scripts/tab_chronicle.gd")
+const TabMap := preload("res://scripts/tab_map.gd")
 const SelfTest := preload("res://scripts/self_test.gd")
 
 var state := GameState.new()
@@ -22,6 +23,7 @@ var tab_quests
 var tab_log
 var tab_campaign
 var tab_chronicle
+var tab_map
 var top_campaign: Label
 var top_net: Label
 var top_clients: Label
@@ -185,7 +187,8 @@ func _build_ui() -> void:
 	tab_log = TabLog.new()
 	tab_campaign = TabCampaign.new()
 	tab_chronicle = TabChronicle.new()
-	var pairs := [[tab_dice, "Dadi"], [tab_init, "Iniziativa"], [tab_players, "Giocatori"], [tab_bestiary, "Bestiario"],
+	tab_map = TabMap.new()
+	var pairs := [[tab_dice, "Dadi"], [tab_init, "Iniziativa"], [tab_map, "Mappa"], [tab_players, "Giocatori"], [tab_bestiary, "Bestiario"],
 		[tab_quests, "Missioni"], [tab_log, "Tiri"], [tab_chronicle, "Cronaca"], [tab_campaign, "Campagne"]]
 	for p in pairs:
 		p[0].name = p[1]

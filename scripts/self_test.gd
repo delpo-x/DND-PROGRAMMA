@@ -25,7 +25,7 @@ func run(a, path: String) -> void:
 	var tab_names: Array = []
 	for i in app.tabs.get_tab_count():
 		tab_names.append(app.tabs.get_tab_title(i))
-	var hud_ok: bool = tab_names.size() == 8 and app.top_net.text.begins_with("http://") and app.tab_dice.roll_btn.text == "LANCIA"
+	var hud_ok: bool = tab_names.size() == 9 and app.top_net.text.begins_with("http://") and app.tab_dice.roll_btn.text == "LANCIA"
 	_step("hud", hud_ok, "schede: %s; indirizzo: %s; pulsante %s" % [", ".join(tab_names), app.top_net.text, app.tab_dice.roll_btn.text])
 	# ---- dice roll (move + act)
 	app.tab_dice.counts = {20: 1, 6: 2, 100: 1}

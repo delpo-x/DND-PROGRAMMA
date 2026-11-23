@@ -51,7 +51,7 @@ func _init() -> void:
 		keys.append("%s=%s" % [m.name, Art.key_for(m, "monster")])
 	print("[art] ", ", ".join(keys), " | banner children: ", main.fx_layer.get_child_count())
 	st.change_hp(st.monsters()[1].id, -8)
-	main.tabs.current_tab = 3
+	main.tabs.current_tab = 4
 	for i in 40:
 		await process_frame
 	await _shot(out + "/art_bestiary.png")

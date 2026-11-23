@@ -280,3 +280,22 @@ body.screen.spect { overflow: auto; font-size: 16px; background-attachment: scro
 .spect .quest .check { font-size: 15px; }
 .spect #turnFx { font-size: 22px; }
 .spect #turnFx img { width: 56px; height: 56px; }
+
+/* battle map */
+#v-map { display: flex; flex-direction: column; gap: 8px; }
+#v-map.hidden { display: none; }
+.maphead { display: flex; align-items: center; gap: 8px; }
+.maphead b { font-family: Georgia, serif; color: var(--gold); font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maphead button { min-height: 40px; padding: 6px 12px; font-size: 15px; white-space: nowrap; flex: none; }
+.maphead b { min-width: 0; flex: 1; }
+#mapWrap { position: relative; height: calc(100dvh - 235px - var(--safe-b)); min-height: 280px; border-radius: 10px; overflow: hidden; border: 2px solid #6b4f2a; background: #120c08; }
+#mapWrap canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+#mapEmpty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: var(--dim); }
+#mapEmpty.hidden { display: none; }
+.maphint { color: var(--dim); font-size: 14px; }
+/* shared screen with a map in play: the map takes the middle, dice fly over it */
+.screen .center #mapWrap { flex: 1; height: auto; min-height: 0; display: none; }
+body.screen.withmap .center #mapWrap { display: block; }
+body.screen.withmap .center #trayWrap { position: absolute; inset: 0; z-index: 5; background: transparent; border: 0; box-shadow: none; opacity: 0; pointer-events: none; transition: opacity .3s; }
+body.screen.withmap .center.rolling #trayWrap { opacity: 1; }
+body.screen.withmap .center { position: relative; }
