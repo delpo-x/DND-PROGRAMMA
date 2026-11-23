@@ -9,6 +9,10 @@ signal clients_changed
 signal player_message(text: String)
 ## A player ran an action from the turn panel of their phone.
 signal player_action(char_id: String, title: String, lines: Array)
+## Dnd The Game only (state.ai_master): a player talks to the AI master, or
+## ends their turn in combat.
+signal player_said(char_id: String, text: String)
+signal player_end_turn(char_id: String)
 
 const WEB_DIR := "res://web/"
 const MAX_UPLOAD := 40 * 1024 * 1024
@@ -553,6 +557,16 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 					player_message.emit("%s smette di concentrarsi su %s" % [me.name, me.concentration])
 					me.concentration = ""
 					state.touch()
+		"say":
+			if c.role == "player" and c.char_id != "" and state.ai_master:
+				var txt := str(msg.get("text", "")).strip_edges().left(400)
+				if txt != "":
+					player_said.emit(c.char_id, txt)
+		"end_turn":
+			if c.role == "player" and c.char_id != "" and state.ai_master:
+				var cur := state.current_combatant()
+				if bool(state.ini().active) and not cur.is_empty() and str(cur.ref) == c.char_id:
+					player_end_turn.emit(c.char_id)
 		"ping":
 			send(id, {"t": "pong"})
 	return false

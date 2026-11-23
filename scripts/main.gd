@@ -50,6 +50,14 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# Dnd The Game: same project, the app is the master (export preset with
+	# the "game" feature, or --game on the command line)
+	if OS.has_feature("game") or OS.get_cmdline_user_args().has("--game"):
+		var game: Control = load("res://game/game_main.gd").new()
+		get_parent().add_child.call_deferred(game)
+		get_tree().set_current_scene.call_deferred(game)
+		queue_free()
+		return
 	theme = UI.make_theme()
 	# candlelight: warm glow in the middle, dark leather towards the edges
 	var bg := TextureRect.new()

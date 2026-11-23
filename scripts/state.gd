@@ -26,6 +26,11 @@ var online_chars: Dictionary = {}  # char_id -> true (filled by the network serv
 var rng := RandomNumberGenerator.new()
 var save_pending := false
 var _last_backup := 0.0
+# Dnd The Game (AI master): the phones show the master's last lines and a
+# box to talk to it. Not saved with the campaign.
+var ai_master := false
+var ai_feed: Array = []  # [{who, text}]
+var ai_busy := false
 
 
 func _init() -> void:
@@ -1478,6 +1483,7 @@ func player_view(char_id: String) -> Dictionary:
 		"map": _public_map(char_id),
 		"me_img": Art.key_for(me, "pc") if not me.is_empty() else "",
 		"turn": Actions.phone_turn(self, char_id) if not me.is_empty() else {},
+		"ai": {"feed": ai_feed.slice(maxi(0, ai_feed.size() - 8)), "busy": ai_busy} if ai_master else null,
 	}
 
 

@@ -55,6 +55,7 @@
   <!-- dadi -->
   <section id="v-dice" class="view">
     <div id="deathCard" class="card hidden death"></div>
+    <div id="aiBox" class="card hidden aibox"></div>
     <div class="turnbox"></div>
     <div id="slotCard" class="card hidden"></div>
     <div id="reqCard" class="card hidden" style="border-color:var(--gold)"></div>
@@ -313,6 +314,7 @@
     renderSheet();
     renderInit();
     renderTurn();
+    renderAI();
     renderMap();
     renderQuests();
     renderChronicle();
@@ -830,6 +832,31 @@
     });
     if (pick) st.targets[pick.ref] = true;
   }
+  // Dnd The Game: the app is the master. Its last lines, and a box to talk
+  // to it (the phone keyboard's microphone works for dictation).
+  function renderAI() {
+    var ai = S.view && S.view.ai, box = $('aiBox');
+    if (!ai) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    if (!$('aiFeed')) {
+      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span></div><div id="aiFeed" class="aifeed"></div>' +
+        '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Cosa fai? Scrivi, o detta col microfono della tastiera"></textarea><button class="primary" id="aiSend">Invia</button></div>';
+      $('aiSend').addEventListener('click', function () {
+        var t = $('aiText').value.trim();
+        if (!t) return;
+        if (link.send({ t: 'say', text: t })) { $('aiText').value = ''; T.buzz([30]); }
+        else toast('Non collegato al tavolo');
+      });
+    }
+    $('aiState').textContent = ai.busy ? 'sta narrando...' : '';
+    var f = $('aiFeed');
+    f.innerHTML = (ai.feed || []).map(function (x) {
+      return '<p class="' + (x.who === 'Master' ? 'aim' : 'aip') + '"><b>' + esc(x.who) + '</b> ' + esc(x.text).replace(/
+/g, '<br>') + '</p>';
+    }).join('');
+    f.scrollTop = f.scrollHeight;
+  }
+
   function renderTurn() {
     var boxes = document.querySelectorAll('.turnbox');
     var tr = S.view && S.view.turn, st = S.act, h = '';
@@ -881,6 +908,7 @@
     h += '</div>';
     var n = Object.keys(st.targets).length;
     h += '<button class="primary tgo"' + (st.busy || !n ? ' disabled' : '') + '>' + (st.busy ? 'Tiro in corso...' : (n ? 'TIRA!' : 'Scegli un bersaglio')) + '</button>';
+    if (S.view.ai) h += '<button class="tend">Fine turno</button>';
     h += '<p class="dim tfoot">I dadi li tira il tavolo e applica tutto: colpi, danni, tiri salvezza, condizioni, slot.</p></div>';
     boxes.forEach(function (b) { b.innerHTML = h + res; });
   }
@@ -889,6 +917,7 @@
     if (!b || b.disabled) return;
     var tr = S.view && S.view.turn, st = S.act;
     if (b.classList.contains('tendc')) { link.send({ t: 'end_conc' }); return; }
+    if (b.classList.contains('tend')) { st.result = null; link.send({ t: 'end_turn' }); return; }
     if (!tr || !tr.actions) return;
     if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
     else if (b.classList.contains('tslot')) { st.slot = +b.getAttribute('data-l'); }

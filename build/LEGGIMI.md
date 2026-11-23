@@ -218,6 +218,7 @@ si possono ritoccare se la "sensazione" non convince.
 |---|---|
 | `DnD_Tavolo_Master.apk` | App del master per tablet Android |
 | `DnD_Tavolo_Master.exe` | App del master per PC Windows |
+| `Dnd_The_Game.exe` | App gemella con il master fatto dal computer (vedi in fondo) |
 | `LEGGIMI.md` | Questa guida |
 
 ## Importare da PDF
@@ -319,3 +320,43 @@ Quando tocca al suo personaggio, il giocatore trova lo stesso pannello in cima a
 - Sceglie l'attacco o l'incantesimo preparato (numeri presi dalla sua scheda), lo slot da usare, il vantaggio (Auto lascia decidere alle condizioni) e su chi: i nemici che il master ha mostrato e gli alleati, senza CA né PF dei mostri.
 - "TIRA!" manda l'azione al tavolo: i dadi li tira l'app del master e applica tutto come dal pannello del master. Il giocatore vede il riepilogo senza i numeri segreti dei mostri (CA, PF, bonus); il master vede il riepilogo completo nel suo pannello, segnato "dal telefono".
 - Fuori dal proprio turno, o a 0 PF, il pannello non c'è. L'azione personalizzata e gli incantesimi non preparati restano al master. Se è concentrato, il giocatore può chiudere la concentrazione con "Fine".
+
+## Dnd The Game: il master lo fa il computer
+
+`Dnd_The_Game.exe` è un'app gemella del tavolo: stessa campagna, stessi telefoni, ma il
+Dungeon Master è il PC. Le campagne sono in comune con `DnD_Tavolo_Master.exe`: quello che
+prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
+
+**Cosa fa da solo, senza Internet:**
+- I mostri giocano il loro turno con regole fisse: scelgono l'attacco migliore, colpiscono
+  chi è più ferito o chi mantiene la concentrazione, usano i soffi a ricarica (d6 a inizio
+  turno) e a volte scappano quando sono quasi morti. Non morti, costrutti, draghi e capi non
+  scappano mai.
+- Iniziativa, tiri salvezza contro morte e fine del combattimento sono automatici.
+- La voce legge il racconto con la sintesi vocale di Windows (casella "Voce" in alto, voce
+  scelta in "Impostazioni").
+
+**Il narratore (opzionale).** Racconta la storia un modello di linguaggio che gira sul PC con
+[Ollama](https://ollama.com). Una volta sola:
+
+```
+ollama pull qwen2.5:7b
+```
+
+L'app avvia Ollama da sola se non è acceso. Su un PC senza scheda video la prima frase arriva
+in circa 4 secondi e la risposta completa in 20-30 secondi; la voce comincia a leggere mentre il
+testo arriva. Un modello più leggero (per esempio `qwen2.5:3b`) è più veloce ma scrive peggio: si
+cambia in "Impostazioni". Senza Ollama l'app funziona lo stesso, ma la storia la scrivi tu.
+
+Il narratore chiede da solo prove e tiri salvezza (i giocatori tirano dal telefono, per chi non
+ha il telefono tira l'app) e fa partire i combattimenti con i mostri della campagna o del
+bestiario.
+
+**Dal telefono.** Ogni giocatore vede le ultime righe del racconto e una casella per dire cosa
+fa il suo personaggio. Per parlare invece di scrivere usa il microfono della tastiera del
+telefono (dettatura). Durante il suo turno di combattimento ha il pulsante **Fine turno**.
+
+**Capitoli e diario.** "Fine capitolo" (o il narratore stesso) chiude il capitolo: l'app
+scrive un riassunto e lo salva come file `.md`, così il narratore ricorda la storia senza
+rileggerla tutta. Il pulsante "Diario" apre la cartella con `riassunto.md` e
+`capitolo_01.md`, `capitolo_02.md`...: riassunto, fatti registrati dal tavolo e trascrizione.

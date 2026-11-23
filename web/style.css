@@ -347,3 +347,17 @@ body.screen.withmap .center { position: relative; }
 .turnres .rl.note { color: #b9c6ee; }
 .turnpanel .bad { color: #ff8a7a; }
 .tadv button { padding: 8px 4px; font-size: 14px; min-width: 0; }
+
+/* Dnd The Game: the AI master's lines and the box to talk to it */
+.aibox{border-color:var(--gold)}
+.aihead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.aifeed{max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.aifeed p{margin:0;line-height:1.45}
+.aifeed .aim{font-size:17px}
+.aifeed .aim b{color:var(--gold);margin-right:4px}
+.aifeed .aip{font-size:15px;opacity:.85}
+.aifeed .aip b{margin-right:4px}
+.aiask{display:flex;gap:8px;margin-top:10px;align-items:stretch}
+.aiask textarea{flex:1;min-width:0;font-size:16px;resize:none}
+.aiask button{min-width:72px}
+.turnpanel .tend{width:100%;margin-top:8px}
