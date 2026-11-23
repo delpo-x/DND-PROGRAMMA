@@ -20,6 +20,7 @@ Ogni volta che deve rispondere, il narratore riceve solo:
 | Il gruppo | Nome, razza, classe, livello | Schede dei personaggi |
 | I mostri | Solo i nomi | Mostri della campagna e bestiario |
 | La traccia del capitolo | **I primi 1400 caratteri** (circa 220 parole) | Il PDF della storia importata |
+| Brani del testo completo | Al massimo 600 caratteri, solo quando servono | Paragrafi del capitolo che parlano di ciò che si è appena detto |
 | La storia finora | Al massimo 250 parole | `riassunto.md`, riscritto a fine capitolo |
 | Le ultime battute | 14 righe | Quello che si è detto in questo capitolo |
 
@@ -49,23 +50,48 @@ dentro il capitolo come sottotitoli.
 
 ## 3. Come scrivere un capitolo
 
-Ogni capitolo comincia con una **scheda breve** (massimo 220 parole), poi può continuare con
-tutto il testo che si vuole. Il testo lungo serve a chi legge l'avventura, il narratore non lo
-vede.
+Ogni capitolo comincia con una **scheda breve** (massimo 1400 caratteri), poi può continuare
+con tutto il testo che si vuole. La scheda il narratore la legge sempre. Il testo lungo non lo
+legge per intero: quando un giocatore nomina un luogo, un PNG o un oggetto, l'app cerca nel
+testo i paragrafi che ne parlano e glieli passa per quella sola risposta (al massimo 600
+caratteri).
 
-### Modello della scheda
+### Modello della scheda (ad appunti, consigliato)
+
+Si scrive ad appunti, senza articoli né frasi di raccordo: nei 1400 caratteri ci stanno circa
+il doppio delle cose. Il narratore racconta comunque in italiano pieno.
+
+Prova del 23/11/2026 con gli stessi scenari (`llm_bench --story`): scheda in prosa 96%, scheda
+ad appunti 95%, cioè lo stesso risultato. Le risposte restano in italiano pieno anche con gli
+appunti, e con gli appunti il narratore ha chiuso il capitolo al momento giusto 2 volte su 2.
+Il vantaggio degli appunti è lo spazio: con le stesse informazioni restano libere circa metà
+dei 1400 caratteri, da usare per altri dettagli.
 
 ```
 Capitolo 2: La grotta dei goblin
 
-Obiettivo: ritrovare i mercanti rapiti della carovana.
-Luoghi: l'imbocco della grotta, umido e con odore di fumo; la sala del fuoco, dove dormono
-i goblin; le gabbie in fondo, dove sono chiusi i mercanti.
-PNG: Tobia, mercante anziano e spaventato, sa che il capo goblin tiene la chiave al collo.
-Mostri: Goblin x3 nella sala del fuoco, Capo goblin vicino alle gabbie.
-Prove: Furtività CD 12 per passare la sala senza svegliarli; Atletica CD 14 per forzare le gabbie.
-Il capitolo finisce quando: i mercanti sono liberi e il gruppo esce dalla grotta.
+Obiettivo: liberare mercanti rapiti, carovana.
+Luoghi: imbocco grotta, umido, odore fumo; sala fuoco, 3 goblin dormono; gabbie in fondo.
+PNG: Tobia, mercante anziano, spaventato. Sa: chiave al collo del capo goblin.
+Mostri: Goblin x3 nella sala fuoco, Capo goblin vicino gabbie
+Prove: Furtività CD 12 passare sala senza svegliare; Atletica CD 14 forzare gabbie.
+Linea temporale:
+1. imbocco grotta, tracce carovana
+2. sala fuoco: passare o combattere
+3. gabbie: Tobia, chiave
+4. capo goblin
+Fine: mercanti liberi, gruppo fuori dalla grotta.
 ```
+
+- **Sì:** togliere articoli e frasi di raccordo.
+- **No:** sigle inventate ("cap. gob.") e frasi senza verbo ambigue ("Tobia mente chiave").
+  Le relazioni tra le cose vanno scritte: chi sa cosa, chi vuole cosa.
+- **Linea temporale:** i momenti chiave in ordine. Il narratore porta il gruppo dall'uno
+  all'altro seguendo le loro scelte e chiude il capitolo alla riga "Fine:".
+- **Dopo la scheda, il testo per esteso:** descrizioni, dialoghi, indizi, con titoletti per
+  luogo o PNG. Più è scritto con i nomi che usano i giocatori, più l'app lo ritrova.
+
+Va bene anche una scheda in prosa con le stesse informazioni e "Il capitolo finisce quando...".
 
 ### Regole per la scheda
 
@@ -248,7 +274,7 @@ punteggio non scende. Le istruzioni del dettaglio sono in `tests/llm_results/LEG
 ## Promemoria veloce
 
 - [ ] Un titolo grande per capitolo nel PDF
-- [ ] Scheda di massimo 220 parole all'inizio di ogni capitolo
+- [ ] Scheda ad appunti di massimo 1400 caratteri all'inizio di ogni capitolo, con linea temporale e "Fine:"
 - [ ] Obiettivo, luoghi con un dettaglio, PNG con cosa sanno
 - [ ] Mostri con i nomi esatti dell'app, già preparati con attacchi e note
 - [ ] Prove scritte come `Abilità CD n`

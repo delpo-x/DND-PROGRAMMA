@@ -18,6 +18,9 @@ godot --headless --path . -s tests/llm_bench.gd -- --runs 3 --only combattimento
 - `--runs`: quante volte ripetere ogni scenario (di base 2). Il modello non risponde mai due
   volte uguale, quindi più ripetizioni danno un punteggio più affidabile.
 - `--only`: solo gli scenari che contengono questa parola. Questi giri non finiscono nello storico.
+- `--story prosa` o `--story elenco`: aggiunge un capitolo con la scheda scritta in prosa o ad
+  appunti con linea temporale, più lo scenario `dettaglio_dal_testo`, che si supera solo usando un
+  brano del testo completo. Serve a confrontare i due modi di scrivere le schede.
 
 Su un PC senza scheda video un giro completo dura circa 10 minuti.
 

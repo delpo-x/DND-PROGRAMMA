@@ -203,9 +203,9 @@ func _reply_checks(full: String, sc: Dictionary) -> Dictionary:
 	var words := text.to_lower().replace("'", "' ").split(" ", false)
 	var arts := 0
 	for w in words:
-		if w in ["il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "l'", "un'"]:
+		if w in ["il", "lo", "la", "i", "gli", "le", "un", "uno", "una", "l'", "un'", "del", "della", "dei", "delle", "al", "alla", "ai", "alle", "all'", "dal", "dalla", "nel", "nella", "nei", "sul", "sulla", "dell'", "nell'", "dall'"]:
 			arts += 1
-	c["italiano pieno, non ad appunti"] = words.size() < 10 or arts * 12 >= words.size()
+	c["italiano pieno, non ad appunti"] = words.size() < 10 or arts * 20 >= words.size()
 	if sc.has("any"):
 		var low := text.to_lower()
 		c["usa un dettaglio del testo (%s)" % "/".join(sc.any)] = sc.any.any(func(w): return low.contains(w))
