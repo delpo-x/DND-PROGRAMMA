@@ -11,7 +11,7 @@ func _init() -> void:
 	st.toggle_condition(a.id, "Avvelenato")
 	st.toggle_condition(a.id, "Prono")
 	var ok := str(a.conditions) == "Avvelenato"
-	st.change_hp(a.id, -999)
+	st.change_hp(a.id, -10)  # 10 PF -> 0: a terra (non morte sul colpo)
 	st.death_save(a.id, 12)
 	st.death_save(a.id, 1)
 	ok = ok and int(a.death_ok) == 1 and int(a.death_ko) == 2
@@ -57,6 +57,43 @@ func _init() -> void:
 	ok = ok and st.cast_spell(a.id, 0).contains("trucchetto")
 	ok = ok and st.cast_spell(a.id, 1) != "" and st.cast_spell(a.id, 1) != "" and st.cast_spell(a.id, 1) == ""
 	ok = ok and int(Rules.spell_numbers(a)[0]) == 8 + 2 + Rules.mod(a.ab.INT)
+	# 2024 rules: paladin slots from 1st level
+	var c: Dictionary = st.add_character("Cleo", "")
+	st.update_character(c.id, {"cls": "Paladino", "level": 1})
+	ok = ok and int(c.slots_max[0]) == 2
+	# damage at 0 PF = one failed death save, and it ends the stable state
+	st.change_hp(c.id, -10)
+	st.change_hp(c.id, -1)
+	ok = ok and int(c.hp) == 0 and int(c.death_ko) == 1
+	st.set_death(c.id, 3, 1)
+	ok = ok and st.death_save(c.id, 15) == ""
+	st.change_hp(c.id, -1)
+	ok = ok and int(c.death_ok) == 0 and int(c.death_ko) == 2
+	# long rest has no effect at 0 PF
+	st.rest(true)
+	ok = ok and int(c.hp) == 0 and int(c.death_ko) == 2
+	# third failure: dead; no more death saves, no healing until reset
+	st.change_hp(c.id, -1)
+	ok = ok and st.is_dead(c) and st.death_save(c.id, 20) == ""
+	st.change_hp(c.id, 5)
+	ok = ok and int(c.hp) == 0
+	st.set_death(c.id, 0, 0)
+	st.change_hp(c.id, 5)
+	ok = ok and int(c.hp) == 5 and int(c.death_ko) == 0
+	# damage left after 0 PF >= PF maximum: instant death
+	var dd: Dictionary = st.add_character("Dario", "")
+	st.change_hp(dd.id, -(int(dd.hp) + int(dd.hp_max)))
+	ok = ok and st.is_dead(dd)
+	# initiative ties: same score keeps a fixed random order, highest score first
+	var g1: Dictionary = st.add_monster({"name": "Goblin A"})
+	var g2: Dictionary = st.add_monster({"name": "Goblin B"})
+	st.combat_start([g1.id, g2.id, a.id])
+	st.set_score_for_ref(g1.id, 12)
+	st.set_score_for_ref(g2.id, 12)
+	st.set_score_for_ref(a.id, 15)
+	var order: Array = st.ini().combatants.map(func(x): return x.ref)
+	st.sort_combatants()
+	ok = ok and order[0] == a.id and order == st.ini().combatants.map(func(x): return x.ref)
 	var v: Dictionary = st.player_view(a.id)
 	ok = ok and v.chronicle.size() >= 4
 	print("rules test: ", "OK" if ok else "FAIL", "  cond=", a.conditions, " chron=", v.chronicle.size())

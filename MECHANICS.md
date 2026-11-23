@@ -1,7 +1,7 @@
 # D&D Tavolo – valori che determinano il funzionamento
 
 Fonti: **richiesta** = la descrizione scritta dalla persona; **5e** = regole base di D&D 5ª edizione
-(SRD); **stimato** = scelto da me, nessuna prova disponibile (clean room, nessuna immagine di riferimento).
+(SRD); **2024** = regole 2024 del Manuale del Giocatore, scelte per il tavolo; **stimato** = scelto da me, nessuna prova disponibile (clean room, nessuna immagine di riferimento).
 
 ## Rete
 | Valore | Dato | Fonte |
@@ -57,11 +57,18 @@ Fonti: **richiesta** = la descrizione scritta dalla persona; **5e** = regole bas
 | Abilità | mod. caratteristica + competenza × (0, 1 o 2 per maestria) | 5e |
 | Tiro salvezza | mod. caratteristica + competenza se competente | 5e |
 | Iniziativa | d20 + mod. Destrezza + bonus extra | 5e |
-| Ordine di iniziativa | punteggio ↓, poi modificatore ↓, poi personaggi prima dei mostri | 5e / stimato |
+| Ordine di iniziativa | punteggio ↓; a pari punteggio ordine casuale (estratto una volta per combattente, poi resta fisso) | richiesta |
 | Esito prova | totale ≥ CD = riuscita (il 20 naturale non vince da solo) | 5e |
 | Prova con più giocatori | riuscita se almeno uno riesce, fallita quando tutti hanno fallito | stimato |
 | Stato mostro per i giocatori | Illeso (PF pieni), Ferito (> metà), Gravemente ferito (≤ metà), A terra (0) | richiesta |
 | PF temporanei | assorbono il danno per primi | 5e |
+| Danni a 0 PF (personaggi) | un fallimento al tiro contro la morte e fine dello stato stabile (il critico vale due: lo segna il master) | 2024 |
+| Morte sul colpo | danni rimasti dopo lo 0 ≥ PF massimi | 2024 |
+| Personaggio morto | non si cura finché il master non azzera i tiri contro la morte | stimato |
+| Riposo lungo | PF e slot pieni solo con almeno 1 PF; a 0 PF nessun effetto | 2024 |
+| Slot di paladino e ranger | dal 1° livello (2 slot), poi tabella degli incantatori completi a metà livello | 2024 |
+| Condizioni | testi del glossario 2024 | 2024 |
+| PF dal telefono | i pulsanti −/+ del giocatore passano dalle stesse regole dei pulsanti del master | richiesta |
 | Duplicato | "Goblin" → "Goblin 1", copie "Goblin 2", "Goblin 3"… con PF pieni | richiesta |
 | Tiro di iniziativa automatico dei mostri | d20 + mod., registrato come tiro segreto | richiesta |
 

@@ -25,6 +25,11 @@ var counts: Dictionary = {}
 var mod := 0
 var adv := "none"
 var secret := false
+var manual := false  # true = the master types in the values of real dice
+var manual_btn: Button
+var pick_box: VBoxContainer
+var pick_steps: Array = []
+var pick_vals: Array = []
 var logical: Array = []
 var pending_info: Dictionary = {}
 var last_entry: Dictionary = {}
@@ -88,6 +93,9 @@ func setup(a) -> void:
 	secret_btn.add_theme_font_size_override("font_size", 26)
 	UI.engrave(secret_btn)
 	col.add_child(secret_btn)
+	manual_btn = UI.color_btn("", UI.PANEL2, _toggle_manual, 52)
+	manual_btn.add_theme_font_size_override("font_size", 20)
+	col.add_child(manual_btn)
 	who_opt = UI.option(["Master"], 0, func(_i): _auto_mod())
 	kind_opt = UI.option(Rules.KINDS, 0, func(_i): _auto_mod())
 	col.add_child(UI.hbox([UI.lbl("Chi tira", 20, UI.DIM), UI.expand(who_opt)]))
@@ -179,6 +187,12 @@ func _set_adv(a: String) -> void:
 	_update_controls()
 
 
+func _toggle_manual() -> void:
+	manual = not manual
+	result_lbl.text = "Tira i dadi veri, poi premi INSERISCI TIRO" if manual else "Scegli i dadi e premi LANCIA"
+	_update_controls()
+
+
 func set_secret(v: bool) -> void:
 	secret = v
 	_update_controls()
@@ -199,6 +213,13 @@ func _update_controls() -> void:
 		adv_btns[k].button_pressed = (k == adv)
 	mod_lbl.text = Rules.fmt_mod(mod)
 	formula_lbl.text = formula_text()
+	manual_btn.text = "DADI VERI: inserisci a mano" if manual else "Dadi dell'app (tocca per i dadi veri)"
+	var mcol := Color(0.55, 0.42, 0.12) if manual else UI.PANEL2
+	for st in ["normal", "hover", "pressed"]:
+		var msb: StyleBoxFlat = manual_btn.get_theme_stylebox(st).duplicate()
+		msb.bg_color = mcol if st == "normal" else (mcol.lightened(0.1) if st == "hover" else mcol.darkened(0.2))
+		manual_btn.add_theme_stylebox_override(st, msb)
+	roll_btn.text = "INSERISCI TIRO" if manual else "LANCIA"
 
 
 func formula_text() -> String:
@@ -256,8 +277,15 @@ func roll_now() -> void:
 		"secret": secret, "mod": mod, "adv": adv, "formula": formula_text()}
 	UI.clear(badges)
 	crit_lbl.text = ""
-	result_lbl.text = "I dadi rotolano..."
+	if manual:
+		# the button stays enabled: the picker modal already blocks it, and if the
+		# modal is closed some other way the master can simply press it again
+		_build_spec()
+		result_lbl.text = "Inserisci i numeri usciti sui dadi..."
+		_ask_values()
+		return
 	roll_btn.disabled = true
+	result_lbl.text = "I dadi rotolano..."
 	tray.roll(_build_spec())
 
 
@@ -269,7 +297,6 @@ func preset_demo() -> void:
 
 
 func _on_finished(results: Array) -> void:
-	roll_btn.disabled = false
 	var dice: Array = []
 	for l in logical:
 		var v := 0
@@ -280,6 +307,13 @@ func _on_finished(results: Array) -> void:
 		else:
 			v = int(results[l.p[0]].value)
 		dice.append({"s": l.s, "v": v, "drop": false})
+	_complete(dice, results, false)
+
+
+## Applies advantage / disadvantage, records the roll and shows it.
+## real = values typed in from the dice on the table.
+func _complete(dice: Array, results: Array, real: bool) -> void:
+	roll_btn.disabled = false
 	if pending_info.adv != "none" and dice.size() >= 2:
 		var a: Dictionary = dice[0]
 		var b: Dictionary = dice[dice.size() - 1]
@@ -288,8 +322,11 @@ func _on_finished(results: Array) -> void:
 			b.drop = true
 		else:
 			a.drop = true
+	# advantage / disadvantage count for one roll only
+	adv = "none"
+	_update_controls()
 	var entry: Dictionary = app.state.master_roll(pending_info.who, pending_info.kind, dice, int(pending_info.mod),
-		pending_info.adv, pending_info.reason, pending_info.secret, pending_info.formula)
+		pending_info.adv, pending_info.reason, pending_info.secret, pending_info.formula, real)
 	last_entry = entry
 	_show_result(entry, results)
 	roll_done.emit(entry)
@@ -308,6 +345,8 @@ func _show_result(entry: Dictionary, results: Array) -> void:
 	txt += "   =   TOTALE %d" % int(entry.total)
 	if entry.secret:
 		txt += "   (segreto)"
+	if bool(entry.get("manual", false)):
+		txt += "   (dadi veri)"
 	result_lbl.text = txt
 	var pos := tray.die_screen_positions()
 	for i in mini(pos.size(), results.size()):
@@ -340,3 +379,119 @@ func _crit(text: String, col: Color, flash_col: Color) -> void:
 		sh.tween_property(tray.cam, "h_offset", dx, 0.05)
 	tw.chain().tween_interval(1.8)
 	tw.chain().tween_property(crit_lbl, "modulate:a", 0.0, 0.6)
+
+
+# ------------------------------------------------------------- real dice
+## Asks the value of each die of `logical`, one tap per die. The d100 is
+## entered as on the table: tens die (00-90), then units die (0-9); 00 + 0 = 100.
+func _ask_values() -> void:
+	pick_steps = []
+	for i in logical.size():
+		var s := int(logical[i].s)
+		if s == 100:
+			pick_steps.append({"die": i, "s": 100, "part": "tens"})
+			pick_steps.append({"die": i, "s": 100, "part": "units"})
+		else:
+			pick_steps.append({"die": i, "s": s, "part": ""})
+	pick_vals = []
+	pick_box = UI.vbox([], 10)
+	pick_box.custom_minimum_size = Vector2(0, 440)
+	_render_pick()
+	var why: String = str(pending_info.reason).strip_edges()
+	app.show_modal("Dadi veri: %s" % (why if why != "" else str(pending_info.formula)), pick_box, [
+		["Indietro", _pick_back],
+		["Annulla", _pick_cancel],
+	], 820)
+
+
+func _pick_values() -> Array:
+	var vals: Array = []
+	for l in logical:
+		vals.append(-1)
+	for k in pick_vals.size():
+		var st: Dictionary = pick_steps[k]
+		var v := int(pick_vals[k])
+		if st.part == "units":
+			var t := int(vals[st.die]) + v
+			vals[st.die] = 100 if t == 0 else t
+		else:
+			vals[st.die] = v
+	return vals
+
+
+func _render_pick() -> void:
+	if pick_box == null or not is_instance_valid(pick_box) or pick_vals.size() >= pick_steps.size():
+		return
+	UI.clear(pick_box)
+	var vals := _pick_values()
+	var st: Dictionary = pick_steps[pick_vals.size()]
+	var chips: Array = []
+	for i in logical.size():
+		var v := int(vals[i])
+		var txt := "?" if v < 0 else str(v)
+		if i == int(st.die) and v >= 0:
+			txt = ("00" if v == 0 else str(v)) + " + ?"
+		chips.append(("[d%d: %s]" if i == int(st.die) else "d%d: %s") % [int(logical[i].s), txt])
+	pick_box.add_child(UI.wrap_lbl("   ".join(chips), 22, UI.TEXT))
+	var q := "Che numero è uscito sul d%d?" % int(st.s)
+	var opts: Array = []
+	if st.part == "tens":
+		q = "d100: dado delle decine"
+		for v in range(0, 100, 10):
+			opts.append(v)
+	elif st.part == "units":
+		q = "d100: dado delle unità"
+		for v in range(0, 10):
+			opts.append(v)
+	else:
+		if pending_info.adv != "none" and int(st.s) == 20:
+			var how := "vantaggio" if pending_info.adv == "adv" else "svantaggio"
+			if logical[int(st.die)].has("pair"):
+				q = "Secondo d20 (%s)" % how
+			else:
+				q = "Primo d20 (%s)" % how
+		for v in range(1, int(st.s) + 1):
+			opts.append(v)
+	pick_box.add_child(UI.lbl(q, 24, UI.GOLD))
+	var g := GridContainer.new()
+	g.columns = 5 if int(st.s) in [10, 20, 100] else (3 if int(st.s) == 6 else 4)
+	g.add_theme_constant_override("h_separation", 8)
+	g.add_theme_constant_override("v_separation", 8)
+	for v in opts:
+		var label := "00" if st.part == "tens" and int(v) == 0 else str(v)
+		var b: Button
+		if int(st.s) == 20 and int(v) == 20:
+			b = UI.color_btn(label, Color(0.5, 0.38, 0.08), _pick.bind(int(v)), 66)
+		elif int(st.s) == 20 and int(v) == 1:
+			b = UI.color_btn(label, Color(0.45, 0.12, 0.1), _pick.bind(int(v)), 66)
+		else:
+			b = UI.btn(label, _pick.bind(int(v)), 66)
+		b.add_theme_font_size_override("font_size", 28)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		g.add_child(b)
+	pick_box.add_child(g)
+
+
+func _pick(v: int) -> void:
+	pick_vals.append(v)
+	if pick_vals.size() < pick_steps.size():
+		_render_pick.call_deferred()
+		return
+	var vals := _pick_values()
+	app.close_modal()
+	var dice: Array = []
+	for i in logical.size():
+		dice.append({"s": int(logical[i].s), "v": clampi(int(vals[i]), 1, int(logical[i].s)), "drop": false})
+	_complete(dice, [], true)
+
+
+func _pick_back() -> void:
+	if pick_vals.size() > 0:
+		pick_vals.pop_back()
+		_render_pick.call_deferred()
+
+
+func _pick_cancel() -> void:
+	app.close_modal()
+	roll_btn.disabled = false
+	result_lbl.text = "Tiro annullato"

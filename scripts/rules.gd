@@ -188,24 +188,24 @@ static func merge_sheet(ch: Dictionary, src: Dictionary) -> void:
 		ch["spells"] = sp
 
 
-# ------------------------------------------------- from the Player's Handbook
-## Conditions (Appendix A), with a one-line reminder of their effect.
+# ------------------------------------------- from the Player's Handbook 2024
+## Conditions (Rules Glossary, 2024 rules), with a one-line reminder of their effect.
 const CONDITIONS: Array = [
-	["Accecato", "Fallisce le prove che richiedono la vista. Attacca con svantaggio, chi lo attacca ha vantaggio."],
-	["Affascinato", "Non può attaccare chi lo ha affascinato; questi ha vantaggio nelle prove sociali contro di lui."],
-	["Afferrato", "Velocità 0. Finisce se chi lo afferra è incapacitato o viene allontanato."],
+	["Accecato", "Non vede: fallisce le prove che richiedono la vista. Attacca con svantaggio, chi lo attacca ha vantaggio."],
+	["Affascinato", "Non può attaccare chi lo ha affascinato né colpirlo con effetti dannosi; questi ha vantaggio nelle prove sociali contro di lui."],
+	["Afferrato", "Velocità 0. Svantaggio agli attacchi contro chiunque non sia chi lo afferra, che può trascinarlo."],
 	["Assordato", "Non sente e fallisce le prove che richiedono l'udito."],
 	["Avvelenato", "Svantaggio ai tiri per colpire e alle prove di caratteristica."],
-	["Incapacitato", "Non può compiere azioni né reazioni."],
-	["Invisibile", "Non può essere visto senza aiuto. Attacca con vantaggio, chi lo attacca ha svantaggio."],
-	["Paralizzato", "Incapacitato, non si muove né parla. Fallisce TS di For e Des. Colpito da vicino = critico."],
-	["Pietrificato", "Trasformato in pietra: incapacitato, resistenza a tutti i danni, immune a veleno e malattie."],
-	["Privo di sensi", "Incapacitato, cade prono. Fallisce TS di For e Des. Colpito da vicino = critico."],
-	["Prono", "Si muove strisciando. Attacca con svantaggio; contro di lui vantaggio in mischia, svantaggio a distanza."],
+	["Incapacitato", "Niente azioni, azioni bonus né reazioni; non parla; perde la concentrazione; svantaggio all'iniziativa."],
+	["Invisibile", "Vantaggio all'iniziativa. Attacca con vantaggio, chi lo attacca ha svantaggio (se non lo vede)."],
+	["Paralizzato", "Incapacitato, velocità 0. Fallisce TS di For e Des. Chi lo attacca ha vantaggio; colpito entro 1,5 m = critico."],
+	["Pietrificato", "Pietra: incapacitato, velocità 0. Fallisce TS di For e Des, chi lo attacca ha vantaggio. Resistenza a tutti i danni, immune ad Avvelenato."],
+	["Privo di sensi", "Incapacitato e prono, velocità 0. Fallisce TS di For e Des. Chi lo attacca ha vantaggio; colpito entro 1,5 m = critico."],
+	["Prono", "Si muove strisciando (alzarsi costa metà velocità). Attacca con svantaggio; contro di lui vantaggio entro 1,5 m, altrimenti svantaggio."],
 	["Spaventato", "Svantaggio a prove e attacchi finché vede la fonte della paura; non può avvicinarsi a essa."],
-	["Stordito", "Incapacitato, parla a fatica. Fallisce TS di For e Des; chi lo attacca ha vantaggio."],
+	["Stordito", "Incapacitato. Fallisce TS di For e Des; chi lo attacca ha vantaggio."],
 	["Trattenuto", "Velocità 0. Attacca con svantaggio, chi lo attacca ha vantaggio. Svantaggio ai TS di Des."],
-	["Indebolimento", "6 livelli cumulativi: 1 svantaggio alle prove, 2 velocità dimezzata, 3 svantaggio ad attacchi e TS, 4 PF max dimezzati, 5 velocità 0, 6 morte."],
+	["Indebolimento", "Livelli cumulativi 1-6: -2 per livello a ogni tiro di d20, velocità -1,5 m per livello; al 6° muore. Il riposo lungo toglie 1 livello."],
 ]
 
 
@@ -222,37 +222,39 @@ const CR_XP := {"0": 10, "1/8": 25, "1/4": 50, "1/2": 100, "1": 200, "2": 450, "
 	"5": 1800, "6": 2300, "7": 2900, "8": 3900, "9": 5000, "10": 5900, "11": 7200, "12": 8400,
 	"13": 10000, "14": 11500, "15": 13000, "16": 15000, "17": 18000, "18": 20000, "19": 22000, "20": 25000}
 
-## Ready-made creatures (SRD 5.1 values): [name, type, CA, PF, init mod, CR, attack / notes]
+## Ready-made creatures, 2024 rules (System Reference Document 5.2, CC BY 4.0;
+## the Orc has no 2024 stat block and keeps its SRD 5.1 values).
+## [name, type, CA, PF, init mod, CR, attack / notes]
 const MONSTERS: Array = [
-	["Ratto gigante (Giant Rat)", "Bestia", 12, 7, 2, "1/8", "Morso +4, 1d4+2 perforanti"],
-	["Coboldo (Kobold)", "Umanoide", 12, 5, 2, "1/8", "Pugnale +4, 1d4+2. Tattica di branco; svantaggio alla luce del sole"],
+	["Ratto gigante (Giant Rat)", "Bestia", 13, 7, 3, "1/8", "Morso +5, 1d4+3 perforanti. Tattica di branco"],
+	["Coboldo (Kobold Warrior)", "Drago", 14, 7, 2, "1/8", "Pugnale +4, 1d4+2 (anche da lancio). Tattica di branco; svantaggio alla luce del sole"],
 	["Bandito (Bandit)", "Umanoide", 12, 11, 1, "1/8", "Scimitarra +3, 1d6+1; balestra leggera +3, 1d8+1"],
-	["Guardia (Guard)", "Umanoide", 16, 11, 1, "1/8", "Lancia +3, 1d6+1"],
-	["Cultista (Cultist)", "Umanoide", 12, 9, 1, "1/8", "Scimitarra +3, 1d6+1. Vantaggio ai TS contro paura e charme"],
-	["Goblin", "Umanoide", 15, 7, 2, "1/4", "Scimitarra +4, 1d6+2; arco corto +4, 1d6+2. Fuga agile (Disimpegno o Nascondersi come azione bonus)"],
-	["Scheletro (Skeleton)", "Non morto", 13, 13, 2, "1/4", "Spada corta +4, 1d6+2; arco corto +4, 1d6+2. Vulnerabile ai danni contundenti"],
-	["Zombi (Zombie)", "Non morto", 8, 22, -2, "1/4", "Schianto +3, 1d6+1. Tempra da non morto: a 0 PF TS Cos CD 5+danni per restare a 1 PF (non con radiosi o critici)"],
-	["Lupo (Wolf)", "Bestia", 13, 11, 2, "1/4", "Morso +4, 2d4+2; TS For CD 11 o prono. Tattica di branco"],
-	["Orco (Orc)", "Umanoide", 13, 15, 1, "1/2", "Ascia bipenne +5, 1d12+3; giavellotto +5, 1d6+3. Aggressivo: azione bonus per muoversi verso un nemico"],
-	["Hobgoblin", "Umanoide", 18, 11, 1, "1/2", "Spada lunga +3, 1d8+1 (+2d6 con Vantaggio marziale)"],
-	["Gnoll", "Umanoide", 15, 22, 1, "1/2", "Lancia +4, 1d6+2; arco lungo +3, 1d8+1. Furia: attacco di morso extra quando riduce a 0 PF"],
-	["Tagliagole (Thug)", "Umanoide", 11, 32, 0, "1/2", "Due attacchi: mazza +4, 1d6+2. Tattica di branco"],
-	["Capo goblin (Goblin Boss)", "Umanoide", 17, 21, 2, "1", "Due attacchi: scimitarra +4, 1d6+2. Reazione: dirotta l'attacco su un goblin vicino"],
-	["Bugbear", "Umanoide", 16, 27, 2, "1", "Morning star +4, 2d8+2. Attacco a sorpresa +2d6 nel primo round"],
-	["Ghoul", "Non morto", 12, 22, 2, "1", "Artigli +4, 2d4+2; TS Cos CD 10 o paralizzato 1 minuto (non elfi né non morti)"],
-	["Lupo crudele (Dire Wolf)", "Bestia", 14, 37, 2, "1", "Morso +5, 2d6+3; TS For CD 13 o prono. Tattica di branco"],
-	["Ragno gigante (Giant Spider)", "Bestia", 14, 26, 3, "1", "Morso +5, 1d8+3 + 2d8 veleno (TS Cos CD 11 dimezza). Ragnatela (ricarica 5-6)"],
-	["Ogre", "Gigante", 11, 59, -1, "2", "Randello pesante +6, 2d8+4; giavellotto +6, 2d6+4"],
-	["Capitano dei banditi (Bandit Captain)", "Umanoide", 15, 65, 3, "2", "Tre attacchi: scimitarra +5, 1d6+3 (x2) e pugnale +5, 1d4+3. Reazione: Parata +2 CA"],
-	["Mimic", "Mostruosità", 12, 58, 1, "2", "Pseudopodo +5, 1d8+3 (adesivo); morso +5, 1d8+3 + 1d8 acido. Sembra un oggetto"],
-	["Cubo gelatinoso (Gelatinous Cube)", "Melma", 6, 84, -4, "2", "Pseudopodo +4, 3d6 acido. Inglobare: TS Des CD 12. Trasparente"],
-	["Wight", "Non morto", 14, 45, 2, "3", "Due attacchi con spada lunga +4, 1d8+2. Risucchio vitale +4, 1d6+2 necrotici (riduce i PF max)"],
-	["Gufoorso (Owlbear)", "Mostruosità", 13, 59, 1, "3", "Becco +7, 1d10+5 e artigli +7, 2d8+5"],
-	["Veterano (Veteran)", "Umanoide", 17, 58, 1, "3", "Due attacchi con spada lunga +5, 1d8+3 e uno con spada corta +5, 1d6+3"],
-	["Cucciolo di drago rosso (Red Dragon Wyrmling)", "Drago", 17, 75, 0, "4", "Morso +6, 1d10+4 + 1d6 fuoco. Soffio di fuoco (ricarica 5-6): cono 4,5 m, 7d6, TS Des CD 13"],
-	["Troll", "Gigante", 15, 84, 1, "5", "Morso +7, 1d6+4; due artigli +7, 2d6+4. Rigenera 10 PF a turno se non subisce fuoco o acido"],
-	["Mago (Mage)", "Umanoide", 12, 40, 2, "6", "Incantatore di 9° livello: palla di fuoco, cono di freddo, scudo, invisibilità superiore"],
-	["Giovane drago rosso (Young Red Dragon)", "Drago", 18, 178, 0, "10", "Morso +10, 2d10+6 + 1d6 fuoco; due artigli +10, 2d6+6. Soffio di fuoco (ricarica 5-6): cono 9 m, 16d6, TS Des CD 17"],
+	["Guardia (Guard)", "Umanoide", 16, 11, 1, "1/8", "Lancia +3, 1d6+1 (anche da lancio)"],
+	["Cultista (Cultist)", "Umanoide", 12, 9, 1, "1/8", "Falcetto rituale +3, 1d4+1 taglienti + 1 necrotico"],
+	["Goblin (Goblin Warrior)", "Folletto", 15, 10, 2, "1/4", "Scimitarra +4, 1d6+2; arco corto +4, 1d6+2; +1d4 se l'attacco aveva vantaggio. Fuga agile (Disimpegno o Nascondersi come azione bonus)"],
+	["Scheletro (Skeleton)", "Non morto", 14, 13, 3, "1/4", "Spada corta +5, 1d6+3; arco corto +5, 1d6+3. Immune al veleno"],
+	["Zombi (Zombie)", "Non morto", 8, 15, -2, "1/4", "Schianto +3, 1d8+1. Tempra da non morto: a 0 PF TS Cos CD 5+danni per restare a 1 PF (non con radiosi o critici)"],
+	["Lupo (Wolf)", "Bestia", 12, 11, 2, "1/4", "Morso +4, 1d6+2; un bersaglio Medio o più piccolo cade prono. Tattica di branco"],
+	["Orco (Orc, valori 2014)", "Umanoide", 13, 15, 1, "1/2", "Valori 2014: nelle regole 2024 l'orco non ha una scheda da mostro. Ascia bipenne +5, 1d12+3; giavellotto +5, 1d6+3. Aggressivo: azione bonus per muoversi verso un nemico"],
+	["Hobgoblin (Hobgoblin Warrior)", "Folletto", 18, 11, 3, "1/2", "Spada lunga +3, 2d10+1; arco lungo +3, 1d8+1 + 3d4 veleno. Tattica di branco"],
+	["Gnoll (Gnoll Warrior)", "Immondo", 15, 27, 1, "1/2", "Squarcio +4, 1d6+2; arco d'osso +3, 1d10+1. Furia (azione bonus): dopo aver ferito un bersaglio sanguinante si muove di metà velocità e attacca di nuovo"],
+	["Tagliagole (Tough)", "Umanoide", 12, 32, 1, "1/2", "Mazza +4, 1d6+2; balestra pesante +3, 1d10+1. Tattica di branco"],
+	["Capo goblin (Goblin Boss)", "Folletto", 17, 21, 2, "1", "Due attacchi: scimitarra o arco corto +4, 1d6+2 (+1d4 con vantaggio). Fuga agile. Reazione: scambia posto con un alleato vicino, che diventa il bersaglio"],
+	["Bugbear (Bugbear Warrior)", "Folletto", 14, 33, 2, "1", "Presa +4 (portata 3 m), 2d6+2 e afferrato (fuga CD 12); martello leggero +4, 3d4+2 (vantaggio se il bersaglio è afferrato)"],
+	["Ghoul", "Non morto", 12, 22, 2, "1", "Due morsi +4, 1d6+2 + 1d6 necrotici. Artigli +4, 1d4+2: TS Cos CD 10 o paralizzato fino alla fine del suo turno successivo (non elfi né non morti)"],
+	["Lupo crudele (Dire Wolf)", "Bestia", 14, 22, 2, "1", "Morso +5, 1d10+3; un bersaglio Grande o più piccolo cade prono. Tattica di branco"],
+	["Ragno gigante (Giant Spider)", "Bestia", 14, 26, 3, "1", "Morso +5, 1d8+3 + 2d6 veleno. Ragnatela (ricarica 5-6): TS Des CD 13 o trattenuto. Cammina sulle pareti"],
+	["Ogre", "Gigante", 11, 68, -1, "2", "Randello pesante +6, 2d8+4; giavellotto +6, 2d6+4"],
+	["Capitano dei banditi (Bandit Captain)", "Umanoide", 15, 52, 3, "2", "Due attacchi: scimitarra +5, 1d6+3 o pistola +5, 1d10+3. Reazione: Parata +2 CA"],
+	["Mimic", "Mostruosità", 12, 58, 3, "2", "Pseudopodo +5, 1d8+3 + 1d8 acido e afferrato (fuga CD 13); morso +5, 1d8+3 (2d8+3 e vantaggio se afferrato) + 1d8 acido. Sembra un oggetto"],
+	["Cubo gelatinoso (Gelatinous Cube)", "Melma", 6, 63, -4, "2", "Pseudopodo +4, 3d6+2 acido. Inglobare: TS Des CD 12, 3d6 acido e inglobato. Trasparente"],
+	["Wight", "Non morto", 14, 82, 4, "3", "Due attacchi: spada o arco necrotico +4, 1d8+2 + 1d8 necrotici; uno può essere Risucchio vitale (TS Cos CD 13, 1d8+2 necrotici, riduce i PF max). Svantaggio alla luce del sole"],
+	["Gufoorso (Owlbear)", "Mostruosità", 13, 59, 1, "3", "Due attacchi: squarcio +7, 2d8+5"],
+	["Veterano (Warrior Veteran)", "Umanoide", 17, 65, 3, "3", "Due attacchi: spadone +5, 2d6+3 o balestra pesante +3, 2d10+1. Reazione: Parata +2 CA"],
+	["Cucciolo di drago rosso (Red Dragon Wyrmling)", "Drago", 17, 75, 2, "4", "Due attacchi: squarcio +6, 1d10+4 + 1d6 fuoco. Soffio di fuoco (ricarica 5-6): cono 4,5 m, 7d6, TS Des CD 13"],
+	["Troll", "Gigante", 15, 94, 1, "5", "Tre attacchi: squarcio +7 (portata 3 m), 2d6+4. Rigenera 15 PF a inizio turno se non ha subito acido o fuoco. Carica (azione bonus)"],
+	["Mago (Mage)", "Umanoide", 15, 81, 2, "6", "Tre attacchi: scarica arcana +6, 3d8+3 forza. Incantesimi CD 14: palla di fuoco e invisibilità (2/giorno), cono di freddo e volare (1/giorno). Passo velato; Controincantesimo o Scudo"],
+	["Giovane drago rosso (Young Red Dragon)", "Drago", 18, 178, 4, "10", "Tre attacchi: squarcio +10 (portata 3 m), 2d6+6 + 1d6 fuoco. Soffio di fuoco (ricarica 5-6): cono 9 m, 16d6, TS Des CD 17"],
 ]
 
 
@@ -267,10 +269,12 @@ const DAMAGE_TYPES: Array = ["Acido", "Contundente", "Forza", "Freddo", "Fulmine
 ## Damage defenses of the ready-made creatures, keyed by the start of their
 ## name: {resist, vuln, immune}, comma-separated damage types.
 const MONSTER_DEFENSES := {
-	"Scheletro": {"vuln": "Contundente", "immune": "Veleno"},
+	"Scheletro": {"immune": "Veleno"},
 	"Zombi": {"immune": "Veleno"},
 	"Ghoul": {"immune": "Veleno"},
 	"Wight": {"resist": "Necrotico", "immune": "Veleno"},
+	"Mimic": {"immune": "Acido"},
+	"Cubo gelatinoso": {"immune": "Acido"},
 	"Cucciolo di drago rosso": {"immune": "Fuoco"},
 	"Giovane drago rosso": {"immune": "Fuoco"},
 }
@@ -319,7 +323,7 @@ static func defenses_text(e: Dictionary) -> String:
 
 # ------------------------------------------------------------ spell slots
 ## Spell slots of a full caster (bard, cleric, druid, sorcerer, wizard) by
-## level, from the Player's Handbook: slots of 1st..9th level.
+## level, from the Player's Handbook 2024: slots of 1st..9th level.
 const FULL_CASTER_SLOTS: Array = [
 	[2, 0, 0, 0, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0, 0, 0, 0], [4, 2, 0, 0, 0, 0, 0, 0, 0],
 	[4, 3, 0, 0, 0, 0, 0, 0, 0], [4, 3, 2, 0, 0, 0, 0, 0, 0], [4, 3, 3, 0, 0, 0, 0, 0, 0],
@@ -353,8 +357,9 @@ static func default_slots(cls: String, level: int) -> Array:
 		"full":
 			out = FULL_CASTER_SLOTS[lv - 1].duplicate()
 		"half":
-			if lv >= 2:
-				out = FULL_CASTER_SLOTS[int(ceil(lv / 2.0)) - 1].duplicate()
+			# 2024 rules: paladin and ranger cast spells from 1st level
+			# (2 slots), then follow the full-caster table at half their level.
+			out = FULL_CASTER_SLOTS[int(ceil(lv / 2.0)) - 1].duplicate()
 		"pact":
 			# Pact Magic: few slots, all of the same level, back on a short rest.
 			var n := 1 if lv == 1 else (2 if lv <= 10 else (3 if lv <= 16 else 4))

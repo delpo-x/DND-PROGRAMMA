@@ -89,6 +89,8 @@ func _row(e: Dictionary) -> Control:
 	tot.custom_minimum_size = Vector2(60, 0)
 	tot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(tot)
+	if bool(e.get("manual", false)):
+		row.add_child(UI.lbl("dadi veri", 16, UI.GOLD))
 	row.add_child(UI.lbl("SEGRETO" if e.secret else "pubblico", 16, UI.RED if e.secret else UI.DIM))
 	return UI.card(row, Color(0.2, 0.1, 0.1) if e.secret else UI.PANEL, 8)
 

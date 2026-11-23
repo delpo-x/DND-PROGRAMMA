@@ -96,6 +96,7 @@ func _ready() -> void:
 	state.changed.connect(_on_state_changed)
 	net.clients_changed.connect(_on_state_changed)
 	net.player_message.connect(toast)
+	state.notice.connect(toast)
 	state.roll_added.connect(_on_roll_toast)
 	_refresh_all()
 	if selftest_path != "":
@@ -273,10 +274,38 @@ func _refresh_all() -> void:
 		cur.refresh()
 
 
+## A tap anywhere outside a number field being typed in confirms it first:
+## buttons don't take the focus, so without this a damage amount or an
+## initiative score typed without pressing Enter would be ignored.
+func _input(event: InputEvent) -> void:
+	if not event.is_pressed():
+		return
+	var pos := Vector2.ZERO
+	if event is InputEventMouseButton:
+		pos = (event as InputEventMouseButton).position
+	elif event is InputEventScreenTouch:
+		pos = (event as InputEventScreenTouch).position
+	else:
+		return
+	var fo := get_viewport().gui_get_focus_owner()
+	if fo is LineEdit and fo.get_parent() is SpinBox:
+		var sb := fo.get_parent() as SpinBox
+		if not sb.get_global_rect().has_point(pos):
+			sb.apply()
+			fo.release_focus()
+
+
+## True while the master is typing in a field of the open tab: the tab is
+## not rebuilt then, or what is being typed would be lost.
+func _typing() -> bool:
+	var fo := get_viewport().gui_get_focus_owner()
+	return (fo is LineEdit or fo is TextEdit) and tabs.is_ancestor_of(fo)
+
+
 func _process(delta: float) -> void:
 	frame += 1
 	ui_timer += delta
-	if ui_dirty and ui_timer > 0.15:
+	if ui_dirty and ui_timer > 0.15 and not _typing():
 		ui_dirty = false
 		ui_timer = 0.0
 		_refresh_all()

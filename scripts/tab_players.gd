@@ -60,9 +60,9 @@ func refresh() -> void:
 	var xp_amt := UI.spin(0, 99999, int(amounts.get("_xp", 100)), func(v): amounts["_xp"] = v, 130)
 	list.add_child(UI.card(UI.flow([
 		UI.btn("Riposo breve", func(): st.rest(false), 48),
-		UI.btn("Riposo lungo", func(): app.confirm("Riposo lungo: tutti i personaggi tornano ai PF massimi. Procedere?", func(): st.rest(true)), 48),
+		UI.btn("Riposo lungo", func(): app.confirm("Riposo lungo: i personaggi con almeno 1 PF tornano ai PF massimi e recuperano gli slot. Chi è a 0 PF non ne beneficia. Procedere?", func(): st.rest(true)), 48),
 		UI.lbl("PE da dividere", 18, UI.DIM), xp_amt,
-		UI.color_btn("Assegna PE", Color(0.45, 0.33, 0.1), func(): st.award_xp(int(xp_amt.value), "assegnati dal master"), 48),
+		UI.color_btn("Assegna PE", Color(0.45, 0.33, 0.1), func(): st.award_xp(UI.spin_value(xp_amt), "assegnati dal master"), 48),
 		UI.lbl("PE totali del gruppo: %d" % int(st.data.get("xp_total", 0)), 18, UI.DIM),
 	]), UI.PANEL, 8))
 	if st.characters().is_empty():
@@ -91,9 +91,9 @@ func refresh() -> void:
 		var actions := UI.flow([
 			UI.btn("Scheda", edit_dialog.bind(id), 48),
 			amt,
-			CombatUI.damage_btn(app, id, func(): return amt.value, 48),
-			UI.color_btn("Cura", Color(0.18, 0.48, 0.25), func(): st.change_hp(id, int(amt.value)), 48),
-			UI.btn("PF temp.", func(): st.give_temp_hp(id, int(amt.value)), 48),
+			CombatUI.damage_btn(app, id, func(): return UI.spin_value(amt), 48),
+			UI.color_btn("Cura", Color(0.18, 0.48, 0.25), func(): st.change_hp(id, UI.spin_value(amt)), 48),
+			UI.btn("PF temp.", func(): st.give_temp_hp(id, UI.spin_value(amt)), 48),
 			UI.btn("Difese", func(): CombatUI.defenses_dialog(app, id), 48),
 			UI.btn("Slot", _slots_dialog.bind(id), 48),
 			UI.btn("Incantesimi", _spells_dialog.bind(id), 48),
@@ -161,7 +161,9 @@ func edit_dialog(id: String, hint := "") -> void:
 
 
 func _save_sheet(id: String, ed) -> void:
-	app.state.update_character(id, ed.values())
+	# only the fields changed in the form: PF or conditions changed meanwhile
+	# (by a phone or a damage button) are not overwritten
+	app.state.update_character(id, ed.changed_values())
 	app.close_modal()
 
 
@@ -239,11 +241,13 @@ func _cond_menu(ch: Dictionary) -> MenuButton:
 	mb.custom_minimum_size = Vector2(0, 48)
 	mb.flat = false
 	var pm := mb.get_popup()
-	var active := str(ch.get("conditions", "")).to_lower()
+	var active: Array = []
+	for p in str(ch.get("conditions", "")).split(","):
+		active.append(p.strip_edges().to_lower())
 	for i in Rules.CONDITIONS.size():
 		var cn: String = Rules.CONDITIONS[i][0]
 		pm.add_check_item(cn, i)
-		pm.set_item_checked(i, active.contains(cn.to_lower()))
+		pm.set_item_checked(i, active.has(cn.to_lower()))
 		pm.set_item_tooltip(i, Rules.CONDITIONS[i][1])
 	pm.hide_on_checkable_item_selection = false
 	pm.id_pressed.connect(func(i: int): app.state.toggle_condition(id, Rules.CONDITIONS[i][0]))
@@ -257,17 +261,17 @@ func _death_row(ch: Dictionary) -> Control:
 	var ko := int(ch.get("death_ko", 0))
 	var st: GameState = app.state
 	var marks := "Successi %s   Fallimenti %s" % ["●".repeat(ok) + "○".repeat(3 - ok), "●".repeat(mini(ko, 3)) + "○".repeat(3 - mini(ko, 3))]
-	var state_txt := "Stabile" if ok >= 3 else ("Morto" if ko >= 3 else "A terra: tiri salvezza contro la morte")
-	return UI.flow([
-		UI.lbl(state_txt, 20, UI.RED),
-		UI.lbl(marks, 20, UI.TEXT),
-		UI.color_btn("Tira TS (d20)", Color(0.45, 0.12, 0.12), func():
+	var state_txt := "Stabile" if ok >= 3 else ("Morto (per riportarlo in vita: Azzera, poi Cura)" if ko >= 3 else "A terra: tiri salvezza contro la morte")
+	var items: Array = [UI.lbl(state_txt, 20, UI.RED), UI.lbl(marks, 20, UI.TEXT)]
+	if ok < 3 and ko < 3:
+		var roll_ts := func():
 			var r := st.rng.randi_range(1, 20)
-			app.toast("%s, TS contro la morte: %d. %s" % [ch.name, r, st.death_save(id, r)]), 44),
-		UI.btn("+ Successo", func(): st.set_death(id, ok + 1, ko), 44),
-		UI.btn("+ Fallimento", func(): st.set_death(id, ok, ko + 1), 44),
-		UI.btn("Azzera", func(): st.set_death(id, 0, 0), 44),
-	])
+			app.toast("%s, TS contro la morte: %d. %s" % [ch.name, r, st.death_save(id, r)])
+		items.append(UI.color_btn("Tira TS (d20)", Color(0.45, 0.12, 0.12), roll_ts, 44))
+		items.append(UI.btn("+ Successo", func(): st.set_death(id, ok + 1, ko), 44))
+		items.append(UI.btn("+ Fallimento", func(): st.set_death(id, ok, ko + 1), 44))
+	items.append(UI.btn("Azzera", func(): st.set_death(id, 0, 0), 44))
+	return UI.flow(items)
 
 
 ## Spell slots as pips: gold = available, dark = spent. Clicking an
@@ -317,7 +321,7 @@ func _slots_dialog(id: String) -> void:
 		spins.append(sp)
 		g.add_child(UI.lbl("%d° livello" % (i + 1), 18, UI.DIM))
 		g.add_child(sp)
-	var hint := UI.wrap_lbl("Con il calcolo automatico gli slot seguono la tabella del Manuale del Giocatore (incantatori completi, paladino e ranger, warlock con Magia del Patto). Toglilo per scrivere i valori a mano, per esempio per un multiclasse. Il riposo lungo ripristina tutti gli slot; quello breve solo gli slot del warlock.", 17, UI.DIM)
+	var hint := UI.wrap_lbl("Con il calcolo automatico gli slot seguono la tabella del Manuale del Giocatore 2024 (incantatori completi, paladino e ranger dal 1° livello, warlock con Magia del Patto). Toglilo per scrivere i valori a mano, per esempio per un multiclasse. Il riposo lungo ripristina tutti gli slot; quello breve solo gli slot del warlock.", 17, UI.DIM)
 	app.show_modal("Slot incantesimo di %s" % ch.name, UI.vbox([auto, g, hint], 10), [
 		["Annulla", app.close_modal],
 		["Salva", func():

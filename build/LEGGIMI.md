@@ -69,6 +69,12 @@ Una vista "da sala": caratteri grandi, sfondo scuro, nessun comando. Mostra ordi
 turno corrente, gli ultimi tiri pubblici con l'animazione dei dadi e le missioni visibili.
 Riceve esattamente le stesse informazioni pubbliche che vedono tutti.
 
+### Lo spettatore (pagina web sul telefono)
+Chi non gioca può seguire la partita dal proprio telefono: inquadra lo stesso QR dei giocatori e
+tocca **Guarda come spettatore**. Vede le stesse cose dello schermo condiviso, impaginate per il
+telefono, e non può fare nulla: niente tiri, niente PF, niente personaggio. Gli spettatori non
+compaiono nell'elenco dei collegati del master. "Esci" riporta alla pagina del giocatore.
+
 ---
 
 ## 3. Regole di visibilità
@@ -192,6 +198,7 @@ si possono ritoccare se la "sensazione" non convince.
 - Nel master premi **QR Giocatori**: i giocatori inquadrano il QR con la fotocamera
   (Safari su iPhone, Chrome su Android).
 - Sul PC o sulla TV apri lo stesso indirizzo e scegli **Schermo condiviso**, poi "Schermo intero".
+- Chi vuole solo guardare inquadra il QR e tocca **Guarda come spettatore**.
 
 ---
 
@@ -252,11 +259,11 @@ Se il telefono è impostato per ridurre le animazioni, gli effetti in movimento 
 
 ## Dal Manuale dei Mostri
 
-Nel Bestiario il menu "Dal Manuale dei Mostri" compila il modulo con circa 30 creature pronte (valori SRD): CA, PF, iniziativa, grado di sfida, PE e un promemoria degli attacchi. I PE dei mostri sconfitti finiscono nel totale del gruppo a fine combattimento.
+Nel Bestiario il menu "Dal Manuale dei Mostri" compila il modulo con 29 creature pronte secondo le regole 2024 (valori SRD 5.2; l'orco, che nel 2024 non ha una scheda da mostro, resta con i valori 2014): CA, PF, iniziativa, grado di sfida, PE e un promemoria degli attacchi. I PE dei mostri sconfitti finiscono nel totale del gruppo a fine combattimento.
 
 ## Regole dal Manuale del Giocatore
 
-- **Scheda Giocatori**: pulsanti "Riposo breve" e "Riposo lungo" (il lungo riporta tutti ai PF massimi) e "Assegna PE", che divide i punti esperienza in parti uguali. Ogni personaggio mostra i suoi PE.
+- **Scheda Giocatori**: pulsanti "Riposo breve" e "Riposo lungo" (il lungo riporta ai PF massimi e ridà gli slot a chi ha almeno 1 PF; a 0 PF non ha effetto) e "Assegna PE", che divide i punti esperienza in parti uguali. Ogni personaggio mostra i suoi PE.
 - **Condizioni**: il menu "Condizioni" di ogni personaggio elenca le 15 condizioni del manuale (Prono, Avvelenato, Stordito...). Passando sopra una voce si legge l'effetto; quelle attive compaiono sotto il nome e sul telefono. Lo stesso menu c'è sui mostri nel Bestiario e su ogni riga dell'Iniziativa ("Cond."); le condizioni dei mostri visibili si vedono anche su telefoni e schermo.
 - **Tiri salvezza contro la morte**: quando un personaggio scende a 0 PF compaiono successi e fallimenti, con i pulsanti per tirare il d20 o segnare a mano. I comandi compaiono sia nella scheda Giocatori sia nella riga del personaggio in Iniziativa. Anche il giocatore può tirarlo dal telefono: il dado lo tira il tavolo. 10 o più è un successo, 1 vale due fallimenti, 20 rimette in piedi con 1 PF.
 - **Cronaca sul telefono**: nella sezione Missioni i giocatori leggono la cronaca pubblica, sessione per sessione. Lo schermo condiviso mostra gli ultimi avvenimenti.
