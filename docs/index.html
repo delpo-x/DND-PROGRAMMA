@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#16110d">
+<title>Tavolo D&amp;D</title>
+<style>
+  :root { --bg:#16110d; --card:#231a13; --line:#3a2c20; --text:#efe4d2; --dim:#b3a48e; --gold:#e0b25a; --red:#b8432f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.5 Georgia, "Times New Roman", serif;
+         padding:max(20px, env(safe-area-inset-top)) 18px 40px; }
+  main { max-width:620px; margin:0 auto; }
+  h1 { font-size:34px; margin:8px 0 4px; color:var(--gold); letter-spacing:.5px; }
+  h2 { font-size:21px; margin:0 0 10px; color:var(--gold); }
+  p { margin:0 0 10px; }
+  .sub { color:var(--dim); margin-bottom:22px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  label { display:block; color:var(--dim); font-size:15px; margin-bottom:6px; }
+  input { width:100%; font:inherit; font-size:20px; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+          background:#120d09; color:var(--text); }
+  input:focus { outline:2px solid var(--gold); outline-offset:1px; }
+  .row { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .btn { flex:1 1 180px; display:block; text-align:center; text-decoration:none; font-size:19px; font-weight:bold;
+         padding:14px; border-radius:10px; background:var(--red); color:#fff; border:0; cursor:pointer; }
+  .btn.alt { background:#3a2c20; color:var(--text); }
+  .err { color:#ff9b85; min-height:1.5em; margin-top:8px; font-size:15px; }
+  ol { margin:0; padding-left:22px; } li { margin-bottom:6px; }
+  a { color:var(--gold); }
+  small { color:var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tavolo D&amp;D</h1>
+  <p class="sub">Dadi, schede e iniziativa per la tua campagna. Il master usa l'app sul PC o su Android; i giocatori entrano dal telefono.</p>
+
+  <section>
+    <h2>Entra al tavolo</h2>
+    <label for="addr">Indirizzo mostrato dall'app del master (es. 192.168.1.20)</label>
+    <input id="addr" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="192.168.1.20">
+    <div class="row">
+      <a class="btn" id="go-player" href="#">Sono un giocatore</a>
+      <a class="btn alt" id="go-screen" href="#">Schermo condiviso</a>
+    </div>
+    <div class="err" id="err"></div>
+    <small>Telefono e master devono essere sulla stessa rete Wi-Fi. In alternativa inquadra il QR che compare nell'app del master.</small>
+  </section>
+
+  <section>
+    <h2>Su iPhone</h2>
+    <ol>
+      <li>Apri la pagina del giocatore con Safari.</li>
+      <li>Tocca Condividi, poi "Aggiungi alla schermata Home": diventa un'icona come un'app.</li>
+      <li>Tocca lo schermo una volta per attivare i suoni dei dadi.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Per il master</h2>
+    <p>Scarica l'app per Windows (.exe) o Android (.apk) dalla pagina delle versioni, avviala e crea una campagna: l'indirizzo e il QR per i giocatori sono in alto.</p>
+    <div class="row">
+      <a class="btn alt" href="https://github.com/delpo-x/DND-PROGRAMMA/releases">Scarica l'app</a>
+      <a class="btn alt" href="https://github.com/delpo-x/DND-PROGRAMMA">Codice sorgente</a>
+    </div>
+  </section>
+</main>
+<script>
+  const PORT = 8080;
+  const input = document.getElementById('addr');
+  const err = document.getElementById('err');
+  input.value = localStorage.getItem('tavolo_addr') || '';
+
+  // Accepts "192.168.1.20", "192.168.1.20:8080" or a full http:// address.
+  function base() {
+    let v = input.value.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    if (!v) { err.textContent = "Scrivi l'indirizzo che vedi nell'app del master."; return null; }
+    if (!/^[a-z0-9.\-]+(:\d{1,5})?$/i.test(v)) { err.textContent = 'Indirizzo non valido.'; return null; }
+    err.textContent = '';
+    localStorage.setItem('tavolo_addr', v);
+    return 'http://' + (v.includes(':') ? v : v + ':' + PORT);
+  }
+
+  for (const [id, path] of [['go-player', '/giocatore'], ['go-screen', '/schermo']]) {
+    document.getElementById(id).addEventListener('click', e => {
+      e.preventDefault();
+      const b = base();
+      if (b) location.href = b + path;
+    });
+  }
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('go-player').click(); });
+</script>
+</body>
+</html>
