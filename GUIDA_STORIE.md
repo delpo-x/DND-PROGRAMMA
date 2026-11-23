@@ -116,7 +116,7 @@ Il racconto viene letto dalla sintesi vocale di Windows in italiano.
 - **Niente abbreviazioni** (PF, CA, CD) nelle descrizioni: la voce le legge lettera per lettera.
 - **Parole d'ambiente chiare** per i luoghi: grotta, caverna, bosco, foresta, locanda, taverna,
   villaggio, città, castello, cripta, palude, montagna, mare, pioggia, tempesta, notte. Servono
-  anche per i suoni d'ambiente (sezione 7).
+  anche per scegliere i suoni d'ambiente (sezione 7).
 
 ---
 
@@ -138,17 +138,38 @@ Da dire ai giocatori all'inizio della partita:
 ## 7. Riempire l'attesa del narratore
 
 Su un PC senza scheda video la prima frase arriva in circa 2-4 secondi e la risposta completa
-in 10-15. Le idee qui sotto servono a non lasciare silenzi. **Stato:** nessuna è ancora fatta;
-vanno aggiunte al gioco e poi provate al tavolo.
+in 10-15. Le idee qui sotto servono a non lasciare silenzi.
 
-| Idea | Cosa fa | Effetto |
-|---|---|---|
-| Frasi di attesa | Appena un giocatore parla, la voce dice una frase breve già pronta ("Mmh, vediamo...", "Interessante.", "Il master sfoglia i suoi appunti..."), scelta a caso e adatta alla situazione | Copre i primi 1-2 secondi |
-| Suoni d'ambiente | Un sottofondo continuo per il luogo (gocce in grotta, voci in locanda, vento nel bosco), che cambia quando il narratore nomina un posto nuovo | Il silenzio non c'è mai |
-| Testo in diretta sui telefoni | Il racconto compare parola per parola anche sui telefoni, con "il master sta scrivendo..." | Chi legge non sente l'attesa |
-| Dichiarazioni di gruppo | Mentre il master parla gli altri scrivono già; le azioni partono insieme in una sola richiesta | Meno attese in tutta la serata |
-| Lavoro nei momenti morti | Quando nessuno scrive, il modello legge in anticipo istruzioni e storia recente, e prepara le descrizioni dei luoghi del capitolo | Risposte più rapide; solo a modello libero |
-| Dadi | L'animazione dei dadi delle prove sui telefoni resta visibile qualche secondo | Copre l'attesa della risposta |
+| Idea | Cosa fa | Effetto | Stato |
+|---|---|---|---|
+| Frasi di attesa | Appena un giocatore parla, la voce dice una frase breve già pronta ("Mmh, vediamo...", "Interessante.", "Il master sfoglia i suoi appunti..."), scelta a caso e adatta alla situazione (combattimento, prova appena tirata, inizio capitolo) | Copre i primi 1-2 secondi | Fatta (`FILLERS` in `game/game_main.gd`) |
+| Suoni d'ambiente | Un sottofondo continuo per il luogo, che cambia quando il narratore nomina un posto nuovo e si abbassa mentre parla la voce | Il silenzio non c'è mai | Fatta (`game/ambience.gd`, casella "Ambiente") |
+| Testo in diretta sui telefoni | Il racconto compare mentre viene scritto anche sui telefoni, con "il master sta pensando..." e poi "sta raccontando..." | Chi legge non sente l'attesa | Fatta |
+| Dichiarazioni di gruppo | Mentre il master parla gli altri scrivono già; le azioni partono insieme in una sola richiesta | Meno attese in tutta la serata | Da fare |
+| Lavoro nei momenti morti | Quando nessuno scrive, il modello legge in anticipo istruzioni e storia recente, e prepara le descrizioni dei luoghi del capitolo | Risposte più rapide; solo a modello libero | Da fare |
+| Dadi | L'animazione dei dadi delle prove sui telefoni resta visibile qualche secondo | Copre l'attesa della risposta | Da fare |
+
+### I suoni d'ambiente
+
+Sono nove, in `web/amb/`: grotta, cripta, bosco, notte, vento, pioggia, mare, locanda, fuoco.
+Il gioco sceglie il luogo dall'**ultima parola di luogo** che il narratore scrive in una risposta;
+all'apertura della partita guarda l'ultima risposta salvata o, se non c'è, la scheda del capitolo.
+
+| Suono | Parole che lo fanno partire |
+|---|---|
+| grotta | grotta, caverna, miniera, galleria, tunnel, cunicolo, stalattiti |
+| cripta | cripta, tomba, sotterraneo, catacomba, tempio, sepolcro, mausoleo |
+| bosco | bosco, boschi, foresta, alberi, radura, sentiero, sottobosco |
+| locanda | locanda, taverna, osteria, bancone |
+| pioggia | pioggia, piove, temporale, tempesta, acquazzone |
+| notte | notte, notturno, stelle, luna |
+| vento | vento, montagna, vetta, rupe, valico |
+| mare | mare, spiaggia, porto, onde, nave, molo, scogli |
+| fuoco | fuoco, falò, accampamento, bivacco |
+
+Per far suonare il posto giusto, **nomina il luogo nella scheda del capitolo** con una di queste
+parole. Le parole sono in `Ambience.PLACES`; i suoni si rifanno con `python tools/make_ambience.py`
+(sono sintetizzati, nessun file di terzi).
 
 Le frasi di attesa vanno scritte **senza far agire i personaggi** e senza anticipare cosa
 succederà: devono andare bene sempre.

@@ -124,6 +124,35 @@ func _init() -> void:
 	var feed: Array = st.player_view(str(st.characters()[0].id)).ai.feed
 	check("phones get the last lines", feed.size() > 0 and feed.size() <= 8, feed.size())
 
+	# waiting lines: never the same twice in a row, and calmer ones in combat
+	var f1: String = g.filler_line()
+	var f2: String = g.filler_line()
+	check("filler line said", f1 != "" and f2 != "" and f1 != f2, [f1, f2])
+	check("filler lines from the base pool", g.FILLERS.base.has(f1), f1)
+
+	# a reply being written reaches the phones while it grows
+	g._live = g.add_feed("Master", "", "master")
+	g._sync_phones(true)
+	var lf: Array = st.player_view(str(st.characters()[0].id)).ai.feed
+	check("phones see the empty live reply", lf.size() > 0 and lf.back().live == true and lf.back().text == "", lf.back() if lf.size() > 0 else null)
+	g._on_chunk("La porta cigola. ")
+	g._sync_phones(true)
+	lf = st.player_view(str(st.characters()[0].id)).ai.feed
+	check("phones see the live words", str(lf.back().text).begins_with("La porta cigola"), lf.back())
+	g._live = {}
+	g.feed.pop_back()
+
+	# background sound follows the place words of the narrator
+	check("place: cave", Ambience.detect("Entrate nella grotta umida. Cosa fate?") == "grotta")
+	check("place: the last word wins", Ambience.detect("Lasciate la locanda e prendete il sentiero nel bosco.") == "bosco")
+	check("place: whole words only", Ambience.detect("Vi siete amati molto") == "", Ambience.detect("Vi siete amati molto"))
+	check("place: none", Ambience.detect("Il mercante vi guarda.") == "")
+	check("place: tavern", g.ambience.follow("Il bancone della taverna è affollato.") == "locanda" and g.ambience.current == "locanda")
+	check("ambience silent in tests", not g.ambience.playing())
+	var amb: AudioStreamWAV = g.ambience._stream("grotta")
+	check("ambience loop loads and repeats", amb != null and amb.loop_mode == AudioStreamWAV.LOOP_FORWARD and amb.get_length() > 20.0, amb.get_length() if amb else 0)
+	check("ambience loops exist", FileAccess.file_exists("res://web/amb/grotta.wav") and FileAccess.file_exists("res://web/amb/locanda.wav"))
+
 	# chapter: closed, numbered, transcript emptied
 	g._ask_close_chapter()
 	check("chapter closed", g.story.chapter == 2, g.story.chapter)

@@ -848,11 +848,12 @@
         else toast('Non collegato al tavolo');
       });
     }
-    $('aiState').textContent = ai.busy ? 'sta narrando...' : '';
+    var feed = ai.feed || [], live = feed.filter(function (x) { return x.live; })[0];
+    $('aiState').textContent = !ai.busy ? '' : (live && live.text ? 'sta raccontando...' : 'sta pensando...');
     var f = $('aiFeed');
-    f.innerHTML = (ai.feed || []).map(function (x) {
-      return '<p class="' + (x.who === 'Master' ? 'aim' : 'aip') + '"><b>' + esc(x.who) + '</b> ' + esc(x.text).replace(/
-/g, '<br>') + '</p>';
+    f.innerHTML = feed.map(function (x) {
+      if (x.live && !x.text) return '<p class="aim"><b>Master</b> <span class="aidots"><i></i><i></i><i></i></span></p>';
+      return '<p class="' + (x.who === 'Master' ? 'aim' : 'aip') + '"><b>' + esc(x.who) + '</b> ' + esc(x.text).replace(/\n/g, '<br>') + (x.live ? '<span class="aicaret"></span>' : '') + '</p>';
     }).join('');
     f.scrollTop = f.scrollHeight;
   }

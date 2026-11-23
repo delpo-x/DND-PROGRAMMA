@@ -77,6 +77,15 @@ static func bestiary_names() -> Array:
 
 
 ## Fixed part of the prompt: it changes only between chapters.
+## The outline of the current chapter from the imported story, or {} if none.
+func chapter_info() -> Dictionary:
+	var story: Dictionary = st.data.get("story", {})
+	var chs: Array = story.get("chapters", [])
+	if chs.is_empty():
+		return {}
+	return chs[clampi(chapter - 1, 0, chs.size() - 1)]
+
+
 func system_prompt() -> String:
 	var party: Array = []
 	for e in st.characters():
@@ -108,9 +117,8 @@ func system_prompt() -> String:
 	if not story.is_empty():
 		p.append("")
 		p.append("Avventura: %s." % str(story.get("title", "")))
-		var chs: Array = story.get("chapters", [])
-		if chs.size() > 0:
-			var ch: Dictionary = chs[clampi(chapter - 1, 0, chs.size() - 1)]
+		var ch := chapter_info()
+		if not ch.is_empty():
 			p.append("Traccia del capitolo (seguila liberamente): %s. %s" % [str(ch.get("title", "")), str(ch.get("text", "")).left(1400)])
 	p.append("")
 	p.append("La storia finora: " + (summary.strip_edges() if summary.strip_edges() != "" else "è l'inizio della campagna."))

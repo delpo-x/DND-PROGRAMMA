@@ -9,14 +9,26 @@ extends Control
 
 const SETTINGS := "user://the_game/impostazioni.json"
 const FEED_KEEP := 80
+## Short lines the master says right away while the narrator is still
+## writing, so the table never waits in silence. They must fit any scene:
+## no actions of the characters, nothing about what will happen.
+const FILLERS := {
+	"base": ["Mmh, vediamo...", "Interessante.", "D'accordo.", "Bene, bene...", "Lasciatemi pensare un attimo...",
+		"Uhm...", "Va bene.", "Vediamo un po'.", "Ah, sentite qua.", "Bene."],
+	"start": ["Mettetevi comodi.", "Bene, cominciamo.", "Prendete i dadi e ascoltate."],
+	"check": ["Vediamo com'è andata...", "I dadi hanno parlato.", "Bene, vediamo."],
+	"after": ["Riprendete fiato.", "Il silenzio torna, piano piano."],
+	"combat": ["Attenti...", "Vediamo..."],
+}
 
 var state := GameState.new()
 var net := NetServer.new()
 var narrator := Narrator.new()
 var voice := Voice.new()
+var ambience := Ambience.new()
 var story := GameStory.new()
 var rng := RandomNumberGenerator.new()
-var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true}
+var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true, "ambience_on": true}
 
 var test_mode := false  # no files, no network outside this PC, no window tweaks
 var llm_in_tests := false  # tests: ask the real local model too
@@ -33,6 +45,7 @@ var lbl_campaign: Label
 var lbl_status: Label
 var lbl_clients: Label
 var chk_voice: CheckBox
+var chk_ambience: CheckBox
 var modal_layer: Control
 var toast_box: VBoxContainer
 
@@ -41,6 +54,7 @@ var _live: Dictionary = {}  # entry of the reply being written
 var _want_narration := false
 var _feed_dirty := false
 var _sync_clock := 0.0
+var _last_filler := ""
 var _save_clock := 0.0
 var _ui_dirty := true
 
@@ -86,6 +100,9 @@ func _ready() -> void:
 	narrator.status_changed.connect(func(t): lbl_status.text = t)
 	voice.setup(str(settings.voice))
 	voice.enabled = bool(settings.voice_on)
+	ambience.voice = voice
+	ambience.enabled = bool(settings.ambience_on) and not test_mode
+	add_child(ambience)
 	_build_ui()
 	state.changed.connect(func(): _ui_dirty = true)
 	state.notice.connect(toast)
@@ -147,6 +164,7 @@ func _open_story() -> void:
 	feed.clear()
 	for t in story.transcript.slice(maxi(0, story.transcript.size() - 20)):
 		add_feed(str(t.who), str(t.text), "master" if t.role == "assistant" else "player")
+	_guess_place()
 	if story.is_new():
 		add_feed("Tavolo", "Benvenuti. Il master è pronto: tra poco descrive la scena iniziale.", "info")
 		_event("Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
@@ -197,7 +215,9 @@ func _build_ui() -> void:
 	chk_voice = UI.check("Voce", voice.enabled, _toggle_voice)
 	chk_voice.disabled = not voice.available
 	chk_voice.tooltip_text = ("Voce: " + voice.voice_name) if voice.available else "Nessuna voce di sintesi trovata su questo dispositivo"
-	root.add_child(UI.hbox([title, UI.expand(lbl_campaign), lbl_clients, chk_voice,
+	chk_ambience = UI.check("Ambiente", bool(settings.ambience_on), _toggle_ambience)
+	chk_ambience.tooltip_text = "Suoni di sottofondo del luogo (grotta, locanda, bosco...)"
+	root.add_child(UI.hbox([title, UI.expand(lbl_campaign), lbl_clients, chk_voice, chk_ambience,
 		UI.btn("Telefoni", _show_qr, 44), UI.btn("Campagna", _show_campaigns, 44),
 		UI.btn("Diario", _open_diary, 44), UI.btn("Impostazioni", _show_settings, 44)], 12))
 	lbl_status = UI.lbl(narrator.status, 17, UI.DIM)
@@ -253,6 +273,12 @@ func _toggle_voice(on: bool) -> void:
 	_save_settings()
 	if not on:
 		voice.stop()
+
+
+func _toggle_ambience(on: bool) -> void:
+	settings.ambience_on = on
+	_save_settings()
+	ambience.set_enabled(on)
 
 
 func toast(text: String) -> void:
@@ -408,14 +434,20 @@ func _set_feed_text(e: Dictionary, text: String) -> void:
 	_feed_dirty = true
 
 
-func _sync_phones() -> void:
+## Sends the last lines to the phones. While a reply is being written it is
+## sent as it grows (light = only the phones, not the side panel).
+func _sync_phones(light := false) -> void:
 	var out: Array = []
 	for e in feed.slice(maxi(0, feed.size() - 8)):
-		if str(e.text) != "":
-			out.append({"who": e.who, "text": e.text})
+		var live := is_same(e, _live)
+		if str(e.text) != "" or live:
+			out.append({"who": e.who, "text": e.text, "live": live})
 	state.ai_feed = out
 	state.ai_busy = narrator.busy
-	state.changed.emit()
+	if light:
+		net.broadcast_pending = true
+	else:
+		state.changed.emit()
 
 
 func _demo_feed() -> void:
@@ -458,8 +490,32 @@ func narrate() -> void:
 		return
 	_live = add_feed("Master", "", "master")
 	voice.begin()
+	var filler := filler_line()
+	if filler != "":
+		voice.say(filler)
 	narrator.ask(story.messages())
 	_sync_phones()
+
+
+## A filler line that suits what just happened at the table ("" = none).
+func filler_line() -> String:
+	if story.transcript.is_empty():
+		return ""
+	var last: Dictionary = story.transcript.back()
+	var txt := str(last.text)
+	var kind := "base"
+	if state.ini().active:
+		kind = "combat"
+	elif str(last.who) == "Tavolo":
+		if txt.begins_with("Risultato"):
+			kind = "check"
+		elif txt.begins_with("Inizia"):
+			kind = "start"
+		elif txt.begins_with("Il combattimento è finito"):
+			kind = "after"
+	var pool: Array = FILLERS[kind].filter(func(x): return x != _last_filler)
+	_last_filler = str(pool[rng.randi_range(0, pool.size() - 1)])
+	return _last_filler
 
 
 func _on_chunk(piece: String) -> void:
@@ -498,6 +554,7 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 				var clean := GameStory.strip_tags(full)
 				_set_feed_text(e, clean)
 				story.add("assistant", "Master", clean)
+				ambience.follow(clean)
 				for t in GameStory.tags(full):
 					_on_tag(str(t[0]), str(t[1]))
 	_sync_phones()
@@ -544,6 +601,18 @@ func _wait_for_narrator(cb: Callable) -> void:
 	_wait = 0.5
 	_wait_max = 120.0
 	_wait_call = func(): _wait_for_narrator(cb)
+
+
+## Picks the background sound at the start: the place of the last master
+## reply, or else the place named in the chapter outline.
+func _guess_place() -> void:
+	for i in range(story.transcript.size() - 1, -1, -1):
+		var t: Dictionary = story.transcript[i]
+		if t.role == "assistant" and ambience.follow(str(t.text)) != "":
+			return
+	var ch := story.chapter_info()
+	if not ch.is_empty():
+		ambience.follow(str(ch.get("title", "")) + " " + str(ch.get("text", "")).left(1400))
 
 
 func _finish_chapter(new_summary: String) -> void:
@@ -965,10 +1034,11 @@ func _process(delta: float) -> void:
 	frame += 1
 	_combat_tick(delta)
 	_sync_clock += delta
-	if _feed_dirty and _sync_clock > 0.8:
+	# a reply being written reaches the phones about three times a second
+	if _feed_dirty and _sync_clock > (0.35 if not _live.is_empty() else 0.8):
 		_sync_clock = 0.0
 		_feed_dirty = false
-		_sync_phones()
+		_sync_phones(not _live.is_empty())
 	if _ui_dirty:
 		_ui_dirty = false
 		_refresh_side()

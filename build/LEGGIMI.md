@@ -335,6 +335,10 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 - Iniziativa, tiri salvezza contro morte e fine del combattimento sono automatici.
 - La voce legge il racconto con la sintesi vocale di Windows (casella "Voce" in alto, voce
   scelta in "Impostazioni").
+- Mentre il narratore pensa, la voce dice una frase breve ("Mmh, vediamo...") e sui telefoni
+  compare "il master sta pensando...", poi il racconto parola per parola.
+- Un sottofondo del luogo (grotta, locanda, bosco, pioggia, mare...) parte quando il narratore
+  nomina il posto e si abbassa mentre parla la voce (casella "Ambiente" in alto).
 
 **Il narratore (opzionale).** Racconta la storia un modello di linguaggio che gira sul PC con
 [Ollama](https://ollama.com). Una volta sola:
