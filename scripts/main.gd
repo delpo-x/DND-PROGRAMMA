@@ -402,66 +402,100 @@ func _confirm_yes(on_yes: Callable) -> void:
 
 
 # ------------------------------------------------------------- PDF import
-## Opens the system file picker for a PDF and calls on_bytes(bytes, file_name).
-func pick_pdf(title_text: String, on_bytes: Callable) -> void:
+## On Android the system picker hands back a path in the shared storage,
+## which the app can only read with "all files" access. Returns true when
+## files can be read; otherwise asks for the permission (Android opens its
+## settings page) and tells the master to press the button again.
+func file_access_ok() -> bool:
+	if OS.get_name() != "Android":
+		return true
+	var granted := OS.get_granted_permissions()
+	if granted.has("android.permission.MANAGE_EXTERNAL_STORAGE") or granted.has("android.permission.READ_EXTERNAL_STORAGE"):
+		return true
+	OS.request_permissions()
+	toast("Consenti all'app l'accesso ai file, poi torna qui e premi di nuovo il pulsante")
+	return false
+
+
+## System file picker shared by every import button; calls on_path(path).
+## On Android the type filters are left out: the picker there greys out files
+## whose type it doesn't recognise (a .json saved in Download, say). The
+## content is checked anyway by whoever reads the file.
+func open_file_dialog(title_text: String, filter: String, on_path: Callable, save := false, default_name := "") -> void:
+	if not file_access_ok():
+		return
 	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE if save else FileDialog.FILE_MODE_OPEN_FILE
 	fd.access = FileDialog.ACCESS_FILESYSTEM
 	fd.use_native_dialog = true
 	fd.title = title_text
-	fd.filters = PackedStringArray(["*.pdf ; Documenti PDF"])
+	if save:
+		fd.current_file = default_name
+	if OS.get_name() != "Android":
+		fd.filters = PackedStringArray([filter])
 	fd.size = Vector2i(900, 600)
 	add_child(fd)
 	fd.file_selected.connect(func(path: String):
-		var bytes := FileAccess.get_file_as_bytes(path)
 		fd.queue_free()
-		if bytes.is_empty():
-			toast("Impossibile leggere il file")
-			return
-		on_bytes.call(bytes, path.get_file()))
+		on_path.call(path))
 	fd.canceled.connect(fd.queue_free)
 	fd.popup_centered()
 
 
+## Bytes of a picked file; empty with a message when it can't be read.
+func read_picked(path: String) -> PackedByteArray:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		var hint := " (controlla che l'app abbia l'accesso ai file nelle impostazioni di Android)" if OS.get_name() == "Android" else ""
+		toast("Impossibile leggere %s%s" % [path.get_file(), hint])
+	return bytes
+
+
+## Opens the system file picker for a PDF and calls on_bytes(bytes, file_name).
+func pick_pdf(title_text: String, on_bytes: Callable) -> void:
+	open_file_dialog(title_text, "*.pdf ; Documenti PDF", func(path: String):
+		var bytes := read_picked(path)
+		if bytes.is_empty():
+			return
+		# the header may follow a few bytes of junk (allowed in the first 1 KB)
+		if bytes.slice(0, 1024).get_string_from_ascii().find("%PDF-") < 0:
+			toast("%s non è un PDF" % path.get_file())
+			return
+		on_bytes.call(bytes, path.get_file()))
+
+
+## Picks a PNG, JPG or WebP picture and calls on_image(image, file_name).
+func pick_image(title_text: String, on_image: Callable) -> void:
+	open_file_dialog(title_text, "*.png, *.jpg, *.jpeg, *.webp ; Immagini", func(path: String):
+		var bytes := read_picked(path)
+		if bytes.is_empty():
+			return
+		var img := Image.new()
+		var ok := img.load_png_from_buffer(bytes) == OK or img.load_jpg_from_buffer(bytes) == OK or img.load_webp_from_buffer(bytes) == OK
+		if not ok:
+			toast("Immagine non leggibile (servono PNG, JPG o WebP)")
+			return
+		on_image.call(img, path.get_file()))
+
+
 ## Saves text to a file the master picks (export of chronicle / campaign).
 func save_text_file(title_text: String, default_name: String, filter: String, text: String) -> void:
-	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	fd.access = FileDialog.ACCESS_FILESYSTEM
-	fd.use_native_dialog = true
-	fd.title = title_text
-	fd.current_file = default_name
-	fd.filters = PackedStringArray([filter])
-	fd.size = Vector2i(900, 600)
-	add_child(fd)
-	fd.file_selected.connect(func(path: String):
-		fd.queue_free()
+	open_file_dialog(title_text, filter, func(path: String):
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		if f == null:
 			toast("Impossibile scrivere il file")
 			return
 		f.store_string(text)
 		f.close()
-		toast("Salvato: %s" % path.get_file()))
-	fd.canceled.connect(fd.queue_free)
-	fd.popup_centered()
+		toast("Salvato: %s" % path.get_file()), true, default_name)
 
 
 ## Lets the master pick a text file and hands back its content.
 func pick_text_file(title_text: String, filter: String, on_text: Callable) -> void:
-	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	fd.access = FileDialog.ACCESS_FILESYSTEM
-	fd.use_native_dialog = true
-	fd.title = title_text
-	fd.filters = PackedStringArray([filter])
-	fd.size = Vector2i(900, 600)
-	add_child(fd)
-	fd.file_selected.connect(func(path: String):
-		fd.queue_free()
-		on_text.call(FileAccess.get_file_as_string(path)))
-	fd.canceled.connect(fd.queue_free)
-	fd.popup_centered()
+	open_file_dialog(title_text, filter, func(path: String):
+		var bytes := read_picked(path)
+		if not bytes.is_empty():
+			on_text.call(bytes.get_string_from_utf8()))
 
 
 ## Reads a PDF into text; returns {} and shows a message on failure.

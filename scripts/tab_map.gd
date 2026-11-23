@@ -240,25 +240,8 @@ func _added(mp: Dictionary) -> void:
 
 
 func _import_image() -> void:
-	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	fd.access = FileDialog.ACCESS_FILESYSTEM
-	fd.use_native_dialog = true
-	fd.title = "Scegli l'immagine della mappa"
-	fd.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Immagini"])
-	fd.size = Vector2i(900, 600)
-	add_child(fd)
-	fd.file_selected.connect(func(path: String):
-		fd.queue_free()
-		var bytes := FileAccess.get_file_as_bytes(path)
-		var img := Image.new()
-		var ok := img.load_png_from_buffer(bytes) == OK or img.load_jpg_from_buffer(bytes) == OK or img.load_webp_from_buffer(bytes) == OK
-		if not ok:
-			app.toast("Immagine non leggibile")
-			return
-		_added(app.state.add_map(path.get_file().get_basename().replace("_", " "), img)))
-	fd.canceled.connect(fd.queue_free)
-	fd.popup_centered()
+	app.pick_image("Scegli l'immagine della mappa", func(img: Image, fname: String):
+		_added(app.state.add_map(fname.get_basename().replace("_", " "), img)))
 
 
 func _import_pdf() -> void:

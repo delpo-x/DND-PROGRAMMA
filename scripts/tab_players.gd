@@ -127,25 +127,8 @@ func refresh() -> void:
 
 ## Picture for a character from a file on this computer (JPG, PNG, WebP).
 func _pick_portrait(id: String) -> void:
-	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	fd.access = FileDialog.ACCESS_FILESYSTEM
-	fd.use_native_dialog = true
-	fd.title = "Scegli il ritratto di %s" % app.state.find_entity(id).get("name", "")
-	fd.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Immagini"])
-	fd.size = Vector2i(900, 600)
-	add_child(fd)
-	fd.file_selected.connect(func(path: String):
-		fd.queue_free()
-		var bytes := FileAccess.get_file_as_bytes(path)
-		var img := Image.new()
-		var ok := img.load_png_from_buffer(bytes) == OK or img.load_jpg_from_buffer(bytes) == OK or img.load_webp_from_buffer(bytes) == OK
-		if not ok or not app.state.set_portrait(id, img):
-			app.toast("Immagine non leggibile")
-		else:
-			app.toast("Ritratto salvato"))
-	fd.canceled.connect(fd.queue_free)
-	fd.popup_centered()
+	app.pick_image("Scegli il ritratto di %s" % app.state.find_entity(id).get("name", ""), func(img: Image, _fname: String):
+		app.toast("Ritratto salvato" if app.state.set_portrait(id, img) else "Ritratto non salvato"))
 
 
 func _new_char() -> void:

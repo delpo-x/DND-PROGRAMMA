@@ -188,6 +188,7 @@ si possono ritoccare se la "sensazione" non convince.
 1. Copia `DnD_Tavolo_Master.apk` sul tablet (cavo USB, Drive, e-mail…).
 2. Aprilo e consenti "Installa app sconosciute" quando Android lo chiede.
 3. Avvia **D&D Tavolo Master**.
+4. La prima volta che premi un pulsante **Importa** (PDF, mappa, ritratto, campagna) Android chiede l'**accesso a tutti i file**: attivalo per D&D Tavolo Master, torna all'app e premi di nuovo il pulsante. Senza questo permesso l'app non riesce a leggere i file scelti.
 
 **PC Windows**
 1. Doppio clic su `DnD_Tavolo_Master.exe`.
