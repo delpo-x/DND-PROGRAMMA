@@ -169,6 +169,31 @@ static func check(story: Dictionary, known: Array) -> Array:
 	return out
 
 
+## Paragraphs of a chapter to read aloud to the players: those starting with
+## "Da leggere:" and those under a "## Da leggere" heading, up to the next
+## heading. Returned without the label.
+static func read_aloud(text: String) -> Array:
+	var out: Array = []
+	var under := false
+	for para in text.split("\n\n"):
+		var p := para.strip_edges()
+		if p.begins_with("## "):
+			var h := p.substr(3).strip_edges().to_lower()
+			under = h.begins_with("da leggere")
+			# a heading line followed by text in the same paragraph
+			var nl := p.find("\n")
+			if under and nl > 0:
+				p = p.substr(nl + 1).strip_edges()
+			else:
+				continue
+		var m := _re("(?i)^da leggere\\s*[:.\\-–]\\s*").search(p)
+		if m:
+			out.append(p.substr(m.get_end()).strip_edges())
+		elif under and p != "":
+			out.append(p)
+	return out.filter(func(x): return x != "")
+
+
 ## Monster names the narrator can use: the campaign's and the bestiary's.
 static func known_monsters(st) -> Array:
 	var out: Array = GameStory.bestiary_names()

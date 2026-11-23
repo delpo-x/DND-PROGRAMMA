@@ -46,6 +46,13 @@ var lbl_status: Label
 var lbl_clients: Label
 var chk_voice: CheckBox
 var chk_ambience: CheckBox
+var btn_read: Button
+var _reading := false   # reading the "Da leggere" text of the chapter aloud
+var _read_clock := 0.0  # time since the paragraph started
+var _read_quiet := 0.0  # time the voice has been silent
+var _read_min := 0.0    # time to leave a paragraph on screen without voice
+var _adapting := false  # the narrator is checking the next paragraph
+var _adapt_raw := ""
 var modal_layer: Control
 var toast_box: VBoxContainer
 
@@ -168,13 +175,15 @@ func _open_story() -> void:
 	_check_chapter()
 	if story.is_new():
 		add_feed("Tavolo", "Benvenuti. Il master è pronto: tra poco descrive la scena iniziale.", "info")
-		_event("Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
+		_start_chapter("Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
 	elif story.transcript.is_empty():
-		_event("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
+		_start_chapter("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 	else:
-		add_feed("Tavolo", "Bentornati al capitolo %d. Scrivete cosa fate, o premete Continua." % story.chapter, "info")
+		add_feed("Tavolo", "Bentornati al capitolo %d. Scrivete cosa fate, o premete %s." % [story.chapter,
+			"Riprendi lettura" if story.reading_left() else "Continua"], "info")
 		if not test_mode:
 			narrator.warm_up()
+	_refresh_read_btn()
 	_ui_dirty = true
 
 
@@ -255,6 +264,7 @@ func _build_ui() -> void:
 	input.text_submitted.connect(func(_t): _send_input())
 	root.add_child(UI.hbox([input, UI.color_btn("Invia", Color(0.18, 0.42, 0.25), _send_input, 54),
 		UI.btn("Continua", func(): _event("Continua la storia."), 54),
+		_make_read_btn(),
 		UI.color_btn("Fine capitolo", UI.WINE, _ask_close_chapter, 54)], 10))
 	# overlays
 	toast_box = UI.vbox([], 8)
@@ -489,6 +499,7 @@ func _event(text: String) -> void:
 
 
 func narrate() -> void:
+	pause_reading()
 	if narrator.busy or _closing:
 		_want_narration = true
 		return
@@ -547,6 +558,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			_finish_chapter("")
 		"camp":
 			_finish_chapter(full.strip_edges() if ok else "")
+		"adapt":
+			_adapt_done(full, ok)
 		_:
 			voice.end()
 			var e := _live
@@ -621,6 +634,148 @@ func _check_chapter() -> void:
 		toast("Capitolo %d: %s" % [story.chapter, str(pr[0].issues[0])])
 
 
+# ------------------------------------------------------------- read aloud
+## A chapter with "Da leggere" paragraphs starts by reading them: no wait for
+## the model. Without them the narrator opens the chapter as before.
+func _start_chapter(event_text: String) -> void:
+	if story.reading_left():
+		add_feed("Tavolo", "Il master legge l'inizio del capitolo. Premete Pausa per fermarlo, o scrivete cosa fate: il master risponde.", "info")
+		start_reading()
+	else:
+		_event(event_text)
+
+
+func start_reading() -> void:
+	if _adapting:  # paused and resumed while the narrator was checking
+		_reading = true
+		_refresh_read_btn()
+		return
+	if not story.reading_left():
+		return
+	_reading = true
+	_read_next()
+
+
+## Stops the reading (a player acts, a pause, a check or a fight).
+func pause_reading() -> void:
+	if not _reading:
+		return
+	_reading = false
+	voice.stop()
+	_refresh_read_btn()
+
+
+func _read_next() -> void:
+	var paras := story.read_aloud()
+	if story.read_pos >= paras.size():
+		_reading = false
+		_refresh_read_btn()
+		add_feed("Tavolo", "Fine del testo da leggere: ora tocca a voi. Cosa fate?", "info")
+		voice.say("Cosa fate?")
+		_sync_phones()
+		return
+	var raw := str(paras[story.read_pos])
+	# the players made choices since the last paragraph: the narrator decides
+	# whether this one is read as written, skipped or adapted
+	if story.reading_diverged():
+		_adapt(raw)
+		return
+	_read_paragraph(raw, raw)
+
+
+func _adapt(raw: String) -> void:
+	if narrator.busy:
+		return  # _reading_tick tries again when the narrator is free
+	_adapting = true
+	_adapt_raw = raw
+	_refresh_read_btn()
+	if test_mode and not llm_in_tests:
+		return  # tests answer with _on_finished(..., "adapt")
+	add_feed("Tavolo", "Il master adatta il prossimo testo alle vostre scelte...", "info")
+	if not narrator.ask(story.adapt_messages(GameStory.strip_tags(raw)), {"max": 260, "temp": 0.4, "tag": "adapt"}):
+		_adapt_done("", false)
+
+
+func _adapt_done(full: String, ok: bool) -> void:
+	_adapting = false
+	var raw := _adapt_raw
+	_adapt_raw = ""
+	if not _reading or raw == "":
+		_refresh_read_btn()  # paused meanwhile: the next resume asks again
+		return
+	var r := GameStory.parse_adapt(full) if ok else {"mode": "read", "text": ""}
+	match str(r.mode):
+		"skip":
+			story.read_pos += 1
+			story.save()
+			add_feed("Tavolo", "Il master salta un pezzo del testo: le vostre scelte l'hanno cambiato.", "info")
+			_read_next()  # still diverged: the next paragraph is checked too
+		"text":
+			_read_paragraph(raw, str(r.text))
+		_:
+			_read_paragraph(raw, raw)
+
+
+## Reads one paragraph (text: as written or adapted) and moves past raw.
+func _read_paragraph(raw: String, text: String) -> void:
+	story.read_pos += 1
+	var clean := GameStory.strip_tags(text)
+	if clean != "":
+		add_feed("Master", clean, "master")
+		story.add("assistant", "Master", clean)
+		ambience.follow(clean)
+		voice.begin()
+		voice.say(clean)
+	story.read_mark = story.transcript.size()
+	story.save()
+	_read_clock = 0.0
+	_read_quiet = 0.0
+	_read_min = clampf(clean.split(" ", false).size() * 0.33, 2.0, 40.0)
+	# a check or a fight written in the text: the players act, the reading waits
+	var tags := GameStory.tags(text)
+	if tags.is_empty():
+		tags = GameStory.tags(raw)
+	if not tags.is_empty():
+		_reading = false
+		for t in tags:
+			_on_tag(str(t[0]), str(t[1]))
+	_refresh_read_btn()
+	_sync_phones()
+
+
+func _reading_tick(delta: float) -> void:
+	if not _reading or _adapting or narrator.busy:
+		return
+	_read_clock += delta
+	var talking := voice.enabled and voice.available
+	if talking:
+		_read_quiet = 0.0 if voice.speaking() else _read_quiet + delta
+		if _read_clock > 1.5 and _read_quiet > 0.8:
+			_read_next()
+	elif _read_clock > _read_min:
+		_read_next()
+
+
+func _make_read_btn() -> Button:
+	btn_read = UI.btn("Riprendi lettura", _toggle_reading, 54)
+	btn_read.visible = false
+	return btn_read
+
+
+func _toggle_reading() -> void:
+	if _reading:
+		pause_reading()
+	else:
+		start_reading()
+
+
+func _refresh_read_btn() -> void:
+	if btn_read == null:
+		return
+	btn_read.visible = _reading or story.reading_left()
+	btn_read.text = "Pausa" if _reading else "Riprendi lettura"
+
+
 ## Picks the background sound at the start: the place of the last master
 ## reply, or else the place named in the chapter outline.
 func _guess_place() -> void:
@@ -642,7 +797,7 @@ func _finish_chapter(new_summary: String) -> void:
 		add_feed("Riassunto", _chapter_prose, "info")
 	_chapter_prose = ""
 	_check_chapter()
-	_event("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
+	_start_chapter("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 
 
 # --------------------------------------------------------------------- checks
@@ -1052,6 +1207,7 @@ func _stop_combat() -> void:
 func _process(delta: float) -> void:
 	frame += 1
 	_combat_tick(delta)
+	_reading_tick(delta)
 	_sync_clock += delta
 	# a reply being written reaches the phones about three times a second
 	if _feed_dirty and _sync_clock > (0.35 if not _live.is_empty() else 0.8):

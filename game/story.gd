@@ -29,6 +29,8 @@ var chapter_title := ""
 var transcript: Array = []  # {role: "user"|"assistant", who, text}
 var chron_start := 0
 var summary := ""
+var read_pos := 0  # next "Da leggere" paragraph of the chapter to read aloud
+var read_mark := 0  # transcript size right after the last paragraph read
 
 
 func open(state) -> void:
@@ -38,6 +40,8 @@ func open(state) -> void:
 	chapter = 1
 	chapter_title = ""
 	transcript = []
+	read_pos = 0
+	read_mark = 0
 	chron_start = st.data.get("chronicle", []).size()
 	summary = _read(dir + "/riassunto.md")
 	var saved := _read(dir + "/corrente.json")
@@ -47,13 +51,60 @@ func open(state) -> void:
 		chapter_title = str(j.get("title", ""))
 		transcript = j.get("transcript", []) if j.get("transcript") is Array else []
 		chron_start = clampi(int(j.get("chron_start", chron_start)), 0, st.data.get("chronicle", []).size())
+		read_pos = maxi(0, int(j.get("read_pos", 0)))
+		read_mark = clampi(int(j.get("read_mark", transcript.size())), 0, transcript.size())
 
 
 func save() -> void:
 	if not st.persist:
 		return
 	_write(dir + "/corrente.json", JSON.stringify({"chapter": chapter, "title": chapter_title,
-		"transcript": transcript, "chron_start": chron_start}, "\t"))
+		"transcript": transcript, "chron_start": chron_start, "read_pos": read_pos, "read_mark": read_mark}, "\t"))
+
+
+## Paragraphs of the current chapter written to be read aloud to the players:
+## those starting with "Da leggere:" and those under a "Da leggere" heading
+## (up to the next heading). Everything else is for the master only.
+func read_aloud() -> Array:
+	return StoryImport.read_aloud(str(chapter_info().get("text", "")))
+
+
+func reading_left() -> bool:
+	return read_pos < read_aloud().size()
+
+
+## True when something happened at the table since the last paragraph read
+## (a player acted, a check, a fight): the next paragraph may no longer fit.
+func reading_diverged() -> bool:
+	return read_pos > 0 and transcript.size() > read_mark
+
+
+## Asks the narrator to fit the next paragraph to what the players did: the
+## paragraph rewritten, LEGGI (it fits as written) or SALTA (it no longer makes
+## sense). With gemma4 e4b, asking for the rewrite first works: given LEGGI as
+## the first option, it read a quiet inn while the players had set it on fire.
+func adapt_messages(passage: String) -> Array:
+	return messages("[Il prossimo testo da leggere ai giocatori è: \"%s\"\n" % passage
+		+ "Il tuo compito: riscrivi questo testo perché sia coerente con quello che i giocatori hanno appena fatto e con la situazione di adesso (luogo, atmosfera, persone), con la stessa lunghezza, tenendo persone e indizi, senza la domanda finale. "
+		+ "Se il testo è già coerente parola per parola, rispondi solo LEGGI. "
+		+ "Se racconta cose già successe o un luogo dove il gruppo non andrà più, rispondi solo SALTA.]")
+
+
+## Reads the narrator's answer to adapt_messages():
+## {mode: "read" | "skip" | "text", text}.
+static func parse_adapt(full: String) -> Dictionary:
+	var t := full.strip_edges()
+	var word := t.left(12).to_upper().strip_edges()
+	if word.begins_with("SALTA"):
+		return {"mode": "skip", "text": ""}
+	# "Leggete: <text>" / "Da leggere: <text>": a label before the text
+	var m := RegEx.create_from_string("(?i)^(leggi|leggete|da leggere|testo)\\s*[:.]\\s*").search(t)
+	if m:
+		t = t.substr(m.get_end())
+	for q in ["\"", "«", "»", "“", "”"]:
+		t = t.trim_prefix(q).trim_suffix(q)
+	t = t.strip_edges()
+	return {"mode": "text", "text": t} if t.length() >= 20 else {"mode": "read", "text": ""}
 
 
 func add(role: String, who: String, text: String) -> void:
@@ -118,6 +169,7 @@ func system_prompt() -> String:
 	p.append("- I marcatori tra doppie parentesi quadre vanno solo alla fine e solo quando servono.")
 	p.append("- La traccia del capitolo può essere scritta ad appunti, senza articoli: tu racconta sempre in italiano pieno e scorrevole, senza sigle.")
 	p.append("- Se la traccia ha una linea temporale, porta il gruppo da un momento al successivo seguendo le loro scelte, senza saltare avanti. Quando arriva il momento indicato come fine, chiudi il capitolo.")
+	p.append("- Le battute del Master che vengono dal testo da leggere sono già state lette ai giocatori: non ripeterle, riprendi da lì.")
 	p.append("- A volte ricevi un brano dal testo dell'avventura: usalo per luoghi, dialoghi e indizi, riassumendolo con parole tue.")
 	p.append("Esempio di risposta giusta. Giocatore: Entriamo nella grotta. Master: L'aria si fa umida e un odore di fumo vi punge la gola. Oltre una curva tremola la luce di un fuoco e si sentono voci gracchianti. Cosa fate?")
 	p.append("")
@@ -161,6 +213,9 @@ func messages(extra := "") -> Array:
 	var passage := passages()
 	if passage != "":
 		last = "[Dal testo dell'avventura, usalo se serve: " + passage + "]\n" + last
+	var paras := read_aloud()
+	if extra == "" and read_pos > 0 and read_pos < paras.size():
+		last = "[Prossimo testo che verrà letto ai giocatori, non raccontarlo tu: %s]\n" % str(paras[read_pos]).left(200) + last
 	if extra != "":
 		last = extra + "\n" + last
 	out.append({"role": "user", "content": last})
@@ -360,6 +415,8 @@ func close_chapter(prose: String, new_summary: String) -> String:
 	chapter += 1
 	chapter_title = ""
 	transcript = []
+	read_pos = 0
+	read_mark = 0
 	chron_start = st.data.get("chronicle", []).size()
 	save()
 	return path

@@ -56,42 +56,59 @@ legge per intero: quando un giocatore nomina un luogo, un PNG o un oggetto, l'ap
 testo i paragrafi che ne parlano e glieli passa per quella sola risposta (al massimo 600
 caratteri).
 
-### Modello della scheda (ad appunti, consigliato)
-
-Si scrive ad appunti, senza articoli né frasi di raccordo: nei 1400 caratteri ci stanno circa
-il doppio delle cose. Il narratore racconta comunque in italiano pieno.
-
-Prova del 23/11/2026 con gli stessi scenari (`llm_bench --story`): scheda in prosa 96%, scheda
-ad appunti 95%, cioè lo stesso risultato. Le risposte restano in italiano pieno anche con gli
-appunti, e con gli appunti il narratore ha chiuso il capitolo al momento giusto 2 volte su 2.
-Il vantaggio degli appunti è lo spazio: con le stesse informazioni restano libere circa metà
-dei 1400 caratteri, da usare per altri dettagli.
+### Modello della scheda (in prosa, consigliato)
 
 ```
 Capitolo 2: La grotta dei goblin
 
-Obiettivo: liberare mercanti rapiti, carovana.
-Luoghi: imbocco grotta, umido, odore fumo; sala fuoco, 3 goblin dormono; gabbie in fondo.
-PNG: Tobia, mercante anziano, spaventato. Sa: chiave al collo del capo goblin.
-Mostri: Goblin x3 nella sala fuoco, Capo goblin vicino gabbie
-Prove: Furtività CD 12 passare sala senza svegliare; Atletica CD 14 forzare gabbie.
-Linea temporale:
-1. imbocco grotta, tracce carovana
-2. sala fuoco: passare o combattere
-3. gabbie: Tobia, chiave
-4. capo goblin
-Fine: mercanti liberi, gruppo fuori dalla grotta.
+Obiettivo: ritrovare i mercanti rapiti della carovana.
+Luoghi: l'imbocco della grotta, umido e con odore di fumo; la sala del fuoco, dove dormono
+tre goblin; le gabbie in fondo, dove sono chiusi i mercanti.
+PNG: Tobia, mercante anziano e spaventato, sa dove il capo goblin tiene la chiave.
+Mostri: Goblin x3 nella sala del fuoco, Capo goblin vicino alle gabbie.
+Prove: Furtività CD 12 per passare la sala senza svegliarli; Atletica CD 14 per forzare le gabbie.
+Momenti: l'imbocco con le tracce della carovana; la sala del fuoco; le gabbie e Tobia; il capo goblin.
+Il capitolo finisce quando i mercanti sono liberi e il gruppo esce dalla grotta.
 ```
 
-- **Sì:** togliere articoli e frasi di raccordo.
-- **No:** sigle inventate ("cap. gob.") e frasi senza verbo ambigue ("Tobia mente chiave").
-  Le relazioni tra le cose vanno scritte: chi sa cosa, chi vuole cosa.
-- **Linea temporale:** i momenti chiave in ordine. Il narratore porta il gruppo dall'uno
-  all'altro seguendo le loro scelte e chiude il capitolo alla riga "Fine:".
+Prova del 23/11/2026 con gli stessi scenari (`llm_bench --story`): scheda in prosa 96%, scheda
+ad appunti 95%. Lo stesso risultato, ma con la prosa il narratore ha usato meglio i brani del
+testo completo (2 volte su 2 contro 0 su 2): per questo la prosa resta il modo consigliato.
+Gli appunti (senza articoli, con "Fine:") funzionano lo stesso, se serve spazio.
+
+- **Momenti in ordine:** il narratore porta il gruppo dall'uno all'altro seguendo le loro scelte.
 - **Dopo la scheda, il testo per esteso:** descrizioni, dialoghi, indizi, con titoletti per
   luogo o PNG. Più è scritto con i nomi che usano i giocatori, più l'app lo ritrova.
 
-Va bene anche una scheda in prosa con le stesse informazioni e "Il capitolo finisce quando...".
+### Il testo da leggere ai giocatori
+
+Il modo più veloce di raccontare è leggere un testo già scritto: niente attese e niente errori
+del modello. I paragrafi che cominciano con **"Da leggere:"**, o che stanno sotto un titoletto
+**"Da leggere"** (fino al titoletto successivo), vengono letti dalla voce all'inizio del capitolo,
+uno dopo l'altro, e compaiono sullo schermo e sui telefoni.
+
+```
+Da leggere: La pioggia vi accompagna per tutta la salita. Tra i cespugli, le tracce della
+carovana piegano verso una grotta da cui esce un filo di fumo.
+```
+
+- **Pausa** ferma la lettura; **Riprendi lettura** continua dal paragrafo successivo.
+- Se un giocatore scrive o dice cosa fa, la lettura si ferma e risponde il narratore, che sa
+  cosa è già stato letto e non lo ripete.
+- **Le scelte dei giocatori cambiano il testo.** Se dall'ultimo paragrafo letto è successo
+  qualcosa al tavolo (un'azione, una prova, un combattimento), prima di leggere il paragrafo
+  successivo il narratore lo confronta con la situazione: lo legge così com'è, lo riscrive
+  adattato (la locanda è in fiamme, non silenziosa) o lo salta (il gruppo è andato altrove).
+  Se nessuno ha fatto niente, il testo viene letto parola per parola, senza attese.
+- Mentre i giocatori improvvisano, il narratore conosce il prossimo paragrafo da leggere e può
+  riportare la storia verso di esso, senza raccontarlo lui.
+- Scrivi quindi paragrafi brevi e indipendenti: uno per scena. Un paragrafo lungo che racconta
+  tre scene è più facile da sbagliare dopo una scelta inattesa.
+- Un marcatore nel testo da leggere fa partire una prova o un combattimento e ferma la lettura:
+  `Da leggere: Due lupi sbucano dagli alberi. [[COMBATTIMENTO: Lupo x2]]`.
+- **Tutto il resto non viene letto:** scheda, segreti, note per il master restano al narratore.
+  Non mettere segreti nei paragrafi "Da leggere".
+- Se un capitolo non ha niente da leggere, lo apre il narratore come prima.
 
 ### Regole per la scheda
 
@@ -274,7 +291,8 @@ punteggio non scende. Le istruzioni del dettaglio sono in `tests/llm_results/LEG
 ## Promemoria veloce
 
 - [ ] Un titolo grande per capitolo nel PDF
-- [ ] Scheda ad appunti di massimo 1400 caratteri all'inizio di ogni capitolo, con linea temporale e "Fine:"
+- [ ] Scheda in prosa di massimo 1400 caratteri all'inizio di ogni capitolo, con i momenti in ordine
+- [ ] Paragrafi "Da leggere:" per l'apertura del capitolo, senza segreti
 - [ ] Obiettivo, luoghi con un dettaglio, PNG con cosa sanno
 - [ ] Mostri con i nomi esatti dell'app, già preparati con attacchi e note
 - [ ] Prove scritte come `Abilità CD n`

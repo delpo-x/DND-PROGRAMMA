@@ -211,6 +211,46 @@ Altro.".repeat(300)}
 	g.story.transcript = [{"role": "user", "who": "Bruno", "text": "Entro nella sala del fuoco e guardo i giacigli."}]
 	check("passage for a room", g.story.passages().contains("giacigli"), g.story.passages())
 	check("long paragraphs cut", GameStory._pieces("Frase uno. ".repeat(100)).all(func(p): return p.length() <= GameStory.PARA_CHARS))
+	# read-aloud text: only the marked paragraphs, read without the model
+	var ra := StoryImport.read_aloud("Obiettivo: segreto del master.\n\nDa leggere: La pioggia batte sulla strada.\n\nTobia mente.\n\n## Da leggere\n\nUna grotta si apre nella collina.\n\nUn fumo sottile esce dall'imbocco.\n\n## Note\n\nIl capo ha la chiave.")
+	check("read aloud: marked paragraphs only", ra == ["La pioggia batte sulla strada.", "Una grotta si apre nella collina.", "Un fumo sottile esce dall'imbocco."], ra)
+	st.set_story({"title": "Prova", "chapters": [{"title": "La strada", "text": "Obiettivo: segreto.\n\nDa leggere: La pioggia batte sulla strada.\n\nDa leggere: Due lupi sbucano dagli alberi. [[COMBATTIMENTO: Lupo x2]]\n\nDa leggere: Dopo la lotta, il silenzio."}]})
+	g.story.transcript = []
+	g.story.read_pos = 0
+	check("chapter has text to read", g.story.reading_left())
+	g.start_reading()
+	check("reading starts with the first paragraph", g._reading and g.story.transcript.back().text == "La pioggia batte sulla strada." and g.story.read_pos == 1, g.story.transcript.back())
+	check("read text not sent to the model", not g.narrator.busy)
+	check("pause button shown", g.btn_read.visible and g.btn_read.text == "Pausa")
+	g._read_next()
+	check("a fight in the text stops the reading", not g._reading and g.state.ini().active and g.story.read_pos == 2)
+	check("read text without markers", not str(g.story.transcript[1].text).contains("[["), g.story.transcript[1].text)
+	check("resume button shown", g.btn_read.visible and g.btn_read.text == "Riprendi lettura")
+	g.story.add("user", "Tavolo", "Il combattimento è finito: i lupi fuggono.")
+	check("what happens at the table counts as a choice", g.story.reading_diverged())
+	g.start_reading()
+	check("after choices the model checks the next text", g._adapting and g.story.read_pos == 2)
+	check("next text shown to the narrator", str(g.story.adapt_messages("Dopo la lotta.").back().content).contains("LEGGI"))
+	g._on_finished("Sconfitti i lupi, sulla strada torna il silenzio.", true, "adapt")
+	check("adapted text read", g.story.transcript.back().text == "Sconfitti i lupi, sulla strada torna il silenzio." and g.story.read_pos == 3 and not g.story.reading_diverged(), g.story.transcript.back())
+	g._player_says("Aria", "Mi guardo intorno.")
+	check("a player acting pauses the reading", not g._reading and g.story.read_pos == 3)
+	g.start_reading()
+	check("end of the text to read", not g._reading and not g.story.reading_left() and not g.btn_read.visible)
+	check("adapt answer: read", GameStory.parse_adapt(" Leggi.").mode == "read")
+	check("adapt answer: skip", GameStory.parse_adapt("SALTA").mode == "skip")
+	check("adapt answer: label dropped", GameStory.parse_adapt("Leggete: Entrate nella locanda piena di fumo.").text == "Entrate nella locanda piena di fumo.")
+	check("adapt answer: new text", GameStory.parse_adapt("«La porta è già aperta, il vento la sbatte.»").text == "La porta è già aperta, il vento la sbatte.")
+	# a paragraph made pointless by the players is skipped, the next one checked
+	g.story.read_pos = 1
+	g.story.read_mark = 0
+	g.start_reading()
+	g._on_finished("SALTA", true, "adapt")
+	check("skipped text, next one checked", g.story.read_pos == 2 and g._adapting, g.story.read_pos)
+	g._on_finished("LEGGI", true, "adapt")
+	check("text read as written", g.story.transcript.back().text == "Dopo la lotta, il silenzio." and g.story.read_pos == 3)
+	g.story.read_pos = 1
+	check("narrator told the next text", str(g.story.messages().back().content).contains("Prossimo testo"))
 	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()
