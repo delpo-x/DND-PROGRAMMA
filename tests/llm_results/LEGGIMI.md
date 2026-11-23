@@ -14,7 +14,7 @@ godot --headless --path . -s tests/llm_bench.gd -- --model qwen2.5:3b
 godot --headless --path . -s tests/llm_bench.gd -- --runs 3 --only combattimento
 ```
 
-- `--model`: il modello da provare (di base quello delle impostazioni, `qwen2.5:7b`).
+- `--model`: il modello da provare (di base `gemma4:e4b-it-q4_K_M`).
 - `--runs`: quante volte ripetere ogni scenario (di base 2). Il modello non risponde mai due
   volte uguale, quindi più ripetizioni danno un punteggio più affidabile.
 - `--only`: solo gli scenari che contengono questa parola. Questi giri non finiscono nello storico.

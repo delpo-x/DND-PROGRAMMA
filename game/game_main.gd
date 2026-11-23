@@ -16,7 +16,7 @@ var narrator := Narrator.new()
 var voice := Voice.new()
 var story := GameStory.new()
 var rng := RandomNumberGenerator.new()
-var settings := {"model": "qwen2.5:7b", "voice": "", "voice_on": true}
+var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true}
 
 var test_mode := false  # no files, no network outside this PC, no window tweaks
 var llm_in_tests := false  # tests: ask the real local model too
@@ -348,9 +348,9 @@ func _open_diary() -> void:
 
 
 func _show_settings() -> void:
-	var model := UI.edit(str(settings.model), "qwen2.5:7b", Callable(), 300)
+	var model := UI.edit(str(settings.model), Narrator.DEFAULT_MODEL, Callable(), 300)
 	var box := UI.vbox([UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
-		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Esempi: qwen2.5:3b, qwen2.5:7b, qwen3:8b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
+		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Provati: gemma4:e4b-it-q4_K_M (consigliato), qwen3.5:4b (più veloce), qwen2.5:7b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
 	var opt: OptionButton = null
 	var vlist := voice.voices()
 	if not vlist.is_empty():
@@ -368,7 +368,7 @@ func _show_settings() -> void:
 
 
 func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array) -> void:
-	settings.model = model.text.strip_edges() if model.text.strip_edges() != "" else "qwen2.5:7b"
+	settings.model = model.text.strip_edges() if model.text.strip_edges() != "" else Narrator.DEFAULT_MODEL
 	narrator.model = str(settings.model)
 	if opt:
 		settings.voice = str(vlist[opt.selected].get("id", ""))

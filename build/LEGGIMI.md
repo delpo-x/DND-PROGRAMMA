@@ -340,13 +340,14 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 [Ollama](https://ollama.com). Una volta sola:
 
 ```
-ollama pull qwen2.5:7b
+ollama pull gemma4:e4b-it-q4_K_M
 ```
 
 L'app avvia Ollama da sola se non è acceso. Su un PC senza scheda video la prima frase arriva
-in circa 4 secondi e la risposta completa in 20-30 secondi; la voce comincia a leggere mentre il
-testo arriva. Un modello più leggero (per esempio `qwen2.5:3b`) è più veloce ma scrive peggio: si
-cambia in "Impostazioni". Senza Ollama l'app funziona lo stesso, ma la storia la scrivi tu.
+in circa 2 secondi e la risposta completa in 10-15 secondi; la voce comincia a leggere mentre il
+testo arriva. Il modello si cambia in "Impostazioni": `qwen3.5:4b` è un po' più veloce ma sbaglia
+più spesso l'italiano e i marcatori. Il confronto tra i modelli provati è in
+`tests/llm_results/storico.csv` del codice sorgente. Senza Ollama l'app funziona lo stesso, ma la storia la scrivi tu.
 
 Il narratore chiede da solo prove e tiri salvezza (i giocatori tirano dal telefono, per chi non
 ha il telefono tira l'app) e fa partire i combattimenti con i mostri della campagna o del

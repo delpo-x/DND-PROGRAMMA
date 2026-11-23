@@ -1,2 +1,4 @@
 data,modello,prompt,ripetizioni,superati,controlli,punteggio,prima_parola_s,risposta_s,token_s
 2026-11-23 15:34,qwen2.5:7b,6918174b,2,141,158,89,1.4,14.0,6.7
+2026-11-23 16:02,gemma4:e4b-it-q4_K_M,6918174b,2,155,161,96,1.8,12.5,6.9
+2026-11-23 16:09,qwen3.5:4b,6918174b,2,153,162,94,2.5,10.2,9.7

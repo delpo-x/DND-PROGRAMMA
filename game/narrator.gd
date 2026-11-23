@@ -12,7 +12,10 @@ const HOST := "127.0.0.1"
 const PORT := 11434
 const LOAD_TIMEOUT := 400.0  # seconds: the first reply also loads the model
 
-var model := "qwen2.5:7b"
+## Chosen with tests/llm_bench.gd (see tests/llm_results/storico.csv).
+const DEFAULT_MODEL := "gemma4:e4b-it-q4_K_M"
+
+var model := DEFAULT_MODEL
 var busy := false
 var status := "Narratore non ancora usato"
 
@@ -43,8 +46,10 @@ func ask(messages: Array, opts := {}) -> bool:
 	last_stats = {}
 	var options := {"temperature": float(opts.get("temp", 0.8)), "num_ctx": 4096,
 		"num_predict": int(opts.get("max", 170)), "repeat_penalty": 1.1}
+	# think false: models that reason before answering (qwen3.5, gemma4...)
+	# would spend most of the time on hidden thoughts; the others ignore it
 	_body = JSON.stringify({"model": model, "messages": messages, "stream": true,
-		"keep_alive": "60m", "options": options})
+		"think": false, "keep_alive": "60m", "options": options})
 	_connect()
 	return true
 
