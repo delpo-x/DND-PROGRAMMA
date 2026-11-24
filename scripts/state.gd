@@ -7,6 +7,7 @@ signal changed
 signal roll_added(entry: Dictionary)
 signal request_added(req: Dictionary)
 signal notice(text: String)  # short message for the master (shown as a toast)
+signal map_event(title: String, lines: Array)  # attacks of opportunity on the map
 
 const SAVE_DIR := "user://campagne"
 const SETTINGS := "user://impostazioni.json"
@@ -1219,7 +1220,14 @@ func next_turn() -> void:
 			idx = 0
 			ini().round = int(ini().round) + 1
 		ini().current = list[idx].id
-	ini()["moved"] = {}  # a new turn: movement starts again
+	# a new turn: movement, Scatto and Disimpegno start again; the creature
+	# whose turn it is gets its reaction back
+	ini()["moved"] = {}
+	ini()["dash"] = {}
+	ini()["disengage"] = {}
+	var reacted: Dictionary = ini().get("reacted", {})
+	reacted.erase(str(current_combatant().get("ref", "")))
+	ini()["reacted"] = reacted
 	touch()
 
 
@@ -1833,8 +1841,80 @@ func speed_squares(e: Dictionary) -> int:
 	return maxi(0, int(float(e.get("speed", 9)) / 1.5) - Rules.exhaustion(e))
 
 
+static func _sq_key(x: int, y: int) -> String:
+	return "%d,%d" % [x, y]
+
+
+## Difficult terrain (PHB): every square of it costs one extra square of
+## movement. Kept per map as "x,y" keys.
+static func is_difficult(mp: Dictionary, x: int, y: int) -> bool:
+	return mp.get("difficult", []).has(_sq_key(x, y))
+
+
+func toggle_difficult(map_id: String, x: int, y: int) -> void:
+	var mp := find_map(map_id)
+	if mp.is_empty():
+		return
+	var n := map_size(mp)
+	if x < 0 or y < 0 or x >= n.x or y >= n.y:
+		return
+	var l: Array = mp.get("difficult", [])
+	var k := _sq_key(x, y)
+	if l.has(k):
+		l.erase(k)
+	else:
+		l.append(k)
+	mp["difficult"] = l
+	touch()
+
+
+## Movement cost in squares along the most direct route (a diagonal step
+## costs like a straight one); difficult squares count double.
+static func path_cost(mp: Dictionary, from: Vector2i, to: Vector2i) -> int:
+	var p := from
+	var cost := 0
+	while p != to:
+		p += Vector2i(signi(to.x - p.x), signi(to.y - p.y))
+		cost += 2 if is_difficult(mp, p.x, p.y) else 1
+	return cost
+
+
+## Per-turn flags of the fight: "dash", "disengage", "reacted".
+func turn_flag(key: String, ref: String) -> bool:
+	return bool(ini().get(key, {}).get(ref, false))
+
+
+func set_turn_flag(key: String, ref: String) -> void:
+	var d: Dictionary = ini().get(key, {})
+	d[ref] = true
+	ini()[key] = d
+
+
+## Squares of movement left this turn (Scatto doubles the speed).
+func move_left(ref: String) -> int:
+	var allow := speed_squares(find_entity(ref)) * (2 if turn_flag("dash", ref) else 1)
+	return maxi(0, allow - int(ini().get("moved", {}).get(ref, 0)))
+
+
+func _spend_move(ref: String, sq: int) -> void:
+	var moved: Dictionary = ini().get("moved", {})
+	moved[ref] = int(moved.get(ref, 0)) + sq
+	ini()["moved"] = moved
+
+
+func _fighting(ref: String) -> bool:
+	if not bool(ini().active):
+		return false
+	for c in ini().combatants:
+		if str(c.ref) == ref:
+			return true
+	return false
+
+
 ## A player moves their own piece on the map they are shown. "" = done.
-## In a fight: only on their own turn and as far as their speed allows.
+## In a fight: only on their own turn and as far as their movement allows
+## (difficult terrain and crawling while prone cost double), and leaving an
+## enemy's reach provokes its attack of opportunity.
 func player_move(char_id: String, x: int, y: int) -> String:
 	var mp := find_map(str(data.get("map_active", "")))
 	if mp.is_empty():
@@ -1842,28 +1922,170 @@ func player_move(char_id: String, x: int, y: int) -> String:
 	var from := map_pos(char_id)
 	if from.x < 0:
 		return "La tua pedina non è sulla mappa"
-	var steps := maxi(absi(x - from.x), absi(y - from.y))
-	var fighting := false
-	if bool(ini().active):
-		for c in ini().combatants:
-			if str(c.ref) == char_id:
-				fighting = true
+	var me := find_entity(char_id)
+	var prone := Actions.has_cond(me, "Prono")
+	var cost := path_cost(mp, from, Vector2i(x, y)) * (2 if prone else 1)
+	var fighting := _fighting(char_id)
 	if fighting:
 		if str(current_combatant().get("ref", "")) != char_id:
 			return "Non è il tuo turno: aspetta per muoverti"
-		var moved: Dictionary = ini().get("moved", {})
-		var used := int(moved.get(char_id, 0))
-		var allow := speed_squares(find_entity(char_id))
-		if used + steps > allow:
-			return "Troppo lontano: ti restano %s m di movimento" % _m(1.5 * maxi(0, allow - used))
+		var left := move_left(char_id)
+		if cost > left:
+			return "Troppo lontano: ti restano %s m di movimento%s" % [_m(1.5 * left), " (da prono strisci: rialzati prima)" if prone else ""]
 	if not place_token(mp.id, char_id, x, y):
 		return "Casella occupata"
 	if fighting:
-		var moved2: Dictionary = ini().get("moved", {})
-		moved2[char_id] = int(moved2.get(char_id, 0)) + steps
-		ini()["moved"] = moved2
+		_spend_move(char_id, cost)
 		touch()
+		_opportunity_attacks(char_id, from)
 	return ""
+
+
+## First melee attack of a creature: a character's weapon ({} when none), a
+## monster's attack from its notes or a plain one sized on its hit points.
+func melee_action(ref: String) -> Dictionary:
+	for a in Actions.list_for(self, ref):
+		if str(a.get("mode", "")) == "attack" and not bool(a.get("ranged", false)) and str(a.get("group", "")) != "Personalizzata":
+			return a
+	return {} if is_pc(ref) else MonsterAI.fallback_attack(find_entity(ref))
+
+
+## Reach in squares: 2 with a reach weapon, otherwise 1.
+func reach_squares(ref: String) -> int:
+	var a := melee_action(ref)
+	return 2 if not a.is_empty() and Actions.is_reach(a) else 1
+
+
+## PHB: a character leaving the reach of a monster that can still react takes
+## one attack from it, unless they took the Disimpegno action this turn.
+func _opportunity_attacks(ref: String, from: Vector2i) -> void:
+	if turn_flag("disengage", ref) or not is_pc(ref):
+		return
+	var mp := find_map(str(data.get("map_active", "")))
+	var to := map_pos(ref)
+	for tok in mp.get("tokens", []).duplicate():
+		var oref := str(tok.ref)
+		var o := find_entity(oref)
+		if o.is_empty() or is_pc(oref) or int(o.get("hp", 0)) <= 0 or not _fighting(oref) or turn_flag("reacted", oref):
+			continue
+		var free := true
+		for c in INCAPACITATING:
+			if Actions.has_cond(o, c):
+				free = false
+		if not free:
+			continue
+		var r := reach_squares(oref)
+		var p := Vector2i(int(tok.x), int(tok.y))
+		if maxi(absi(p.x - from.x), absi(p.y - from.y)) > r or maxi(absi(p.x - to.x), absi(p.y - to.y)) <= r:
+			continue
+		var a := melee_action(oref)
+		if a.is_empty():
+			continue
+		a = a.duplicate()
+		a["times"] = 1
+		set_turn_flag("reacted", oref)
+		var res: Dictionary = Actions.resolve(self, oref, a, [ref], {"adv": "auto"})
+		if bool(res.get("ok", false)):
+			map_event.emit("Attacco di opportunità",
+				["%s si allontana da %s: attacco di opportunità." % [find_entity(ref).get("name", "?"), o.name]] + Actions.public_lines(self, res.lines))
+		if int(find_entity(ref).get("hp", 0)) <= 0:
+			break
+
+
+## Movement actions of a turn (PHB): Scatto (Dash) doubles this turn's
+## movement, Disimpegno (Disengage) avoids attacks of opportunity, Rialzati
+## (stand up from prone) costs half the speed. Returns {ok, error, line}.
+func maneuver(ref: String, kind: String) -> Dictionary:
+	var e := find_entity(ref)
+	if e.is_empty():
+		return {"ok": false, "error": "Personaggio non trovato"}
+	var fighting := _fighting(ref)
+	if fighting and str(current_combatant().get("ref", "")) != ref:
+		return {"ok": false, "error": "Non è il tuo turno"}
+	match kind:
+		"dash", "disengage":
+			if not fighting:
+				return {"ok": false, "error": "Serve solo in combattimento"}
+			if turn_flag(kind, ref):
+				return {"ok": false, "error": "Già fatto in questo turno"}
+			set_turn_flag(kind, ref)
+			touch()
+			if kind == "dash":
+				return {"ok": true, "line": "%s usa l'azione Scatto: ora ha %s m di movimento." % [e.name, _m(1.5 * move_left(ref))]}
+			return {"ok": true, "line": "%s usa l'azione Disimpegno: si allontana senza subire attacchi di opportunità." % e.name}
+		"stand":
+			if not Actions.has_cond(e, "Prono"):
+				return {"ok": false, "error": "Non sei a terra"}
+			if fighting:
+				var cost := ceili(speed_squares(e) / 2.0)
+				if speed_squares(e) == 0 or cost > move_left(ref):
+					return {"ok": false, "error": "Non ti resta abbastanza movimento per rialzarti"}
+				_spend_move(ref, cost)
+			toggle_condition(ref, "Prono")
+			return {"ok": true, "line": "%s si rialza (costa metà del movimento)." % e.name}
+	return {"ok": false, "error": "Azione sconosciuta"}
+
+
+## Moves a monster toward a target, one square at a time, until it is within
+## `want` squares or its movement runs out. Difficult squares cost double;
+## other pieces are walked around when a free square still gets it closer.
+## Returns the squares of movement spent.
+func monster_approach(ref: String, tid: String, want: int) -> int:
+	var mp := find_map(str(data.get("map_active", "")))
+	var p := map_pos(ref)
+	var t := map_pos(tid)
+	if mp.is_empty() or p.x < 0 or t.x < 0:
+		return 0
+	var left := move_left(ref) if _fighting(ref) else speed_squares(find_entity(ref))
+	var n := map_size(mp)
+	var spent := 0
+	while maxi(absi(p.x - t.x), absi(p.y - t.y)) > want:
+		var cur_d := maxi(absi(p.x - t.x), absi(p.y - t.y))
+		var best := Vector2i(-1, -1)
+		var best_s := INF
+		for dy in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				var q := p + Vector2i(dx, dy)
+				if q == p or q.x < 0 or q.y < 0 or q.x >= n.x or q.y >= n.y or not token_at(mp, q.x, q.y).is_empty():
+					continue
+				var d := maxi(absi(q.x - t.x), absi(q.y - t.y))
+				var c := 2 if is_difficult(mp, q.x, q.y) else 1
+				if d >= cur_d or c > left - spent:
+					continue
+				var score := d * 10.0 + Vector2(q - t).length() + (3.0 if c == 2 else 0.0)
+				if score < best_s:
+					best_s = score
+					best = q
+		if best.x < 0:
+			break
+		spent += 2 if is_difficult(mp, best.x, best.y) else 1
+		p = best
+	if spent > 0:
+		place_token(mp.id, ref, p.x, p.y)
+		if _fighting(ref):
+			_spend_move(ref, spent)
+		touch()
+	return spent
+
+
+## Master helper: the monster walks toward the nearest character standing.
+func monster_auto_move(ref: String) -> String:
+	var e := find_entity(ref)
+	if e.is_empty() or is_pc(ref) or map_pos(ref).x < 0:
+		return "Il mostro non è sulla mappa in gioco"
+	var best := ""
+	var bd := INF
+	for c in characters():
+		var d := map_dist_m(ref, str(c.id))
+		if d >= 0 and int(c.hp) > 0 and d < bd:
+			bd = d
+			best = str(c.id)
+	if best == "":
+		return "Nessun personaggio sulla mappa"
+	var spent := monster_approach(ref, best, reach_squares(ref))
+	if spent == 0:
+		return "%s non si sposta (già vicino o senza movimento)" % e.name
+	return "%s si avvicina a %s (%s m)" % [e.name, find_entity(best).name, _m(1.5 * spent)]
 
 
 static func _m(v: float) -> String:
@@ -1891,7 +2113,7 @@ func _public_map(char_id: String) -> Variant:
 	var n := map_size(mp)
 	return {"id": mp.id, "name": mp.name, "url": "/mappa/%s.jpg" % mp.file, "w": int(mp.w), "h": int(mp.h),
 		"cell": float(mp.cell), "ox": fposmod(float(mp.ox), float(mp.cell)), "oy": fposmod(float(mp.oy), float(mp.cell)),
-		"cols": n.x, "rows": n.y, "grid": bool(mp.grid), "tokens": toks}
+		"cols": n.x, "rows": n.y, "grid": bool(mp.grid), "tokens": toks, "difficult": mp.get("difficult", [])}
 
 
 # ---------------------------------------------------------------- csv export

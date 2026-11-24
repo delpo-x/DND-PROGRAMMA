@@ -844,7 +844,9 @@ static func phone_turn(st, char_id: String) -> Dictionary:
 			"status": st.status_of(e), "cond": str(e.get("conditions", "")), "down": int(e.hp) <= 0,
 			"img": Art.key_for(e, "pc" if st.is_pc(c.ref) else "monster")})
 	return {"actions": acts, "targets": targets, "round": int(ini.round),
-		"concentration": str(me.get("concentration", ""))}
+		"concentration": str(me.get("concentration", "")),
+		"move": {"map": st.map_pos(char_id).x >= 0, "left": GameState._m(1.5 * st.move_left(char_id)),
+			"dash": st.turn_flag("dash", char_id), "dis": st.turn_flag("disengage", char_id), "prone": has_cond(me, "Prono")}}
 
 
 ## Character actions offered on the phone: no custom action, no spells that

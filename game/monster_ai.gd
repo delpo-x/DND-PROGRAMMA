@@ -116,11 +116,19 @@ static func value_of(st, a: Dictionary, targets: Array) -> float:
 
 ## Order of preference among the characters: wounded ones first (finish them),
 ## then casters holding concentration, then lower armour; a pinch of chance.
-static func rank_targets(st, rng: RandomNumberGenerator, ids: Array) -> Array:
+static func rank_targets(st, rng: RandomNumberGenerator, ids: Array, mid := "") -> Array:
 	var scored: Array = []
+	var speed: int = st.speed_squares(st.find_entity(mid)) if mid != "" else 0
 	for id in ids:
 		var e: Dictionary = st.find_entity(id)
 		var s := 2.0 * (1.0 - float(e.hp) / maxf(1.0, float(e.hp_max)))
+		# on a map: closer targets first, out of reach this turn much later
+		var dm: float = st.map_dist_m(mid, id) if mid != "" else -1.0
+		if dm >= 0:
+			var sq := dm / 1.5
+			s -= 0.12 * sq
+			if sq - 1.0 > speed:
+				s -= 1.5
 		if str(e.get("concentration", "")) != "":
 			s += 0.8
 		s -= float(e.get("ac", 12)) / 25.0
@@ -158,7 +166,7 @@ static func choose(st, mid: String, rng: RandomNumberGenerator) -> Dictionary:
 	var acts := usable(st, mid)
 	if acts.is_empty():
 		acts = [fallback_attack(m)]
-	var order := rank_targets(st, rng, ids)
+	var order := rank_targets(st, rng, ids, mid)
 	var best: Dictionary = {}
 	var best_t: Array = []
 	var best_v := -1.0

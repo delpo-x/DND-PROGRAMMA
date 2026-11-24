@@ -28,6 +28,9 @@ func setup(a) -> void:
 		UI.btn("Nuovo combattimento", _new_combat, 56),
 		UI.btn("Aggiungi combattente", _add_dialog, 56),
 		UI.btn("Tira iniziativa mostri", func(): app.state.roll_monster_initiative(true), 56),
+		UI.btn("Avvicina mostro", func():
+			var cur: Dictionary = app.state.current_combatant()
+			app.toast(app.state.monster_auto_move(str(cur.get("ref", ""))) if not cur.is_empty() else "Nessun turno in corso"), 56),
 		UI.btn("Richiedi iniziativa ai giocatori", _ask_players, 56),
 		UI.color_btn("Termina combattimento", Color(0.45, 0.15, 0.12), func(): app.confirm("Terminare il combattimento?", func(): app.state.combat_end()), 56),
 	]))

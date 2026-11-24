@@ -109,6 +109,7 @@ func _ready() -> void:
 	net.player_message.connect(toast)
 	net.player_action.connect(func(cid, title, lines): tab_init.panel.show_result(cid, title, lines))
 	state.notice.connect(toast)
+	state.map_event.connect(func(title, lines): toast(title + ": " + " ".join(lines)))
 	state.roll_added.connect(_on_roll_toast)
 	_refresh_all()
 	if selftest_path != "":

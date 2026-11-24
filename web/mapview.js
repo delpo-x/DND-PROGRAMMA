@@ -194,6 +194,15 @@
       for (var j = 0; j <= m.rows; j++) { ctx.moveTo(ox, oy + j * c); ctx.lineTo(ox + m.cols * c, oy + j * c); }
       ctx.stroke();
     }
+    // difficult terrain: brown hatching
+    (m.difficult || []).forEach(function (k) {
+      var q = String(k).split(','), X = ox + (+q[0]) * c, Y = oy + (+q[1]) * c;
+      ctx.fillStyle = 'rgba(110,60,15,0.25)'; ctx.fillRect(X, Y, c, c);
+      ctx.strokeStyle = 'rgba(60,28,5,0.55)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (var s = 1; s <= 3; s++) { ctx.moveTo(X + s * c / 3, Y); ctx.lineTo(X, Y + s * c / 3); }
+      for (var s2 = 1; s2 < 3; s2++) { ctx.moveTo(X + c, Y + s2 * c / 3); ctx.lineTo(X + s2 * c / 3, Y + c); }
+      ctx.stroke();
+    });
     var self = this, ts = (m.tokens || []).slice();
     // pieces: the own one is drawn last (on top)
     ts.sort(function (a, b) { return (a.me ? 1 : 0) - (b.me ? 1 : 0); });

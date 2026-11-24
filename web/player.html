@@ -841,9 +841,17 @@
   function toggleMic() {
     if (mic) { mic.stop(); return; }
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR || !window.isSecureContext) {
-      toast(SR ? 'Il browser blocca il microfono su questa pagina. Chrome: apri chrome://flags, cerca "insecure origins treated as secure", scrivi ' + location.origin + ', attiva e riavvia. Intanto usa il microfono della tastiera.'
-        : 'Questo browser non riconosce la voce: usa il microfono della tastiera.');
+    if (!window.isSecureContext && location.protocol === 'http:') {
+      // the microphone needs the secure page of the table: go there with
+      // this phone's character (the browser warns once about the certificate)
+      if (confirm('Per parlare serve la pagina sicura del tavolo. La prima volta il browser mostra un avviso: tocca Avanzate e poi Procedi. Continuare?')) {
+        var tk = localStorage.getItem('dnd_tavolo_token') || '';
+        location.href = 'https://' + location.hostname + ':' + (Number(location.port || 80) + 2) + '/giocatore' + (tk ? '#t=' + encodeURIComponent(tk) : '');
+      }
+      return;
+    }
+    if (!SR) {
+      toast('Questo browser non riconosce la voce: usa il microfono della tastiera.');
       return;
     }
     var r = new SR(), box = $('aiText'), before = box.value.trim(), heard = '';
@@ -961,6 +969,11 @@
     h += '</div>';
     var n = Object.keys(st.targets).length;
     h += '<button class="primary tgo"' + (st.busy || !n ? ' disabled' : '') + '>' + (st.busy ? 'Tiro in corso...' : (n ? 'TIRA!' : 'Scegli un bersaglio')) + '</button>';
+    var mv = tr.move || {};
+    h += '<div class="tmoves">' + (mv.map ? '<span class="dim">Movimento: ' + esc(mv.left) + ' m</span>' : '') +
+      '<button class="tmv" data-k="dash"' + (mv.dash ? ' disabled' : '') + '>Scatto</button>' +
+      '<button class="tmv" data-k="disengage"' + (mv.dis ? ' disabled' : '') + '>Disimpegno</button>' +
+      (mv.prone ? '<button class="tmv" data-k="stand">Rialzati</button>' : '') + '</div>';
     if (S.view.ai) h += '<button class="tend">Fine turno</button>';
     h += '<p class="dim tfoot">I dadi li tira il tavolo e applica tutto: colpi, danni, tiri salvezza, condizioni, slot.</p></div>';
     boxes.forEach(function (b) { b.innerHTML = h + res; });
@@ -971,6 +984,7 @@
     var tr = S.view && S.view.turn, st = S.act;
     if (b.classList.contains('tendc')) { link.send({ t: 'end_conc' }); return; }
     if (b.classList.contains('tend')) { st.result = null; link.send({ t: 'end_turn' }); return; }
+    if (b.classList.contains('tmv')) { link.send({ t: 'maneuver', k: b.getAttribute('data-k') }); T.buzz(15); return; }
     if (!tr || !tr.actions) return;
     if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
     else if (b.classList.contains('tslot')) { st.slot = +b.getAttribute('data-l'); }

@@ -2,7 +2,10 @@ class_name NetServer
 extends Node
 ## Local network server on the master device.
 ## HTTP (port P) serves the player and shared-screen pages from res://web/.
-## WebSocket (port P+1) carries real-time messages. Every client only gets
+## WebSocket (port P+1) carries real-time messages.
+## The same on HTTPS (P+2) and secure WebSocket (P+3), with a self-signed
+## certificate made once on this PC: browsers allow the microphone (the Parla
+## button) only on secure pages. Every client only gets
 ## the view allowed by the visibility rules (GameState.player_view / screen_view).
 
 signal clients_changed
@@ -42,6 +45,11 @@ var _portrait_path := RegEx.create_from_string("^/img/r/([a-z0-9_]+)[.]jpg$")
 var _map_path := RegEx.create_from_string("^/mappa/(map_[0-9_]+)[.]jpg$")
 var http := TCPServer.new()
 var ws_server := TCPServer.new()
+var https := TCPServer.new()
+var wss_server := TCPServer.new()
+var tls_ok := false
+var _tls: TLSOptions = null
+const TLS_DIR := "user://tls"
 var http_port := 0
 var bind_addr := "*"
 var running := false
@@ -67,6 +75,7 @@ func start(addr := "*") -> bool:
 			if ws_server.listen(p + 1, addr) == OK:
 				http_port = p
 				running = true
+				_start_tls(p, addr)
 				return true
 			http.stop()
 	return false
@@ -78,11 +87,42 @@ func stop() -> void:
 	clients.clear()
 	http.stop()
 	ws_server.stop()
+	https.stop()
+	wss_server.stop()
+	tls_ok = false
 	running = false
 
 
 func ws_port() -> int:
 	return http_port + 1
+
+
+## Secure copies of the two servers. The key and certificate are kept, so a
+## phone accepts the warning once and not at every start.
+func _start_tls(p: int, addr: String) -> void:
+	tls_ok = false
+	if _tls == null:
+		var crypto := Crypto.new()
+		var key := CryptoKey.new()
+		var cert := X509Certificate.new()
+		DirAccess.make_dir_recursive_absolute(TLS_DIR)
+		var have := FileAccess.file_exists(TLS_DIR + "/tavolo.key") and FileAccess.file_exists(TLS_DIR + "/tavolo.crt")
+		if not have or key.load(TLS_DIR + "/tavolo.key") != OK or cert.load(TLS_DIR + "/tavolo.crt") != OK:
+			key = crypto.generate_rsa(2048)
+			cert = crypto.generate_self_signed_certificate(key, "CN=Dnd Tavolo,O=Dnd The Game,C=IT", "20250101000000", "20450101000000")
+			key.save(TLS_DIR + "/tavolo.key")
+			cert.save(TLS_DIR + "/tavolo.crt")
+		_tls = TLSOptions.server(key, cert)
+	if https.listen(p + 2, addr) != OK:
+		return
+	if wss_server.listen(p + 3, addr) != OK:
+		https.stop()
+		return
+	tls_ok = true
+
+
+func secure_url() -> String:
+	return base_url().replace("http://", "https://").replace(":%d" % http_port, ":%d" % (http_port + 2)) if tls_ok else ""
 
 
 static func local_ips() -> Array:
@@ -139,13 +179,32 @@ func _poll_http(delta: float) -> void:
 		var tcp := http.take_connection()
 		if tcp:
 			http_conns.append({"tcp": tcp, "buf": PackedByteArray(), "t": 0.0, "done": false})
+	while tls_ok and https.is_connection_available():
+		var raw := https.take_connection()
+		if raw:
+			var tls := StreamPeerTLS.new()
+			if tls.accept_stream(raw, _tls) == OK:
+				http_conns.append({"tcp": tls, "buf": PackedByteArray(), "t": 0.0, "done": false})
 	for c in http_conns.duplicate():
-		var tcp: StreamPeerTCP = c.tcp
-		tcp.poll()
+		var tcp: StreamPeer = c.tcp
+		var ok := false
+		var wait := false
+		if tcp is StreamPeerTLS:
+			tcp.poll()
+			var ts: int = tcp.get_status()
+			ok = ts == StreamPeerTLS.STATUS_CONNECTED
+			wait = ts == StreamPeerTLS.STATUS_HANDSHAKING
+		else:
+			tcp.poll()
+			ok = tcp.get_status() == StreamPeerTCP.STATUS_CONNECTED
 		c.t += delta
-		var st := tcp.get_status()
-		if st != StreamPeerTCP.STATUS_CONNECTED or c.t > (1.5 if c.done else 10.0):
-			tcp.disconnect_from_host()
+		if wait and c.t <= 10.0:
+			continue
+		if not ok or c.t > (1.5 if c.done else 10.0):
+			if tcp is StreamPeerTLS:
+				tcp.disconnect_from_stream()
+			else:
+				tcp.disconnect_from_host()
 			http_conns.erase(c)
 			continue
 		if c.done:
@@ -196,7 +255,7 @@ static func _header_end(b: PackedByteArray) -> int:
 	return -1
 
 
-func _send(tcp: StreamPeerTCP, code: String, ctype: String, body: PackedByteArray) -> void:
+func _send(tcp: StreamPeer, code: String, ctype: String, body: PackedByteArray) -> void:
 	var header := "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" % [code, ctype, body.size()]
 	var out := header.to_utf8_buffer()
 	out.append_array(body)
@@ -215,7 +274,7 @@ static func _query(path: String) -> Dictionary:
 
 
 ## POST /importa-scheda?token=..&player=..  body = PDF bytes.
-func _respond_post(tcp: StreamPeerTCP, head: String, body: PackedByteArray) -> void:
+func _respond_post(tcp: StreamPeer, head: String, body: PackedByteArray) -> void:
 	var first := head.split("\r\n")[0].split(" ")
 	var path := first[1] if first.size() > 1 else "/"
 	var q := _query(path)
@@ -274,7 +333,7 @@ func portrait_for(token: String, bytes: PackedByteArray) -> Dictionary:
 	return {"ok": true}
 
 
-func _respond(tcp: StreamPeerTCP, head: String) -> void:
+func _respond(tcp: StreamPeer, head: String) -> void:
 	var first := head.split("\r\n")[0]
 	var parts := first.split(" ")
 	var path := "/"
@@ -359,6 +418,21 @@ func _poll_ws(delta: float) -> void:
 		if ws.accept_stream(tcp) != OK:
 			continue
 		clients[next_peer] = {"ws": ws, "token": "", "role": "", "char_id": "", "t": 0.0, "open": false}
+		next_peer += 1
+	while tls_ok and wss_server.is_connection_available():
+		var raw := wss_server.take_connection()
+		if raw == null:
+			continue
+		var tls := StreamPeerTLS.new()
+		if tls.accept_stream(raw, _tls) != OK:
+			continue
+		var ws2 := WebSocketPeer.new()
+		ws2.inbound_buffer_size = 1 << 20
+		ws2.outbound_buffer_size = 1 << 21
+		ws2.max_queued_packets = 4096
+		if ws2.accept_stream(tls) != OK:
+			continue
+		clients[next_peer] = {"ws": ws2, "token": "", "role": "", "char_id": "", "t": 0.0, "open": false}
 		next_peer += 1
 	var changed := false
 	for id in clients.keys():
@@ -552,6 +626,16 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 					var title := "Round %d - %s: %s" % [int(state.ini().round), state.find_entity(c.char_id).get("name", "?"), str(msg.get("name", ""))]
 					send(id, {"t": "act_result", "title": title, "lines": Actions.public_lines(state, res.lines)})
 					player_action.emit(c.char_id, title, res.lines)
+		"maneuver":
+			# Scatto, Disimpegno, Rialzati from the phone's turn panel
+			if c.role == "player" and c.char_id != "":
+				var r := state.maneuver(c.char_id, str(msg.get("k", "")))
+				if not bool(r.ok):
+					send(id, {"t": "toast", "text": str(r.error)})
+				else:
+					send(id, {"t": "toast", "text": str(r.line)})
+					player_action.emit(c.char_id, "Round %d - %s" % [int(state.ini().round), state.find_entity(c.char_id).get("name", "?")], [str(r.line)])
+				send(id, {"t": "state", "s": view_for(id)})
 		"end_conc":
 			if c.role == "player" and c.char_id != "":
 				var me := state.find_entity(c.char_id)

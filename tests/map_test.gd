@@ -112,6 +112,41 @@ func _init() -> void:
 	check("grappled: speed 0", st.player_move(a.id, 6, 3) != "")
 	st.toggle_condition(a.id, "Afferrato")
 	check("new turn: full movement", st.player_move(a.id, 12, 2) == "")
+	# difficult terrain, Scatto, Rialzati, attacks of opportunity
+	st.toggle_difficult(mp.id, 14, 2)
+	check("difficult costs double", GameState.path_cost(mp, Vector2i(12, 2), Vector2i(15, 2)) == 4)
+	check("shown to players", st.player_view(a.id).map.difficult.has("14,2"))
+	check("no movement left", st.player_move(a.id, 13, 2) != "")
+	check("dash", bool(st.maneuver(a.id, "dash").ok) and st.move_left(a.id) == 6)
+	check("dash once", not bool(st.maneuver(a.id, "dash").ok))
+	check("move after dash", st.player_move(a.id, 15, 2) == "" and st.move_left(a.id) == 2)
+	st.toggle_condition(a.id, "Prono")
+	check("stand costs half speed: not enough", not bool(st.maneuver(a.id, "stand").ok))
+	st.next_turn()
+	while str(st.current_combatant().get("ref", "")) != a.id:
+		st.next_turn()
+	check("phone turn shows prone", bool(Actions.phone_turn(st, a.id).move.prone))
+	check("stand up", bool(st.maneuver(a.id, "stand").ok) and not Actions.has_cond(a, "Prono") and st.move_left(a.id) == 3)
+	gob.hp = 7
+	gob.notes = "Scimitarra +4, 1d6+2"
+	st.place_token(mp.id, gob.id, 16, 2)
+	a.hp = 50
+	a.hp_max = 50
+	check("leaving reach provokes", st.player_move(a.id, 14, 3) == "" and st.turn_flag("reacted", gob.id))
+	st.next_turn()
+	while str(st.current_combatant().get("ref", "")) != a.id:
+		st.next_turn()
+	st.place_token(mp.id, gob.id, 15, 3)
+	check("disengage", bool(st.maneuver(a.id, "disengage").ok))
+	var rx: Dictionary = st.ini().get("reacted", {})
+	rx.erase(gob.id)
+	check("no attack after disengage", st.player_move(a.id, 12, 3) == "" and not st.turn_flag("reacted", gob.id))
+	# a monster walks toward a character, around difficult squares when it can
+	st.place_token(mp.id, gob.id, 20, 3)
+	gob.speed = 9
+	var spent := st.monster_approach(gob.id, a.id, 1)
+	check("monster approaches", spent == 6 and st.map_dist_m(gob.id, a.id) <= 3.01, [spent, st.map_dist_m(gob.id, a.id)])
+	check("master helper", st.monster_auto_move(gob.id) != "")
 	st.combat_end()
 	st.update_map(mp.id, {"cell": 400.0})
 	var n2 := GameState.map_size(mp)

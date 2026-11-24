@@ -65,9 +65,28 @@
     }, 15000);
     this.connect();
   }
+  // Token brought from the plain page to the secure one (#t=...): different
+  // pages keep different storage, the phone keeps its character.
+  (function () {
+    var m = /[#&]t=([A-Za-z0-9_-]+)/.exec(location.hash);
+    if (m) { store('dnd_tavolo_token', m[1]); history.replaceState(null, '', location.pathname + location.search); }
+  })();
   Link.prototype.url = function () {
-    var port = Number(location.port || 80) + 1;
-    return 'ws://' + location.hostname + ':' + port + '/';
+    var sec = location.protocol === 'https:';
+    var port = Number(location.port || (sec ? 443 : 80)) + 1;
+    return (sec ? 'wss://' : 'ws://') + location.hostname + ':' + port + '/';
+  };
+  // Secure page (the one with the microphone): if the secure connection fails
+  // before ever opening, the browser has not accepted the certificate of the
+  // connection port yet. A banner leads there once.
+  Link.prototype.certHelp = function () {
+    if (location.protocol !== 'https:' || this.opened || document.getElementById('certHelp')) return;
+    var port = Number(location.port || 443) + 1;
+    var d = document.createElement('div');
+    d.id = 'certHelp';
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#2a2418;color:#f3e6c4;border:1px solid #c9a44c;border-radius:10px;padding:12px;font-size:16px';
+    d.innerHTML = 'Non riesco a collegarmi al tavolo in modo sicuro. <a style="color:#e8c45c" href="https://' + location.hostname + ':' + port + '/">Tocca qui</a>, accetta l\'avviso del browser (Avanzate, Procedi), poi torna indietro e ricarica la pagina.';
+    document.body.appendChild(d);
   };
   Link.prototype.ensure = function () {
     if (!this.ws || this.ws.readyState > 1) this.connect();
@@ -81,6 +100,8 @@
     try { ws = new WebSocket(this.url()); } catch (e) { this.timer = setTimeout(function () { self.connect(); }, 2000); return; }
     this.ws = ws;
     ws.onopen = function () {
+      self.opened = true;
+      var h = document.getElementById('certHelp'); if (h) h.remove();
       self.lastRx = Date.now();
       self.onStatus('open');
       ws.send(JSON.stringify({ t: 'hello', role: self.role, token: store(self.tokenKey) || '' }));
@@ -92,6 +113,8 @@
       self.onMessage(m);
     };
     ws.onclose = function () {
+      self.fails = (self.fails || 0) + 1;
+      if (self.fails >= 2) self.certHelp();
       self.onStatus('closed');
       self.timer = setTimeout(function () { self.connect(); }, 1500);
     };

@@ -121,6 +121,9 @@ func _ready() -> void:
 	_build_ui()
 	state.changed.connect(func(): _ui_dirty = true)
 	state.notice.connect(toast)
+	state.map_event.connect(func(title, lines):
+		add_feed(title, "\n".join(lines), "combat")
+		voice.say(spoken(lines)))
 	state.roll_added.connect(_on_roll)
 	net.clients_changed.connect(func(): _ui_dirty = true)
 	net.player_message.connect(toast)
@@ -355,7 +358,8 @@ func _show_qr() -> void:
 	var u := UI.lbl(url, 20)
 	u.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_modal("Collega i telefoni", UI.vbox([tex, u,
-		UI.wrap_lbl("Stessa rete Wi-Fi di questo PC: inquadrate il codice. Dal telefono scegliete il personaggio, tirate i dadi, giocate il vostro turno e parlate al master (col pulsante Parla o col microfono della tastiera).", 19, UI.DIM)], 12), 640)
+		UI.wrap_lbl("Stessa rete Wi-Fi di questo PC: inquadrate il codice. Dal telefono scegliete il personaggio, tirate i dadi, giocate il vostro turno e parlate al master (col pulsante Parla o col microfono della tastiera)." + ("
+Per il pulsante Parla il telefono passa da solo alla pagina sicura %s/giocatore: la prima volta il browser avvisa, toccate Avanzate e Procedi." % net.secure_url() if net.tls_ok else ""), 19, UI.DIM)], 12), 640)
 
 
 func _show_campaigns() -> void:
@@ -1069,6 +1073,7 @@ func start_combat(arg: String) -> bool:
 		if int(e.hp) > 0:
 			refs.append(str(e.id))
 	state.combat_start(refs + mons)
+	_battle_map()
 	MonsterAI.reset()
 	state.roll_monster_initiative()
 	for c in state.ini().combatants:
@@ -1238,14 +1243,90 @@ func monster_turn(ref: String) -> void:
 			state.combat_remove(str(cur.id))
 			_check_end()
 		"act":
+			var mv := _monster_move(ref, d.action, d.targets)
+			if bool(mv.dash):
+				add_feed(str(m.name), str(mv.line), "combat")
+				voice.say(str(mv.line))
+				_after(0.4 if test_mode else 1.5, func(): state.next_turn())
+				return
 			var res := Actions.resolve(state, ref, d.action, d.targets, {"adv": "auto"})
 			var lines: Array = Actions.public_lines(state, res.get("lines", []))
 			if not res.ok:
 				lines = ["%s esita (%s)." % [m.name, res.error]]
+			if str(mv.line) != "":
+				lines.push_front(str(mv.line))
 			add_feed(str(m.name), "\n".join(lines), "combat")
 			voice.say(spoken(lines))
 			if not _check_end():
 				_after(0.4 if test_mode else 1.5, func(): state.next_turn())
+
+
+## On the map in play a monster first walks toward its target until its
+## attack reaches. When even running (Scatto) is not enough it only runs.
+## Returns {line, dash}.
+func _monster_move(ref: String, a: Dictionary, targets: Array) -> Dictionary:
+	var none := {"line": "", "dash": false}
+	if targets.is_empty() or str(a.get("mode", "")) != "attack":
+		return none  # spells and areas: where they land is up to the story
+	var tid := str(targets[0])
+	var d0 := state.map_dist_m(ref, tid)
+	if d0 < 0:
+		return none
+	var ranged := bool(a.get("ranged", false))
+	var want := 0
+	if ranged:
+		var r := Actions.range_of(a)
+		want = maxi(1, int(float(r[0]) / 1.5)) if r.size() == 2 else 16
+	else:
+		want = 2 if Actions.is_reach(a) else 1
+	if d0 <= want * 1.5 + 0.01:
+		return none
+	var m: Dictionary = state.find_entity(ref)
+	var tname := str(state.find_entity(tid).get("name", "?"))
+	var spent := state.monster_approach(ref, tid, want)
+	if not ranged and state.map_dist_m(ref, tid) > want * 1.5 + 0.01:
+		state.set_turn_flag("dash", ref)
+		spent += state.monster_approach(ref, tid, want)
+		return {"line": "%s corre verso %s (Scatto, %s m)." % [m.name, tname, GameState._m(1.5 * spent)], "dash": true}
+	if spent == 0:
+		return none
+	return {"line": "%s si avvicina a %s (%s m)." % [m.name, tname, GameState._m(1.5 * spent)], "dash": false}
+
+
+## Dnd The Game has no map tab: every fight gets a plain battle grid on the
+## phones, characters on the left and monsters 9 m away on the right.
+func _battle_map() -> void:
+	var mp: Dictionary = {}
+	for m2 in state.data.maps:
+		if str(m2.get("name", "")) == "Campo di battaglia":
+			mp = m2
+	if mp.is_empty():
+		var img := Image.create(24 * 48, 16 * 48, false, Image.FORMAT_RGB8)
+		var base := Color(0.42, 0.36, 0.27)
+		img.fill(base)
+		var r := RandomNumberGenerator.new()
+		r.seed = 7
+		for i in 2600:  # trodden earth, so it is not a blank sheet
+			img.fill_rect(Rect2i(r.randi_range(0, img.get_width() - 4), r.randi_range(0, img.get_height() - 4), r.randi_range(2, 4), r.randi_range(2, 4)),
+				base.darkened(r.randf_range(-0.1, 0.15)))
+		mp = state.add_map("Campo di battaglia", img)
+		if mp.is_empty():
+			return
+		state.update_map(str(mp.id), {"cell": 48.0, "ox": 0.0, "oy": 0.0, "grid": true})
+	mp.tokens = []
+	var n := GameState.map_size(mp)
+	var pcs: Array = []
+	var mons: Array = []
+	for c in state.ini().combatants:
+		(pcs if c.type == "pc" else mons).append(str(c.ref))
+	for side in [[pcs, 6], [mons, 12]]:
+		var refs: Array = side[0]
+		for i in refs.size():
+			var y: int = n.y / 2 - refs.size() + i * 2
+			var sq := state.free_square(str(mp.id), int(side[1]), clampi(y, 0, n.y - 1))
+			if sq.x >= 0:
+				state.place_token(str(mp.id), str(refs[i]), sq.x, sq.y)
+	state.set_map_active(str(mp.id))
 
 
 ## Outcome lines as they are read aloud: the first three, without numbers in brackets.

@@ -40,6 +40,7 @@ func setup(a) -> void:
 		UI.lbl("Lato casella (px)", 18, UI.DIM), cell_spin,
 		UI.lbl("Inizio X", 18, UI.DIM), ox_spin, UI.lbl("Y", 18, UI.DIM), oy_spin,
 		UI.btn("Rileva griglia", _detect, 48), grid_chk,
+		UI.check("Segna terreno difficile", false, func(on): view.paint_difficult = on),
 		UI.btn("−", func(): view.zoom_by(1.0 / 1.25), 48, 48), UI.btn("+", func(): view.zoom_by(1.25), 48, 48),
 		UI.btn("Adatta", func(): view.fit(), 48),
 	]))
@@ -304,6 +305,7 @@ class MapView extends Control:
 	var drag_pos := Vector2.ZERO
 	var panning := false
 	var moved := 0.0
+	var paint_difficult := false  # a click marks or clears difficult terrain
 
 	func set_map(m: Dictionary) -> void:
 		mp = m
@@ -380,6 +382,14 @@ class MapView extends Control:
 				draw_line(o + Vector2(0, j * c), o + Vector2(n.x * c, j * c), col, 1.0)
 		else:
 			draw_rect(Rect2(o, Vector2(n.x, n.y) * c), Color(0, 0, 0, 0.35), false, 1.0)
+		for k in mp.get("difficult", []):
+			var q := str(k).split(",")
+			var r0 := Rect2(o + Vector2(int(q[0]), int(q[1])) * c, Vector2(c, c))
+			draw_rect(r0, Color(0.43, 0.24, 0.06, 0.28))
+			for s in [1, 2, 3]:
+				draw_line(r0.position + Vector2(s * c / 3.0, 0), r0.position + Vector2(0, s * c / 3.0), Color(0.24, 0.11, 0.02, 0.6), 1.0)
+			for s in [1, 2]:
+				draw_line(r0.position + Vector2(c, s * c / 3.0), r0.position + Vector2(s * c / 3.0, c), Color(0.24, 0.11, 0.02, 0.6), 1.0)
 		var st: GameState = app.state
 		var cur_ref := ""
 		if bool(st.ini().active):
@@ -453,6 +463,11 @@ class MapView extends Control:
 				var ref := _token_at(mb.position)
 				if ref != "":
 					app.state.remove_token(str(mp.id), ref)
+			elif mb.button_index == MOUSE_BUTTON_LEFT and paint_difficult:
+				if mb.pressed:
+					var sq := square_at(mb.position)
+					app.state.toggle_difficult(str(mp.id), sq.x, sq.y)
+					queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_LEFT:
 				if mb.pressed:
 					moved = 0.0
