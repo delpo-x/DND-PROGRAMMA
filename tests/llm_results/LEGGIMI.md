@@ -17,6 +17,7 @@ godot --headless --path . -s tests/llm_bench.gd -- --runs 3 --only combattimento
 - `--model`: il modello da provare (di base `gemma4:e4b-it-q4_K_M`).
 - `--runs`: quante volte ripetere ogni scenario (di base 2). Il modello non risponde mai due
   volte uguale, quindi più ripetizioni danno un punteggio più affidabile.
+- `--no-hint`: senza il promemoria delle prove che il tavolo aggiunge quando un giocatore fa un'azione rischiosa, per misurare il modello da solo.
 - `--only`: solo gli scenari che contengono questa parola. Questi giri non finiscono nello storico.
 - `--story prosa` o `--story elenco`: aggiunge un capitolo con la scheda scritta in prosa o ad
   appunti con linea temporale, più lo scenario `dettaglio_dal_testo`, che si supera solo usando un

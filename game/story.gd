@@ -107,6 +107,9 @@ static func parse_adapt(full: String) -> Dictionary:
 	return {"mode": "text", "text": t} if t.length() >= 20 else {"mode": "read", "text": ""}
 
 
+## Off only in tests/llm_bench.gd --no-hint, to measure the narrator alone.
+static var check_hints := true
+
 ## Words of a player's action that call for a check, and which skill.
 ## Order matters: the first match wins. Words at the start of a word only.
 const CHECK_WORDS: Array = [
@@ -265,10 +268,11 @@ func messages(extra := "") -> Array:
 	var paras := read_aloud()
 	if extra == "" and read_pos > 0 and read_pos < paras.size():
 		last = "[Prossimo testo che verrà letto ai giocatori, non raccontarlo tu: %s]\n" % str(paras[read_pos]).left(200) + last
-	var pc := pending_check() if extra == "" else {}
+	var pc := pending_check() if extra == "" and check_hints else {}
 	if not pc.is_empty():
-		last = ("[Questa azione ha un esito incerto: racconta il tentativo senza dire come finisce e chiudi con la prova, "
-			+ "ad esempio [[PROVA: %s CD 15: %s]]. Scegli tu la difficoltà da 10 a 20.]\n" % [pc.skill, pc.who]) + last
+		last = ("[L'azione di %s ha un esito incerto e serve una prova. Descrivi in una o due frasi solo l'ambiente e il rischio, " % pc.who
+			+ "senza far muovere il personaggio e senza dire come finisce. Poi scrivi Cosa fate? e, su una riga a parte, "
+			+ "la prova, ad esempio [[PROVA: %s CD 15: %s]], con la difficoltà che scegli tu da 10 a 20.]\n" % [pc.skill, pc.who]) + last
 	if extra != "":
 		last = extra + "\n" + last
 	out.append({"role": "user", "content": last})

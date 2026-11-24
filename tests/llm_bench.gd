@@ -31,6 +31,15 @@ var SCENARIOS := [
 	{"name": "prova_atletica", "expect": "prova", "lines": [
 		["assistant", "Master", "Il sentiero finisce contro una parete di roccia bagnata, alta una decina di metri. In cima si vede la luce di una torcia. Cosa fate?"],
 		["user", "Bruno", "Provo ad arrampicarmi sulla parete fino in cima."]]},
+	{"name": "prova_furtivita", "expect": "prova", "lines": [
+		["assistant", "Master", "Oltre la curva tre goblin dormono attorno alle braci. Dall'altra parte della sala si vedono le gabbie. Cosa fate?"],
+		["user", "Aria", "Passo di nascosto lungo la parete, senza fare rumore, fino alle gabbie."]]},
+	{"name": "prova_persuasione", "expect": "prova", "lines": [
+		["assistant", "Master", "La guardia del ponte incrocia le braccia: nessuno passa dopo il tramonto. Cosa fate?"],
+		["user", "Bruno", "Cerco di convincerlo che siamo inviati del sindaco e che è urgente."]]},
+	{"name": "prova_indagare", "expect": "prova", "lines": [
+		["assistant", "Master", "Lo studio del mago è a soqquadro: libri a terra, una scrivania con molti cassetti. Cosa fate?"],
+		["user", "Aria", "Esamino la scrivania e frugo nei cassetti in cerca di un doppio fondo."]]},
 	{"name": "combattimento", "expect": "combattimento", "lines": [
 		["assistant", "Master", "Nella caverna tre goblin ridono attorno a un fuoco, rosicchiando ossa. Non vi hanno ancora visti. Cosa fate?"],
 		["user", "Bruno", "Carico i goblin con l'ascia alzata, urlando!"]]},
@@ -83,6 +92,7 @@ func _init() -> void:
 			"--model": model = v
 			"--runs": runs = maxi(1, int(v))
 			"--only": only = v
+			"--no-hint": GameStory.check_hints = false
 			"--story": story = v
 	g = load("res://game/game_main.gd").new()
 	g.test_mode = true  # no files, no opening scene
