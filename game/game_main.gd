@@ -355,7 +355,7 @@ func _show_qr() -> void:
 	var u := UI.lbl(url, 20)
 	u.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_modal("Collega i telefoni", UI.vbox([tex, u,
-		UI.wrap_lbl("Stessa rete Wi-Fi di questo PC: inquadrate il codice. Dal telefono scegliete il personaggio, tirate i dadi, giocate il vostro turno e parlate al master (anche col microfono della tastiera).", 19, UI.DIM)], 12), 640)
+		UI.wrap_lbl("Stessa rete Wi-Fi di questo PC: inquadrate il codice. Dal telefono scegliete il personaggio, tirate i dadi, giocate il vostro turno e parlate al master (col pulsante Parla o col microfono della tastiera).", 19, UI.DIM)], 12), 640)
 
 
 func _show_campaigns() -> void:

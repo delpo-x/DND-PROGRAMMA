@@ -362,6 +362,8 @@ body.screen.withmap .center { position: relative; }
 .aiask{display:flex;gap:8px;margin-top:10px;align-items:stretch}
 .aiask textarea{flex:1;min-width:0;font-size:16px;resize:none}
 .aiask button{min-width:72px}
+.aibtns{display:flex;flex-direction:column;gap:6px}
+#aiMic.on{background:var(--gold);color:#000}
 .aisec{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:15px;opacity:.85}
 .aisec input{width:22px;height:22px}
 .aisecrets{margin-top:8px;border-left:3px solid var(--gold);padding-left:10px}

@@ -834,14 +834,49 @@
   }
   // Dnd The Game: the app is the master. Its last lines, and a box to talk
   // to it (the phone keyboard's microphone works for dictation).
+  // Speech to text in the browser (Chrome, Safari). Browsers allow the
+  // microphone only on secure pages: on the home network (http) it works after
+  // the one-time setup the toast explains.
+  var mic = null;
+  function toggleMic() {
+    if (mic) { mic.stop(); return; }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !window.isSecureContext) {
+      toast(SR ? 'Il browser blocca il microfono su questa pagina. Chrome: apri chrome://flags, cerca "insecure origins treated as secure", scrivi ' + location.origin + ', attiva e riavvia. Intanto usa il microfono della tastiera.'
+        : 'Questo browser non riconosce la voce: usa il microfono della tastiera.');
+      return;
+    }
+    var r = new SR(), box = $('aiText'), before = box.value.trim(), heard = '';
+    r.lang = 'it-IT'; r.interimResults = true; r.continuous = false;
+    r.onresult = function (e) {
+      var fin = '', tmp = '';
+      for (var i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fin += e.results[i][0].transcript; else tmp += e.results[i][0].transcript;
+      }
+      heard = fin;
+      box.value = (before ? before + ' ' : '') + (fin + tmp).trim();
+    };
+    r.onerror = function (e) { if (e.error === 'not-allowed') toast('Permesso del microfono negato'); };
+    r.onend = function () {
+      mic = null;
+      $('aiMic').classList.remove('on'); $('aiMic').textContent = 'Parla';
+      if (heard.trim()) $('aiSend').click();  // spoken: sent at once
+    };
+    mic = r;
+    $('aiMic').classList.add('on'); $('aiMic').textContent = 'Ascolto...';
+    T.buzz([20]);
+    r.start();
+  }
+
   function renderAI() {
     var ai = S.view && S.view.ai, box = $('aiBox');
     if (!ai) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
     if (!$('aiFeed')) {
       box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
-        '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Cosa fai? Scrivi, o detta col microfono della tastiera"></textarea><button class="primary" id="aiSend">Invia</button></div>' +
+        '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Interagisci: scrivi, o tocca Parla"></textarea><div class="aibtns"><button id="aiMic">Parla</button><button class="primary" id="aiSend">Invia</button></div></div>' +
         '<label class="aisec"><input type="checkbox" id="aiSecret"> In segreto: lo sa solo il master</label><div id="aiSecrets" class="aisecrets"></div>';
+      $('aiMic').addEventListener('click', toggleMic);
       $('aiSend').addEventListener('click', function () {
         var t = $('aiText').value.trim();
         if (!t) return;
