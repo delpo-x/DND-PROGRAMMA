@@ -191,7 +191,7 @@ func _build_ui() -> void:
 	bar.add_child(UI.engrave(UI.color_btn("QR Giocatori", Color(0.36, 0.25, 0.1), show_qr, 50)))
 	tabs = TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tabs.tab_focus_mode = Control.FOCUS_NONE
+	tabs.tab_focus_mode = Control.FOCUS_ALL  # tabs reachable from the keyboard
 	root.add_child(tabs)
 	tab_dice = TabDice.new()
 	tab_init = TabInit.new()

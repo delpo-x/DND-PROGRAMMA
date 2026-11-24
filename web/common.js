@@ -204,3 +204,114 @@
     beep: beep, buzz: buzz, rollLine: rollLine, statusClass: statusClass, flash: flash, turnBanner: turnBanner, avatar: avatar
   };
 })(window);
+
+/* Accessibilita' (WCAG 2.2 AA) per le pagine Giocatore e Schermo condiviso.
+   Le pagine costruiscono molto HTML al volo: invece di ripetere gli attributi
+   in ogni punto, un osservatore li completa quando il contenuto cambia.
+   - campi senza nome accessibile: prendono il testo dell'etichetta vicina;
+   - pulsanti di scelta (.seg, schede in basso): aria-pressed / aria-current;
+   - finestre (.modal): ruolo dialog, fuoco sul primo comando all'apertura,
+     ritorno del fuoco alla chiusura, Esc per chiudere quando c'e' "Annulla";
+   - icone SVG decorative nascoste ai lettori di schermo;
+   - avvisi (toast, risultato dei dadi, banner del turno) annunciati. */
+(function () {
+  'use strict';
+  var LIVE = { toast: 'status', result: 'status', banner: 'status', turnFx: 'status', lastRoll: 'status' };
+
+  function nameOf(el) {
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return 'x';
+    if (el.labels && el.labels.length && el.labels[0].textContent.trim()) return 'x';
+    if (el.id && document.querySelector('label[for="' + el.id + '"]')) return 'x';
+    return '';
+  }
+  // Testo dell'etichetta che sta accanto al campo (prima, nella riga o nella scheda).
+  function nearLabel(el) {
+    var p = el.previousElementSibling;
+    while (p && !/^(LABEL|SPAN|B|STRONG|H2|H3|DIV)$/.test(p.tagName)) p = p.previousElementSibling;
+    if (p && p.textContent.trim() && p.tagName !== 'DIV') return p.textContent.trim();
+    var row = el.closest('.skillrow, .card, .row, div');
+    if (row) {
+      var l = row.querySelector('label, .nm, .lbl, b');
+      if (l && l !== el && !l.contains(el) && l.textContent.trim()) return l.textContent.trim();
+    }
+    return el.getAttribute('placeholder') || el.getAttribute('title') || '';
+  }
+  function fixControls(root) {
+    root.querySelectorAll('input:not([type=hidden]), select, textarea').forEach(function (el) {
+      if (nameOf(el)) return;
+      var t = nearLabel(el);
+      if (!t && el.getAttribute('data-k') === 'notes') t = 'Note';
+      if (t) el.setAttribute('aria-label', t.replace(/\s+/g, ' ').slice(0, 80));
+    });
+    root.querySelectorAll('svg:not([aria-hidden])').forEach(function (s) {
+      if (!s.getAttribute('aria-label') && !s.getAttribute('role')) s.setAttribute('aria-hidden', 'true');
+    });
+    root.querySelectorAll('canvas:not([role])').forEach(function (c) {
+      c.setAttribute('role', 'img');
+      c.setAttribute('aria-label', c.id === 'tray' ? 'Vassoio dei dadi: il risultato e\' scritto sotto' : 'Mappa di battaglia');
+    });
+    root.querySelectorAll('.seg button, button.tact, button.ttarget, button.tslot, button.insp').forEach(pressed);
+  }
+  function pressed(b) {
+    var on = b.classList.contains('sel') ? 'true' : 'false';
+    if (b.getAttribute('aria-pressed') !== on) b.setAttribute('aria-pressed', on);
+  }
+  function tabs() {
+    document.querySelectorAll('#tabs button').forEach(function (b) {
+      if (b.classList.contains('sel')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+  var lastFocus = null;
+  function modal(m) {
+    if (!m.getAttribute('role')) { m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); }
+    var open = !m.classList.contains('hidden');
+    if (open && !m._a11yOpen) {
+      m._a11yOpen = true;
+      lastFocus = document.activeElement;
+      var h = m.querySelector('h2, h3, .lbl, b');
+      if (h && h.textContent.trim()) m.setAttribute('aria-label', h.textContent.trim().slice(0, 80));
+      setTimeout(function () {
+        var f = m.querySelector('button:not([disabled]), input, select, textarea');
+        if (f && !m.contains(document.activeElement)) f.focus({ preventScroll: true });
+      }, 30);
+    } else if (!open && m._a11yOpen) {
+      m._a11yOpen = false;
+      if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+    }
+  }
+  function live() {
+    for (var id in LIVE) {
+      var el = document.getElementById(id);
+      if (el && !el.getAttribute('role')) { el.setAttribute('role', LIVE[id]); el.setAttribute('aria-live', 'polite'); }
+    }
+  }
+  function conn() {
+    var d = document.getElementById('conn');
+    if (!d) return;
+    var t = d.classList.contains('open') ? 'Collegato al tavolo' : (d.classList.contains('closed') ? 'Non collegato al tavolo' : 'Connessione in corso');
+    if (d.getAttribute('aria-label') !== t) { d.setAttribute('role', 'img'); d.setAttribute('aria-label', t); d.title = t; }
+  }
+  var queued = false;
+  function sweep() {
+    queued = false;
+    fixControls(document.body);
+    tabs();
+    live();
+    conn();
+    document.querySelectorAll('.modal').forEach(modal);
+  }
+  function later() { if (!queued) { queued = true; setTimeout(sweep, 30); } }  // not rAF: paused in background tabs
+  function start() {
+    sweep();
+    new MutationObserver(later).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'disabled'] });
+    // Esc chiude la finestra aperta se ha un comando per annullare
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') return;
+      var m = document.querySelector('.modal:not(.hidden)');
+      if (!m) return;
+      var c = [].slice.call(m.querySelectorAll('button')).filter(function (b) { return /annulla|chiudi|più tardi|piu' tardi|dopo/i.test(b.textContent); })[0];
+      if (c) { c.click(); ev.preventDefault(); }
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();

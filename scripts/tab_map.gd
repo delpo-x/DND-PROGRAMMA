@@ -277,7 +277,6 @@ func _pdf_chooser(bytes: PackedByteArray, fname: String, imgs: Array) -> void:
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.custom_minimum_size = Vector2(190, 230)
-		b.focus_mode = Control.FOCUS_NONE
 		var page: int = it.page
 		b.pressed.connect(func():
 			app.close_modal()

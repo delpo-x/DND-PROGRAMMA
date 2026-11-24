@@ -10,7 +10,11 @@ const RED := Color(0.72, 0.2, 0.18)
 const WINE := Color(0.45, 0.09, 0.1)
 const GREEN := Color(0.33, 0.62, 0.36)
 const TEXT := Color(0.94, 0.88, 0.76)
-const DIM := Color(0.66, 0.59, 0.5)
+# secondary text: at least 4.5:1 on every panel (WCAG AA)
+const DIM := Color(0.72, 0.655, 0.56)
+# keyboard focus ring and field borders: at least 3:1 on the background
+const FOCUS := Color(1.0, 0.85, 0.5)
+const FIELD_LINE := Color(0.6, 0.46, 0.27)
 const BG := Color(0.075, 0.055, 0.045)
 const PANEL := Color(0.15, 0.105, 0.08)
 const PANEL2 := Color(0.21, 0.15, 0.11)
@@ -41,7 +45,7 @@ static func btn(text: String, cb: Callable = Callable(), min_h := 52, min_w := 0
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(min_w, min_h)
-	b.focus_mode = Control.FOCUS_NONE
+	b.focus_mode = Control.FOCUS_ALL  # reachable with Tab, Enter / Space press it
 	if cb.is_valid():
 		b.pressed.connect(cb)
 	return b
@@ -168,7 +172,7 @@ static func option(items: Array, selected := 0, cb: Callable = Callable(), w := 
 	for it in items:
 		o.add_item(str(it))
 	o.custom_minimum_size = Vector2(w, 48)
-	o.focus_mode = Control.FOCUS_NONE
+	o.focus_mode = Control.FOCUS_ALL
 	if items.size() > 0:
 		o.select(clampi(selected, 0, items.size() - 1))
 	if cb.is_valid():
@@ -180,7 +184,7 @@ static func check(text: String, pressed := false, cb: Callable = Callable()) -> 
 	var c := CheckBox.new()
 	c.text = text
 	c.button_pressed = pressed
-	c.focus_mode = Control.FOCUS_NONE
+	c.focus_mode = Control.FOCUS_ALL
 	c.custom_minimum_size = Vector2(0, 44)
 	if cb.is_valid():
 		c.toggled.connect(cb)
@@ -236,6 +240,20 @@ static func title(text: String) -> Label:
 	return l
 
 
+## Keyboard focus: a bright gold outline drawn over the control (WCAG 2.4.7).
+static func focus_ring() -> StyleBoxFlat:
+	var f := StyleBoxFlat.new()
+	f.draw_center = false
+	f.border_color = FOCUS
+	f.set_border_width_all(2)
+	f.set_corner_radius_all(6)
+	f.expand_margin_left = 2
+	f.expand_margin_right = 2
+	f.expand_margin_top = 2
+	f.expand_margin_bottom = 2
+	return f
+
+
 static func make_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font_size = 20
@@ -267,7 +285,7 @@ static func make_theme() -> Theme:
 		t.set_stylebox("pressed", cls, sb_p)
 		t.set_stylebox("hover_pressed", cls, sb_p)
 		t.set_stylebox("disabled", cls, sb_d)
-		t.set_stylebox("focus", cls, StyleBoxEmpty.new())
+		t.set_stylebox("focus", cls, focus_ring())
 		t.set_color("font_color", cls, TEXT)
 		t.set_color("font_hover_color", cls, TEXT)
 		t.set_color("font_pressed_color", cls, Color.WHITE)
@@ -278,7 +296,7 @@ static func make_theme() -> Theme:
 	var le := StyleBoxFlat.new()
 	le.bg_color = Color(0.055, 0.04, 0.03)
 	le.set_corner_radius_all(4)
-	le.border_color = Color(GOLD_DIM, 0.7)
+	le.border_color = FIELD_LINE
 	le.set_border_width_all(1)
 	le.content_margin_left = 10
 	le.content_margin_right = 10
@@ -290,7 +308,10 @@ static func make_theme() -> Theme:
 	t.set_stylebox("focus", "LineEdit", le_f)
 	t.set_color("caret_color", "LineEdit", GOLD)
 	t.set_color("selection_color", "LineEdit", Color(GOLD, 0.35))
-	t.set_color("font_placeholder_color", "LineEdit", Color(DIM, 0.7))
+	t.set_color("font_placeholder_color", "LineEdit", Color(0.64, 0.58, 0.5))
+	t.set_color("font_placeholder_color", "TextEdit", Color(0.64, 0.58, 0.5))
+	for cls in ["CheckBox", "TabContainer", "SpinBox", "ItemList", "Tree"]:
+		t.set_stylebox("focus", cls, focus_ring())
 	t.set_stylebox("normal", "TextEdit", le)
 	t.set_stylebox("focus", "TextEdit", le_f)
 	t.set_color("caret_color", "TextEdit", GOLD)

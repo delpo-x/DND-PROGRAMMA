@@ -74,7 +74,10 @@ func refresh() -> void:
 		var img_key := Art.key_for(ch, "pc")
 		if img_key != "":
 			top.add_child(Art.avatar(img_key, 72))
-		top.add_child(UI.lbl("●", 22, UI.GREEN if online else Color(0.4, 0.4, 0.4)))
+		# online state in words too, not only by colour (WCAG 1.4.1)
+		var dot := UI.lbl("● collegato" if online else "○ non collegato", 17, UI.GREEN.lightened(0.25) if online else UI.DIM)
+		dot.tooltip_text = "Telefono collegato" if online else "Nessun telefono collegato"
+		top.add_child(dot)
 		top.add_child(UI.lbl(str(ch.name), 26, Color.WHITE))
 		var sub := "%s %s liv. %d  -  %d PE" % [ch.race, ch.cls, int(ch.level), int(ch.get("xp", 0))]
 		if str(ch.player) != "":

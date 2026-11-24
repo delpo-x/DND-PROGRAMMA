@@ -381,3 +381,18 @@ body.screen.withmap .center { position: relative; }
 @keyframes aiblink{50%{opacity:0}}
 @keyframes aidot{0%,100%{opacity:.25}40%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.aifeed .aicaret,.aifeed .aidots i{animation:none;opacity:.8}}
+
+/* ---------- Accessibilita' (WCAG 2.2 AA) ----------
+   Testo secondario almeno 4.5:1 anche sui pannelli piu' chiari, bordi dei
+   campi almeno 3:1 sullo sfondo, caselle di spunta di almeno 24x24 px,
+   testo dorato leggibile sui pulsanti selezionati. */
+:root { --dim: #b8a78f; }
+input, select, textarea { border-color: #8a6a40; }
+input[type=checkbox], input[type=radio] { width: 24px !important; height: 24px; min-height: 0 !important; flex: none; margin: 0 6px 0 0; vertical-align: middle; }
+button.sel b, button.sel small, button.sel .dim { color: #ffe9b0; }
+a.bigbtn { display: flex; align-items: center; justify-content: center; text-decoration: none; border-radius: 7px; border: 1px solid; border-bottom-width: 3px; width: 100%; min-height: 90px; font-size: 26px; margin: 12px 0; font-weight: bold; }
+a.bigbtn.primary { font-family: var(--display); letter-spacing: .08em; background: linear-gradient(#8a1f1f, #5e1214); border-color: #b9783a; color: #fbe9c8; }
+a.bigbtn.blue { background: linear-gradient(#2c4f74, #1d3550); border-color: #6c8fae; color: #fff; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+button.blue b, button.blue small, .tact.spell small { color: #ffe9b0; }
+.init-item.cur .pos { color: #ffe9b0; }

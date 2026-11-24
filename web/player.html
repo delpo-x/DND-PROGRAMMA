@@ -654,7 +654,7 @@
     h += '</div><h2>Tiri salvezza</h2><div class="card">';
     T.ABILITIES.forEach(function (a) {
       var p = (me.saves || []).indexOf(a[0]) >= 0;
-      h += '<div class="skillrow"><span class="nm">' + a[1] + '</span><label style="margin:0"><input type="checkbox" data-k="save.' + a[0] + '"' + (p ? ' checked' : '') + ' style="width:auto;min-height:0"> competente</label><span class="v" data-sv="' + a[0] + '">' + T.fmtMod(T.saveMod(me, a[0])) + '</span></div>';
+      h += '<div class="skillrow"><span class="nm">' + a[1] + '</span><label style="margin:0"><input type="checkbox" data-k="save.' + a[0] + '"' + (p ? ' checked' : '') + ' aria-label="Competente nel tiro salvezza su ' + a[1] + '" style="width:auto;min-height:0"> competente</label><span class="v" data-sv="' + a[0] + '">' + T.fmtMod(T.saveMod(me, a[0])) + '</span></div>';
     });
     h += '</div><h2>Abilità</h2><div class="card">';
     T.SKILLS.forEach(function (s) {
@@ -676,15 +676,15 @@
   function spellRow(sp, i) {
     var opts = '';
     for (var l = 0; l <= 9; l++) opts += '<option value="' + l + '"' + (Number(sp.lvl) === l ? ' selected' : '') + '>' + (l === 0 ? 'Trucchetto' : l + '&deg;') + '</option>';
-    return '<div class="row spl" style="margin:6px 0"><input class="grow" data-sp="name" value="' + esc(sp.name) + '" placeholder="Nome" style="flex:2">' +
-      '<select data-sp="lvl" style="width:120px;flex:none">' + opts + '</select>' +
-      '<label style="flex:none;display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" data-sp="prep"' + (sp.prep !== false ? ' checked' : '') + '>Prep.</label>' +
-      '<button data-delspell="' + i + '" style="flex:none">X</button></div>';
+    return '<div class="row spl" style="margin:6px 0"><input class="grow" data-sp="name" value="' + esc(sp.name) + '" placeholder="Nome" aria-label="Nome dell\'incantesimo" style="flex:2">' +
+      '<select data-sp="lvl" aria-label="Livello dell\'incantesimo" style="width:120px;flex:none">' + opts + '</select>' +
+      '<label style="flex:none;display:flex;align-items:center;gap:4px;margin:0"><input type="checkbox" data-sp="prep"' + (sp.prep !== false ? ' checked' : '') + ' aria-label="Preparato">Prep.</label>' +
+      '<button data-delspell="' + i + '" style="flex:none" aria-label="Elimina incantesimo">X</button></div>';
   }
   function atkRow(at, i) {
-    return '<div class="row atk" style="margin:6px 0"><input class="grow" data-atk="name" value="' + esc(at.name) + '" placeholder="Nome" style="flex:2">' +
-      '<input data-atk="bonus" type="number" value="' + esc(at.bonus) + '" style="width:70px;flex:none" title="Bonus per colpire">' +
-      '<input data-atk="damage" value="' + esc(at.damage) + '" placeholder="1d8+3" style="width:110px;flex:none"><button data-delatk="' + i + '" style="flex:none">X</button></div>';
+    return '<div class="row atk" style="margin:6px 0"><input class="grow" data-atk="name" value="' + esc(at.name) + '" placeholder="Nome" aria-label="Nome dell\'attacco" style="flex:2">' +
+      '<input data-atk="bonus" type="number" value="' + esc(at.bonus) + '" style="width:70px;flex:none" title="Bonus per colpire" aria-label="Bonus per colpire">' +
+      '<input data-atk="damage" value="' + esc(at.damage) + '" placeholder="1d8+3" aria-label="Danni" style="width:110px;flex:none"><button data-delatk="' + i + '" style="flex:none" aria-label="Elimina attacco">X</button></div>';
   }
   function renderSheet() {
     var me = S.me, box = $('sheet');

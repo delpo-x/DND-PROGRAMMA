@@ -14,6 +14,20 @@ Istruzioni d'uso complete in [build/LEGGIMI.md](build/LEGGIMI.md).
 
 C'è anche **Dnd The Game**, un'app gemella in cui il master lo fa il computer: i mostri giocano con regole fisse e la storia la racconta un modello che gira sul PC con Ollama, senza Internet. Per scrivere avventure adatte al narratore locale: [GUIDA_STORIE.md](GUIDA_STORIE.md). Test del narratore: [tests/llm_results](tests/llm_results/LEGGIMI.md).
 
+## Accessibilità (WCAG 2.2 AA)
+
+Pagine del telefono e dello schermo condiviso:
+
+- contrasto del testo di almeno 4.5:1 (3:1 per i titoli grandi) su tutti i pannelli, bordi dei campi di almeno 3:1;
+- ogni campo, menu e casella ha un nome per i lettori di schermo; le icone decorative sono nascoste;
+- pulsanti di scelta con `aria-pressed`, scheda attiva con `aria-current`, finestre con ruolo `dialog`, fuoco sul primo comando e ritorno del fuoco alla chiusura, Esc per annullare;
+- avvisi, risultato dei dadi e cambio di turno annunciati (`aria-live`), stato del collegamento anche a parole;
+- caselle di spunta e comandi di almeno 24×24 px, fuoco da tastiera sempre visibile, animazioni ridotte con `prefers-reduced-motion`, zoom del telefono libero.
+
+App master e Dnd The Game: testo secondario a 4.5:1, bordi dei campi a 3:1, tutti i comandi raggiungibili con Tab e attivabili con Invio o Spazio, contorno dorato sul comando che ha il fuoco, stato dei telefoni scritto e non solo colorato.
+
+Limiti noti: Godot 4.4 non espone i controlli ai lettori di schermo di Windows e Android (arriva con Godot 4.5), quindi l'app master resta accessibile da tastiera ma non da lettore di schermo. I dadi 3D e la mappa sono immagini: il loro contenuto è scritto anche in testo (risultato del tiro, iniziativa, registro).
+
 ## Scaricare l'app
 
 Gli eseguibili (Windows `.exe`, Android `.apk`) sono nelle [Releases](../../releases).
