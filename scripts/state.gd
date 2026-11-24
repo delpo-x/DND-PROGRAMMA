@@ -1219,6 +1219,7 @@ func next_turn() -> void:
 			idx = 0
 			ini().round = int(ini().round) + 1
 		ini().current = list[idx].id
+	ini()["moved"] = {}  # a new turn: movement starts again
 	touch()
 
 
@@ -1803,20 +1804,70 @@ func remove_token(map_id: String, ref: String) -> void:
 	touch()
 
 
+## Square of a piece on the map in play, or (-1, -1).
+func map_pos(ref: String) -> Vector2i:
+	var mp := find_map(str(data.get("map_active", "")))
+	if not mp.is_empty():
+		for t in mp.tokens:
+			if t.ref == ref:
+				return Vector2i(int(t.x), int(t.y))
+	return Vector2i(-1, -1)
+
+
+## Distance in metres between two pieces on the map in play (PHB 2024: every
+## square, diagonals too, is 1.5 m), or -1 when one is not on the map.
+func map_dist_m(a: String, b: String) -> float:
+	var pa := map_pos(a)
+	var pb := map_pos(b)
+	if pa.x < 0 or pb.x < 0:
+		return -1.0
+	return 1.5 * maxi(absi(pa.x - pb.x), absi(pa.y - pb.y))
+
+
+## Squares a creature may move in one turn: its speed, 0 when grappled,
+## restrained or incapacitated, 1.5 m less per exhaustion level (PHB 2024).
+func speed_squares(e: Dictionary) -> int:
+	for c in ["Afferrato", "Trattenuto"] + INCAPACITATING:
+		if Actions.has_cond(e, c):
+			return 0
+	return maxi(0, int(float(e.get("speed", 9)) / 1.5) - Rules.exhaustion(e))
+
+
 ## A player moves their own piece on the map they are shown. "" = done.
+## In a fight: only on their own turn and as far as their speed allows.
 func player_move(char_id: String, x: int, y: int) -> String:
 	var mp := find_map(str(data.get("map_active", "")))
 	if mp.is_empty():
 		return "Nessuna mappa in gioco"
-	var mine := false
-	for t in mp.tokens:
-		if t.ref == char_id:
-			mine = true
-	if not mine:
+	var from := map_pos(char_id)
+	if from.x < 0:
 		return "La tua pedina non è sulla mappa"
+	var steps := maxi(absi(x - from.x), absi(y - from.y))
+	var fighting := false
+	if bool(ini().active):
+		for c in ini().combatants:
+			if str(c.ref) == char_id:
+				fighting = true
+	if fighting:
+		if str(current_combatant().get("ref", "")) != char_id:
+			return "Non è il tuo turno: aspetta per muoverti"
+		var moved: Dictionary = ini().get("moved", {})
+		var used := int(moved.get(char_id, 0))
+		var allow := speed_squares(find_entity(char_id))
+		if used + steps > allow:
+			return "Troppo lontano: ti restano %s m di movimento" % _m(1.5 * maxi(0, allow - used))
 	if not place_token(mp.id, char_id, x, y):
 		return "Casella occupata"
+	if fighting:
+		var moved2: Dictionary = ini().get("moved", {})
+		moved2[char_id] = int(moved2.get(char_id, 0)) + steps
+		ini()["moved"] = moved2
+		touch()
 	return ""
+
+
+static func _m(v: float) -> String:
+	return ("%d" % int(v)) if is_equal_approx(v, roundf(v)) else ("%.1f" % v).replace(".", ",")
 
 
 func _public_map(char_id: String) -> Variant:

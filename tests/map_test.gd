@@ -75,6 +75,44 @@ func _init() -> void:
 	check("player moves own piece", st.player_move(a.id, 3, 3) == "" and int(mp.tokens[0].x) == 3)
 	check("player can't move onto goblin", st.player_move(a.id, 5, 5) != "")
 	check("player without piece refused", st.player_move(b.id, 1, 1) != "")
+	# distances (PHB 2024: 1.5 m a square, diagonals too), reach and range
+	check("distance", is_equal_approx(st.map_dist_m(a.id, gob.id), 3.0), st.map_dist_m(a.id, gob.id))
+	var sword := {"name": "Spada", "mode": "attack", "bonus": 5, "dmg": "1d8", "ranged": false, "note": ""}
+	var r1: Dictionary = Actions.resolve(st, a.id, sword, [gob.id])
+	check("melee out of reach refused", not r1.ok and str(r1.error).contains("fuori portata"), r1)
+	var halberd := sword.duplicate()
+	halberd.name = "Alabarda"
+	check("reach weapon hits at 3 m", Actions.resolve(st, a.id, halberd, [gob.id]).ok)
+	var bow := {"name": "Arco corto", "mode": "attack", "bonus": 5, "dmg": "1d6", "ranged": true, "note": "gittata 1,5/3 m"}
+	check("range: beyond normal = disadvantage", Actions.map_check(st, a.id, bow, gob.id)[1].size() == 1)
+	bow.note = "gittata 24/96 m"
+	check("range ft parsed", Actions.range_of({"name": "", "note": "range 80/320 ft."}) == [24.0, 96.0])
+	check("no range in damage dice", Actions.range_of({"name": "", "note": "1d8/1d10 versatile"}).is_empty())
+	gob.hp = 7
+	st.place_token(mp.id, a.id, 4, 4)
+	check("enemy within 1.5 m: disadvantage at range", str(Actions.map_check(st, a.id, bow, gob.id)[1]).contains("1,5 m"))
+	check("melee in reach", Actions.resolve(st, a.id, sword, [gob.id]).ok)
+	# movement in a fight: own turn only, as far as the speed
+	st.place_token(mp.id, a.id, 0, 0)
+	st.place_token(mp.id, b.id, 0, 10)
+	gob.hp = 7
+	st.combat_start([a.id, b.id, gob.id])
+	st.next_turn()
+	while str(st.current_combatant().get("ref", "")) != a.id:
+		st.next_turn()
+	a.speed = 9
+	check("not your turn", st.player_move(b.id, 0, 11).contains("turno"))
+	check("move 4 squares", st.player_move(a.id, 4, 0) == "")
+	check("only 2 squares left", st.player_move(a.id, 7, 0).contains("3 m"), st.player_move(a.id, 7, 0))
+	check("diagonal costs 1", st.player_move(a.id, 6, 2) == "")
+	st.next_turn()
+	while str(st.current_combatant().get("ref", "")) != a.id:
+		st.next_turn()
+	st.toggle_condition(a.id, "Afferrato")
+	check("grappled: speed 0", st.player_move(a.id, 6, 3) != "")
+	st.toggle_condition(a.id, "Afferrato")
+	check("new turn: full movement", st.player_move(a.id, 12, 2) == "")
+	st.combat_end()
 	st.update_map(mp.id, {"cell": 400.0})
 	var n2 := GameState.map_size(mp)
 	var inside := true

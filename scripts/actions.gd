@@ -446,11 +446,63 @@ static func is_reach(a: Dictionary) -> bool:
 		or t.contains("lancia lunga") or t.contains("alabarda") or t.contains("falcione") or t.contains("frusta") or t.contains("picca")
 
 
+## Normal and long range in metres written in an attack ("gittata 24/96 m",
+## "range 80/320 ft."), or [] when none is written.
+static func range_of(a: Dictionary) -> Array:
+	var t := (str(a.get("name", "")) + " " + str(a.get("note", ""))).to_lower()
+	var re := RegEx.create_from_string("(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)\\s*(m\\b|metri|ft|feet|piedi)")
+	var m := re.search(t)
+	if m == null:
+		return []
+	var f := 0.3 if m.get_string(3) in ["ft", "feet", "piedi"] else 1.0
+	return [float(m.get_string(1).replace(",", ".")) * f, float(m.get_string(2).replace(",", ".")) * f]
+
+
+## Checks reach and range on the map in play (only when both pieces are on
+## it). Returns [error, extra disadvantage reasons]. Players get an error when
+## the target is out of reach; monsters only a note (the master moves them).
+static func map_check(st, actor_id: String, a: Dictionary, tid: String) -> Array:
+	var d: float = st.map_dist_m(actor_id, tid)
+	if d < 0:
+		return ["", []]
+	var t: Dictionary = st.find_entity(tid)
+	var pc: bool = st.is_pc(actor_id)
+	var dm := GameState._m(d)
+	if not bool(a.get("ranged", false)):
+		var reach := 3.0 if is_reach(a) else 1.5
+		if d > reach + 0.01:
+			return ["%s è a %s m: fuori portata (%s m). Avvicinati prima." % [t.name, dm, GameState._m(reach)] if pc else "", []]
+		return ["", []]
+	var dis: Array = []
+	var r := range_of(a)
+	if r.size() == 2:
+		if d > float(r[1]) + 0.01:
+			return ["%s è a %s m: oltre la gittata massima (%s m)." % [t.name, dm, GameState._m(r[1])] if pc else "", []]
+		if d > float(r[0]) + 0.01:
+			dis.append("oltre la gittata normale (%s m)" % GameState._m(r[0]))
+	# PHB: a ranged attack with an enemy within 1.5 m that can act
+	var me: Vector2i = st.map_pos(actor_id)
+	var mp: Dictionary = st.find_map(str(st.data.get("map_active", "")))
+	for tok in mp.get("tokens", []):
+		var o: Dictionary = st.find_entity(str(tok.ref))
+		if o.is_empty() or str(tok.ref) == actor_id or st.is_pc(str(tok.ref)) == pc or int(o.get("hp", 0)) <= 0:
+			continue
+		if maxi(absi(int(tok.x) - me.x), absi(int(tok.y) - me.y)) <= 1:
+			var free := true
+			for c in GameState.INCAPACITATING:
+				if has_cond(o, c):
+					free = false
+			if free:
+				dis.append("nemico a 1,5 m (%s)" % o.name)
+				break
+	return ["", dis]
+
+
 ## state 1 = advantage, -1 = disadvantage, 0 = normal.
-static func auto_adv(attacker: Dictionary, target: Dictionary, ranged: bool) -> Array:
+static func auto_adv(attacker: Dictionary, target: Dictionary, ranged: bool, extra_dis := []) -> Array:
 	var adv := false
-	var dis := false
-	var why: Array = []
+	var dis := not extra_dis.is_empty()
+	var why: Array = extra_dis.duplicate()
 	for c in ["Accecato", "Avvelenato", "Prono", "Spaventato", "Trattenuto"]:
 		if has_cond(attacker, c):
 			dis = true
@@ -563,13 +615,20 @@ static func resolve(st, actor_id: String, a: Dictionary, targets: Array, opts :=
 			lines.append("%s smette di concentrarsi su %s" % [aname, old])
 		actor["concentration"] = title
 	var forced: int = int({"adv": 1, "dis": -1, "none": 0}.get(str(opts.get("adv", "auto")), 99))
+	var map_dis := {}
+	if mode == "attack":
+		for tid in tg:
+			var mc := map_check(st, actor_id, a, tid)
+			if str(mc[0]) != "":
+				return {"ok": false, "error": str(mc[0]), "lines": []}
+			map_dis[tid] = mc[1]
 	match mode:
 		"attack":
 			var ranged := bool(a.get("ranged", false))
 			for i in times:
 				var tid: String = tg[i % tg.size()]
 				var t: Dictionary = st.find_entity(tid)
-				var aa := auto_adv(actor, t, ranged)
+				var aa := auto_adv(actor, t, ranged, map_dis.get(tid, []))
 				var adv: int = int(aa[0]) if forced == 99 else forced
 				var r := _d20(st.rng, adv)
 				var nat: int = r[0]

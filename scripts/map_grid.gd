@@ -13,9 +13,12 @@ static func detect(img: Image) -> Dictionary:
 		return {}
 	var g: Image = img.duplicate()
 	g.convert(Image.FORMAT_L8)
-	var scale := minf(1.0, 900.0 / maxf(g.get_width(), g.get_height()))
-	if scale < 1.0:
-		g.resize(int(g.get_width() * scale), int(g.get_height() * scale), Image.INTERPOLATE_BILINEAR)
+	# halve by averaging 2x2 pixels: a thin grid line gets fainter but never
+	# vanishes (a plain resize samples, and drops every other line)
+	var scale := 1.0
+	while maxf(g.get_width(), g.get_height()) > 1300:
+		g.shrink_x2()
+		scale *= 0.5
 	var w := g.get_width()
 	var h := g.get_height()
 	var d := g.get_data()
@@ -25,12 +28,15 @@ static func detect(img: Image) -> Dictionary:
 	var row := PackedFloat32Array()
 	row.resize(h)
 	row.fill(0)
-	for y in range(1, h):
+	# brightness of every column and row: a grid line is a thin dip (or peak).
+	# Unlike edge strength, it keeps its total when the picture is shrunk and
+	# a line falls between two pixels.
+	for y in h:
 		var o := y * w
-		for x in range(1, w):
-			var v := int(d[o + x])
-			col[x] += absi(v - int(d[o + x - 1]))
-			row[y] += absi(v - int(d[o + x - w]))
+		for x in w:
+			var v := float(d[o + x])
+			col[x] += v
+			row[y] += v
 	col = _highpass(col)
 	row = _highpass(row)
 	var best_p := 0.0
@@ -55,16 +61,58 @@ static func detect(img: Image) -> Dictionary:
 		var q: float = fine / k
 		if q < 8.0:
 			continue
+		# folded on the real step or on a multiple of it, every line falls in
+		# the same bin: the peak keeps the full height of a line. Folded on a
+		# wrong fraction, only some lines fall there and the peak drops.
 		var r: Array = _refine(col, row, q)
-		if float(r[1]) >= best_s * 0.7:
+		if _peak(col, r[0]) + _peak(row, r[0]) >= 0.65 * (_peak(col, fine) + _peak(row, fine)):
 			fine = r[0]
 			best_s = r[1]
+			break
+	# the opposite mistake: a step that is a fraction of the real one. Folded
+	# on the real step the peak is about k times higher.
+	for k in [2, 3, 4]:
+		var big: float = fine * k
+		if big > minf(col.size(), row.size()) / 3.0:
+			break
+		var r2: Array = _refine(col, row, big)
+		var pb: float = _peak(col, r2[0]) + _peak(row, r2[0])
+		var pf: float = _peak(col, fine) + _peak(row, fine)
+		if pb >= 1.6 * pf:
+			fine = r2[0]
+			best_s = r2[1]
 			break
 	if best_s < 1.2:
 		return {}
 	var fx: Array = _fold(col, fine)
 	var fy: Array = _fold(row, fine)
 	return {"cell": fine / scale, "ox": float(fx[1]) / scale, "oy": float(fy[1]) / scale, "score": best_s}
+
+
+## Height of the peak of the profile folded on step p (3 px wide, whatever
+## the step).
+static func _peak(a: PackedFloat32Array, p: float) -> float:
+	var bins := maxi(4, int(p))
+	var sum := PackedFloat32Array()
+	sum.resize(bins)
+	sum.fill(0)
+	var cnt := PackedInt32Array()
+	cnt.resize(bins)
+	cnt.fill(0)
+	for i in a.size():
+		var b := int(fmod(float(i), p) / p * bins) % bins
+		sum[b] += a[i]
+		cnt[b] += 1
+	# a line sits between two pixels in a different way on every square when
+	# the step is not a whole number: take 3 px around the peak
+	var m := PackedFloat32Array()
+	m.resize(bins)
+	for b in bins:
+		m[b] = sum[b] / maxf(1.0, cnt[b])
+	var best := 0.0
+	for b in bins:
+		best = maxf(best, m[b] + m[(b + 1) % bins] + m[(b + 2) % bins])
+	return best
 
 
 ## Best step within ±0.75 px of p. Returns [step, score].
@@ -95,7 +143,7 @@ static func _highpass(a: PackedFloat32Array) -> PackedFloat32Array:
 		for j in range(maxi(0, i - r), mini(n, i + r + 1)):
 			s += a[j]
 			c += 1
-		out[i] = maxf(0.0, a[i] - s / c) / mean
+		out[i] = absf(a[i] - s / c) / mean
 	return out
 
 
