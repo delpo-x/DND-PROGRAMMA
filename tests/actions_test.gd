@@ -187,5 +187,21 @@ func _init() -> void:
 	p3.data["claims"] = {"tok": kid.id}
 	check("undo works", p3.undo() and int(p3.find_entity(kid.id).hp) == hp0 and p3.data.claims.has("tok"), p3.find_entity(kid.id).hp)
 	check("nothing left to undo", not p3.can_undo())
+	# PHB 2024: exhaustion, grappled, hit dice
+	var ex: Dictionary = p3.find_entity(kid.id)
+	var sv0 := Rules.save_mod(ex, "COS")
+	p3.toggle_condition(kid.id, "Indebolimento")
+	p3.toggle_condition(kid.id, "Indebolimento")
+	check("exhaustion 2", Rules.exhaustion(ex) == 2 and Rules.save_mod(ex, "COS") == sv0 - 4, ex.conditions)
+	ex.hp = 1
+	ex.hd_used = 0
+	var hd := p3.spend_hit_die(kid.id)
+	check("hit die spent", hd != "" and int(ex.hd_used) == 1, hd)
+	p3.rest(true)
+	check("long rest: exhaustion 1, hit dice back", Rules.exhaustion(ex) == 1 and int(ex.hd_used) == 0, ex.conditions)
+	check("grappled attacker disadvantage", int(Actions.auto_adv({"conditions": "Afferrato"}, {}, false)[0]) == -1)
+	for i in 5:
+		p3.toggle_condition(kid.id, "Indebolimento")
+	check("exhaustion 6 kills", p3.is_dead(ex), ex.conditions)
 	print("actions test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

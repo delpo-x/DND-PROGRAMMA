@@ -60,7 +60,7 @@ func refresh() -> void:
 	var xp_amt := UI.spin(0, 99999, int(amounts.get("_xp", 100)), func(v): amounts["_xp"] = v, 130)
 	list.add_child(UI.card(UI.flow([
 		UI.btn("Riposo breve", func(): st.rest(false), 48),
-		UI.btn("Riposo lungo", func(): app.confirm("Riposo lungo: i personaggi con almeno 1 PF tornano ai PF massimi e recuperano gli slot. Chi è a 0 PF non ne beneficia. Procedere?", func(): st.rest(true)), 48),
+		UI.btn("Riposo lungo", func(): app.confirm("Riposo lungo: i personaggi con almeno 1 PF tornano ai PF massimi, recuperano dadi vita e slot e perdono un livello di indebolimento. Chi è a 0 PF non ne beneficia. Procedere?", func(): st.rest(true)), 48),
 		UI.lbl("PE da dividere", 18, UI.DIM), xp_amt,
 		UI.color_btn("Assegna PE", Color(0.45, 0.33, 0.1), func(): st.award_xp(UI.spin_value(xp_amt), "assegnati dal master"), 48),
 		UI.lbl("PE totali del gruppo: %d" % int(st.data.get("xp_total", 0)), 18, UI.DIM),
@@ -99,6 +99,10 @@ func refresh() -> void:
 			UI.btn("PF temp.", func(): st.give_temp_hp(id, UI.spin_value(amt)), 48),
 			UI.btn("Difese", func(): CombatUI.defenses_dialog(app, id), 48),
 			UI.btn("Slot", _slots_dialog.bind(id), 48),
+			UI.btn("Dado vita (%d/%d)" % [int(ch.get("level", 1)) - int(ch.get("hd_used", 0)), int(ch.get("level", 1))],
+				func():
+					var t := st.spend_hit_die(id)
+					app.toast(t if t != "" else "Nessun dado vita da spendere (o PF già al massimo)"), 48),
 			UI.btn("Incantesimi", _spells_dialog.bind(id), 48),
 			_cond_menu(ch),
 			UI.btn("Richiedi tiro", func(): request_dialog([id]), 48),

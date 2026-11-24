@@ -455,6 +455,9 @@ static func auto_adv(attacker: Dictionary, target: Dictionary, ranged: bool) -> 
 		if has_cond(attacker, c):
 			dis = true
 			why.append("attaccante %s" % c.to_lower())
+	if has_cond(attacker, "Afferrato"):
+		dis = true  # PHB 2024: against anyone but the grappler
+		why.append("attaccante afferrato (vale contro chi non lo afferra)")
 	if has_cond(attacker, "Invisibile"):
 		adv = true
 		why.append("attaccante invisibile")
@@ -486,7 +489,7 @@ static func save_bonus(st, id: String, ab: String) -> int:
 	var e: Dictionary = st.find_entity(id)
 	if st.is_pc(id):
 		return Rules.save_mod(e, ab)
-	return int(e.get("init_mod", 0)) if ab == "DES" else 0
+	return (int(e.get("init_mod", 0)) if ab == "DES" else 0) - 2 * Rules.exhaustion(e)
 
 
 static func _auto_fail(e: Dictionary, ab: String) -> bool:
@@ -570,7 +573,8 @@ static func resolve(st, actor_id: String, a: Dictionary, targets: Array, opts :=
 				var adv: int = int(aa[0]) if forced == 99 else forced
 				var r := _d20(st.rng, adv)
 				var nat: int = r[0]
-				var total: int = nat + int(a.bonus)
+				var bonus: int = int(a.bonus) - 2 * Rules.exhaustion(actor)
+				var total: int = nat + bonus
 				var ac := int(t.get("ac", 10))
 				var hit := nat == 20 or (nat != 1 and total >= ac)
 				var crit := nat == 20
@@ -578,9 +582,9 @@ static func resolve(st, actor_id: String, a: Dictionary, targets: Array, opts :=
 					crit = true  # hit from within 1.5 m
 				var res_txt := "CRITICO" if crit else ("colpito" if hit else "mancato")
 				st.add_roll({"who": aname, "who_id": actor_id, "who_type": _who_type(st, actor_id),
-					"kind": "Attacco", "dice": r[1], "mod": int(a.bonus), "adv": _adv_name(adv),
-					"reason": "%s contro %s: %s" % [title, t.name, res_txt], "formula": "1d20%+d" % int(a.bonus)}, false)
-				var line := "%s%s contro %s: %d (%d%+d) vs CA %d, %s" % [title, (" #%d" % (i + 1)) if times > 1 else "", t.name, total, nat, int(a.bonus), ac, res_txt]
+					"kind": "Attacco", "dice": r[1], "mod": bonus, "adv": _adv_name(adv),
+					"reason": "%s contro %s: %s" % [title, t.name, res_txt], "formula": "1d20%+d" % bonus}, false)
+				var line := "%s%s contro %s: %d (%d%+d) vs CA %d, %s" % [title, (" #%d" % (i + 1)) if times > 1 else "", t.name, total, nat, bonus, ac, res_txt]
 				if nat == 1:
 					line += " (1 naturale)"
 				if adv != 0:

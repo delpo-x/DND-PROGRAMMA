@@ -55,6 +55,27 @@ static func skill_name(id: String) -> String:
 	return s[1] if s.size() > 0 else id
 
 
+## Exhaustion level 0-6 (PHB 2024), kept in the conditions text as
+## "Indebolimento N".
+static func exhaustion(e: Dictionary) -> int:
+	var re := RegEx.create_from_string("(?i)indebolimento\\s*(\\d)")
+	var m := re.search(str(e.get("conditions", "")))
+	return clampi(int(m.get_string(1)), 0, 6) if m else 0
+
+
+## Hit die of a class (d6-d12), 8 when the class is unknown.
+const HIT_DIE := {"barbar": 12, "guerrier": 10, "fighter": 10, "paladin": 10, "ranger": 10,
+	"mago": 6, "wizard": 6, "stregon": 6, "sorcerer": 6}
+
+
+static func hit_die(cls: String) -> int:
+	var c := cls.to_lower()
+	for k in HIT_DIE:
+		if c.contains(k):
+			return int(HIT_DIE[k])
+	return 8
+
+
 static func skill_mod(ch: Dictionary, id: String) -> int:
 	var s := skill_info(id)
 	if s.is_empty():
@@ -62,7 +83,7 @@ static func skill_mod(ch: Dictionary, id: String) -> int:
 	var ab: Dictionary = ch.get("ab", {})
 	var m := mod(ab.get(s[2], 10))
 	var level := int(ch.get("skills", {}).get(id, 0))
-	return m + int(ch.get("prof", 2)) * clampi(level, 0, 2)
+	return m + int(ch.get("prof", 2)) * clampi(level, 0, 2) - 2 * exhaustion(ch)
 
 
 static func save_mod(ch: Dictionary, ab_id: String) -> int:
@@ -70,12 +91,12 @@ static func save_mod(ch: Dictionary, ab_id: String) -> int:
 	var m := mod(ab.get(ab_id, 10))
 	if ch.get("saves", []).has(ab_id):
 		m += int(ch.get("prof", 2))
-	return m
+	return m - 2 * exhaustion(ch)
 
 
 static func init_mod(ch: Dictionary) -> int:
 	var ab: Dictionary = ch.get("ab", {})
-	return mod(ab.get("DES", 10)) + int(ch.get("init_bonus", 0))
+	return mod(ab.get("DES", 10)) + int(ch.get("init_bonus", 0)) - 2 * exhaustion(ch)
 
 
 ## Generic health state shown to players instead of exact hit points.
@@ -215,7 +236,7 @@ const CONDITIONS: Array = [
 	["Spaventato", "Svantaggio a prove e attacchi finché vede la fonte della paura; non può avvicinarsi a essa."],
 	["Stordito", "Incapacitato. Fallisce TS di For e Des; chi lo attacca ha vantaggio."],
 	["Trattenuto", "Velocità 0. Attacca con svantaggio, chi lo attacca ha vantaggio. Svantaggio ai TS di Des."],
-	["Indebolimento", "Livelli cumulativi 1-6: -2 per livello a ogni tiro di d20, velocità -1,5 m per livello; al 6° muore. Il riposo lungo toglie 1 livello."],
+	["Indebolimento", "Ogni clic aggiunge un livello (1-6): -2 per livello a ogni tiro di d20, velocità -1,5 m per livello; al 6° muore. Il riposo lungo toglie 1 livello; Annulla toglie l'ultimo clic."],
 ]
 
 

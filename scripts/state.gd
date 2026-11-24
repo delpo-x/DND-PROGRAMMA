@@ -877,7 +877,10 @@ func rest(long: bool) -> void:
 			ch.death_ok = 0
 			ch.death_ko = 0
 			ch.slots_used = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-		var txt := "Il gruppo fa un riposo lungo: punti ferita e slot incantesimo recuperati"
+			ch.hd_used = 0  # PHB 2024: all hit dice back
+			if Rules.exhaustion(ch) > 0:
+				exhaustion_add(str(ch.id), -1)
+		var txt := "Il gruppo fa un riposo lungo: punti ferita, dadi vita e slot incantesimo recuperati, un livello di indebolimento in meno"
 		if left_out.size() > 0:
 			txt += " (tranne %s: a 0 PF il riposo lungo non ha effetto)" % ", ".join(left_out)
 			notice.emit("Riposo lungo senza effetto per %s (0 PF)" % ", ".join(left_out))
@@ -972,7 +975,55 @@ func set_slots_max(id: String, mx: Array, auto: bool) -> void:
 const INCAPACITATING := ["Incapacitato", "Paralizzato", "Pietrificato", "Privo di sensi", "Stordito"]
 
 
+## Adds (delta > 0) or removes exhaustion levels (PHB 2024). Level 6 kills.
+func exhaustion_add(id: String, delta: int) -> void:
+	var ch := find_entity(id)
+	if ch.is_empty() or not ch.has("conditions"):
+		return
+	var lvl := clampi(Rules.exhaustion(ch) + delta, 0, 6)
+	var parts: Array = []
+	for p in str(ch.conditions).split(","):
+		var t := p.strip_edges()
+		if t != "" and not t.to_lower().begins_with("indebolimento"):
+			parts.append(t)
+	if lvl > 0:
+		parts.append("Indebolimento %d" % lvl)
+	ch.conditions = ", ".join(parts).left(200)
+	if lvl >= 6 and delta > 0:
+		ch.hp = 0
+		ch.death_ko = 3
+		notice.emit("%s muore per l'indebolimento (6° livello)" % ch.name)
+		chronicle_add("sconfitta", "%s muore sfinito (indebolimento al 6° livello)" % ch.name)
+	elif delta > 0:
+		notice.emit("%s: indebolimento %d (-%d ai tiri di d20)" % [ch.name, lvl, 2 * lvl])
+	touch()
+
+
+## Short rest: the character spends one hit die (die + Constitution modifier).
+## Returns a short description, or "" when none is left or nothing to heal.
+func spend_hit_die(id: String) -> String:
+	var ch := find_entity(id)
+	if ch.is_empty() or not is_pc(id) or int(ch.hp) <= 0:
+		return ""
+	var used := int(ch.get("hd_used", 0))
+	if used >= int(ch.get("level", 1)) or int(ch.hp) >= int(ch.hp_max):
+		return ""
+	var die := Rules.hit_die(str(ch.get("cls", "")))
+	var v := rng.randi_range(1, die)
+	var m := Rules.mod(ch.get("ab", {}).get("COS", 10))
+	var heal := maxi(0, v + m)
+	ch.hd_used = used + 1
+	add_roll({"who": ch.name, "who_id": id, "who_type": "pc", "kind": "Dado vita",
+		"dice": [{"s": die, "v": v, "drop": false}], "mod": m, "adv": "none", "reason": "Riposo breve",
+		"secret": false, "formula": "1d%d%+d" % [die, m]}, false)
+	change_hp(id, heal)
+	return "%s spende un dado vita: +%d PF (%d/%d dadi vita usati)" % [ch.name, heal, used + 1, int(ch.get("level", 1))]
+
+
 func toggle_condition(id: String, cond: String) -> void:
+	if cond == "Indebolimento":
+		exhaustion_add(id, 1)
+		return
 	var ch := find_entity(id)
 	if ch.is_empty() or not ch.has("conditions"):
 		return
