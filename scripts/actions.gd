@@ -437,6 +437,15 @@ static func parse_monster(notes: String) -> Array:
 
 # -------------------------------------------------------------- resolution
 ## Advantage from conditions (PHB 2024). Returns [state, reasons]:
+## A melee attack with reach (portata 3 m, "reach 10 ft."): it may hit from
+## farther than 1.5 m, so it is not an automatic critical on a paralysed or
+## unconscious target.
+static func is_reach(a: Dictionary) -> bool:
+	var t := (str(a.get("name", "")) + " " + str(a.get("note", ""))).to_lower()
+	return t.contains("portata 3") or t.contains("portata 4") or t.contains("reach 10") or t.contains("reach 15") \
+		or t.contains("lancia lunga") or t.contains("alabarda") or t.contains("falcione") or t.contains("frusta") or t.contains("picca")
+
+
 ## state 1 = advantage, -1 = disadvantage, 0 = normal.
 static func auto_adv(attacker: Dictionary, target: Dictionary, ranged: bool) -> Array:
 	var adv := false
@@ -565,8 +574,8 @@ static func resolve(st, actor_id: String, a: Dictionary, targets: Array, opts :=
 				var ac := int(t.get("ac", 10))
 				var hit := nat == 20 or (nat != 1 and total >= ac)
 				var crit := nat == 20
-				if hit and not ranged and (has_cond(t, "Paralizzato") or has_cond(t, "Privo di sensi")):
-					crit = true
+				if hit and not ranged and not is_reach(a) and (has_cond(t, "Paralizzato") or has_cond(t, "Privo di sensi")):
+					crit = true  # hit from within 1.5 m
 				var res_txt := "CRITICO" if crit else ("colpito" if hit else "mancato")
 				st.add_roll({"who": aname, "who_id": actor_id, "who_type": _who_type(st, actor_id),
 					"kind": "Attacco", "dice": r[1], "mod": int(a.bonus), "adv": _adv_name(adv),
@@ -684,13 +693,13 @@ static func _deal(st, actor_id: String, tid: String, formula: String, dtype: Str
 	st.add_roll({"who": st.find_entity(actor_id).get("name", "?"), "who_id": actor_id, "who_type": _who_type(st, actor_id),
 		"kind": "Danni", "dice": r.dice, "mod": int(r.mod), "reason": "%s su %s%s" % [title, t.name, " (critico)" if crit else ""],
 		"formula": formula}, false)
-	return _apply_damage(st, tid, int(r.total), dtype, lines, formula + (", dadi raddoppiati" if crit else ""))
+	return _apply_damage(st, tid, int(r.total), dtype, lines, formula + (", dadi raddoppiati" if crit else ""), crit)
 
 
-static func _apply_damage(st, tid: String, amount: int, dtype: String, lines: Array, formula := "") -> int:
+static func _apply_damage(st, tid: String, amount: int, dtype: String, lines: Array, formula := "", crit := false) -> int:
 	var t: Dictionary = st.find_entity(tid)
 	var before := int(t.hp)
-	var r: Array = st.damage(tid, amount, dtype)
+	var r: Array = st.damage(tid, amount, dtype, crit)
 	var dealt := int(r[0])
 	var txt := "   %s subisce %d danni%s" % [t.name, dealt, (" " + dtype.to_lower()) if dtype != "" else ""]
 	if formula != "":
@@ -736,8 +745,11 @@ static func _apply_conds(st, tid: String, conds: String, lines: Array) -> void:
 		var cc := c.strip_edges()
 		if cc == "" or has_cond(t, cc):
 			continue
+		var conc := str(t.get("concentration", ""))
 		st.toggle_condition(tid, cc)
 		lines.append("   %s ora è %s" % [t.name, cc.to_lower()])
+		if conc != "" and str(t.get("concentration", "")) == "":
+			lines.append("   %s perde la concentrazione su %s (%s)" % [t.name, conc, cc.to_lower()])
 
 
 # ------------------------------------------------------------ phone players

@@ -25,6 +25,15 @@ var persist := true
 var online_chars: Dictionary = {}  # char_id -> true (filled by the network server)
 var rng := RandomNumberGenerator.new()
 var save_pending := false
+## Undo: copies of `data` before each change. Changes less than UNDO_GAP ms
+## apart are one step (an action with all its rolls, a drag on the map).
+const UNDO_MAX := 30
+const UNDO_GAP := 700
+var _undo: Array = []
+var _shadow := {}          # data as it was after the last finished change
+var _shadow_stale := false
+var _last_touch := -100000
+var _restoring := false
 var _last_backup := 0.0
 # Dnd The Game (AI master): the phones show the master's last lines and a
 # box to talk to it. Not saved with the campaign.
@@ -55,8 +64,61 @@ func new_id(prefix: String) -> String:
 
 
 func touch() -> void:
+	_undo_track()
 	save_pending = true
 	changed.emit()
+
+
+func _undo_track() -> void:
+	if _restoring:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _last_touch >= UNDO_GAP and not _shadow_stale and not _shadow.is_empty() \
+			and str(_shadow.get("id", "")) == str(data.get("id", "")):
+		_undo.append(_shadow)
+		if _undo.size() > UNDO_MAX:
+			_undo.pop_front()
+		_shadow = {}
+	_last_touch = now
+	_shadow_stale = true
+
+
+## Called every frame by the apps: once the changes stop, a copy of the data
+## is kept as the point to go back to. force: at once (tests).
+func undo_tick(force := false) -> void:
+	if _shadow_stale and (force or Time.get_ticks_msec() - _last_touch >= UNDO_GAP):
+		_shadow = data.duplicate(true)
+		_shadow_stale = false
+
+
+## A new campaign was opened: nothing to undo.
+func undo_reset() -> void:
+	_undo.clear()
+	_shadow = data.duplicate(true)
+	_shadow_stale = false
+	_last_touch = Time.get_ticks_msec()
+
+
+func can_undo() -> bool:
+	return not _undo.is_empty()
+
+
+## Goes back to before the last change (damage, healing, an action with its
+## rolls, a condition, a rest...). The phones keep their characters.
+func undo() -> bool:
+	if _undo.is_empty():
+		return false
+	var claims = data.get("claims", {})
+	data = _undo.pop_back()
+	data["claims"] = claims
+	_shadow = data.duplicate(true)
+	_shadow_stale = false
+	_restoring = true
+	touch()
+	_restoring = false
+	_last_touch = -100000
+	notice.emit("Ultima modifica annullata")
+	return true
 
 
 # ---------------------------------------------------------------- campaigns
@@ -311,6 +373,7 @@ func load_campaign(id: String) -> bool:
 		save_now()
 	data = _normalize(j)
 	save_now()
+	undo_reset()
 	touch()
 	return true
 
@@ -694,7 +757,7 @@ func delete_monster(id: String) -> void:
 ## (and no longer stable); damage still left after reaching 0 PF that equals
 ## or exceeds the PF maximum = instant death. A dead character can't be healed
 ## until the master resets the death saves (e.g. after a revival spell).
-func change_hp(id: String, amount: int) -> void:
+func change_hp(id: String, amount: int, crit := false) -> void:
 	var e := find_entity(id)
 	if e.is_empty() or amount == 0:
 		return
@@ -721,8 +784,8 @@ func change_hp(id: String, amount: int) -> void:
 			elif before <= 0:
 				if int(e.get("death_ok", 0)) >= 3:
 					e.death_ok = 0  # damage ends the stable state
-				e.death_ko = mini(3, int(e.get("death_ko", 0)) + 1)
-				notice.emit("%s subisce danni a 0 PF: un fallimento al tiro contro la morte (due se era un critico)" % e.name)
+				e.death_ko = mini(3, int(e.get("death_ko", 0)) + (2 if crit else 1))
+				notice.emit("%s subisce danni a 0 PF: %s al tiro contro la morte" % [e.name, "due fallimenti (critico)" if crit else "un fallimento"])
 				if int(e.death_ko) >= 3:
 					chronicle_add("sconfitta", "%s muore" % e.name)
 	else:
@@ -738,13 +801,13 @@ func is_dead(e: Dictionary) -> bool:
 
 ## Damage of a given type: immunity, resistance and vulnerability are applied
 ## first. Returns [damage actually dealt, reason it changed].
-func damage(id: String, amount: int, dtype := "") -> Array:
+func damage(id: String, amount: int, dtype := "", crit := false) -> Array:
 	var e := find_entity(id)
 	if e.is_empty():
 		return [0, ""]
 	var r: Array = Rules.apply_defenses(e, amount, dtype)
 	if int(r[0]) > 0:
-		change_hp(id, -int(r[0]))
+		change_hp(id, -int(r[0]), crit)
 	return r
 
 
@@ -762,6 +825,9 @@ func _hp_events(e: Dictionary, id: String, before: int) -> void:
 	var pc := is_pc(id)
 	if before > 0 and int(e.hp) <= 0:
 		if pc:
+			# 0 PF: unconscious and prone (PHB), concentration ends
+			set_condition(id, "Privo di sensi", true)
+			set_condition(id, "Prono", true)
 			if not is_dead(e):
 				chronicle_add("sconfitta", "%s cade a terra, privo di sensi" % e.name)
 		else:
@@ -776,6 +842,7 @@ func _hp_events(e: Dictionary, id: String, before: int) -> void:
 		if pc:
 			e.death_ok = 0
 			e.death_ko = 0
+			set_condition(id, "Privo di sensi", false)  # still prone: standing up costs movement
 			chronicle_add("personaggio", "%s torna in piedi (%d PF)" % [e.name, int(e.hp)])
 		elif ini().has("defeated"):
 			# healed back up: no longer counts as defeated (no XP for it)
@@ -834,6 +901,7 @@ func death_save(id: String, roll: int) -> String:
 		return ""  # already stable or dead
 	var out := ""
 	if roll == 20:
+		set_condition(id, "Privo di sensi", false)
 		ch.hp = 1
 		ch.death_ok = 0
 		ch.death_ko = 0
@@ -901,6 +969,9 @@ func set_slots_max(id: String, mx: Array, auto: bool) -> void:
 	touch()
 
 
+const INCAPACITATING := ["Incapacitato", "Paralizzato", "Pietrificato", "Privo di sensi", "Stordito"]
+
+
 func toggle_condition(id: String, cond: String) -> void:
 	var ch := find_entity(id)
 	if ch.is_empty() or not ch.has("conditions"):
@@ -917,8 +988,25 @@ func toggle_condition(id: String, cond: String) -> void:
 			parts.append(t)
 	if not had:
 		parts.append(cond)
+		# an incapacitating condition ends concentration (PHB)
+		if INCAPACITATING.has(cond) and str(ch.get("concentration", "")) != "":
+			notice.emit("%s perde la concentrazione su %s (%s)" % [ch.name, ch.concentration, cond.to_lower()])
+			ch.concentration = ""
 	ch.conditions = ", ".join(parts).left(200)
 	touch()
+
+
+## Turns a condition on or off whatever its state was.
+func set_condition(id: String, cond: String, on: bool) -> void:
+	var ch := find_entity(id)
+	if ch.is_empty() or not ch.has("conditions"):
+		return
+	var has := false
+	for p in str(ch.conditions).split(","):
+		if p.strip_edges().to_lower() == cond.to_lower():
+			has = true
+	if has != on:
+		toggle_condition(id, cond)
 
 
 func set_death(id: String, ok: int, ko: int) -> void:

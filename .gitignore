@@ -8,3 +8,4 @@ build/*.apk
 build/*.idsig
 # Test screenshots
 shots/
+audio_src/

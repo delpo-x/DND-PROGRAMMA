@@ -47,6 +47,7 @@ var lbl_clients: Label
 var chk_voice: CheckBox
 var chk_ambience: CheckBox
 var btn_read: Button
+var btn_undo: Button
 var _reading := false   # reading the "Da leggere" text of the chapter aloud
 var _read_clock := 0.0  # time since the paragraph started
 var _read_quiet := 0.0  # time the voice has been silent
@@ -235,7 +236,7 @@ func _build_ui() -> void:
 	chk_ambience.tooltip_text = "Suoni di sottofondo del luogo (grotta, locanda, bosco...)"
 	root.add_child(UI.hbox([title, UI.expand(lbl_campaign), lbl_clients, chk_voice, chk_ambience,
 		UI.btn("Telefoni", _show_qr, 44), UI.btn("Campagna", _show_campaigns, 44),
-		UI.btn("Diario", _open_diary, 44), UI.btn("Impostazioni", _show_settings, 44)], 12))
+		_make_undo_btn(), UI.btn("Diario", _open_diary, 44), UI.btn("Impostazioni", _show_settings, 44)], 12))
 	lbl_status = UI.lbl(narrator.status, 17, UI.DIM)
 	lbl_status.clip_text = true
 	root.add_child(lbl_status)
@@ -836,6 +837,26 @@ func _reading_tick(delta: float) -> void:
 		_read_next()
 
 
+func _make_undo_btn() -> Button:
+	btn_undo = UI.btn("Annulla", _undo, 44)
+	btn_undo.tooltip_text = "Annulla l'ultima modifica a PF, condizioni, slot e combattimento (Ctrl+Z). Il racconto resta com'è."
+	return btn_undo
+
+
+func _undo() -> void:
+	if state.undo():
+		add_feed("Tavolo", "Ultima modifica annullata.", "info")
+	else:
+		toast("Niente da annullare")
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k and k.pressed and k.keycode == KEY_Z and k.ctrl_pressed:
+		_undo()
+		get_viewport().set_input_as_handled()
+
+
 func _make_read_btn() -> Button:
 	btn_read = UI.btn("Riprendi lettura", _toggle_reading, 54)
 	btn_read.visible = false
@@ -1302,6 +1323,9 @@ func _stop_combat() -> void:
 
 func _process(delta: float) -> void:
 	frame += 1
+	state.undo_tick()
+	if btn_undo:
+		btn_undo.disabled = not state.can_undo()
 	_combat_tick(delta)
 	_reading_tick(delta)
 	_sync_clock += delta

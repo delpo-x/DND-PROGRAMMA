@@ -27,6 +27,7 @@ var tab_map
 var top_campaign: Label
 var top_net: Label
 var top_clients: Label
+var btn_undo: Button
 var modal_layer: Control
 var toast_box: VBoxContainer
 var fx_layer: Control
@@ -183,6 +184,9 @@ func _build_ui() -> void:
 	top_net = UI.lbl("", 16, UI.TEXT)
 	var info := UI.vbox([top_net, top_clients], 0)
 	bar.add_child(info)
+	btn_undo = UI.btn("Annulla", _undo, 50)
+	btn_undo.tooltip_text = "Annulla l'ultima modifica (Ctrl+Z)"
+	bar.add_child(btn_undo)
 	bar.add_child(UI.engrave(UI.color_btn("QR Giocatori", Color(0.36, 0.25, 0.1), show_qr, 50)))
 	tabs = TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -289,8 +293,17 @@ func _refresh_all() -> void:
 ## A tap anywhere outside a number field being typed in confirms it first:
 ## buttons don't take the focus, so without this a damage amount or an
 ## initiative score typed without pressing Enter would be ignored.
+func _undo() -> void:
+	if not state.undo():
+		toast("Niente da annullare")
+
+
 func _input(event: InputEvent) -> void:
 	if not event.is_pressed():
+		return
+	if event is InputEventKey and (event as InputEventKey).keycode == KEY_Z and (event as InputEventKey).ctrl_pressed 			and not _typing():
+		_undo()
+		get_viewport().set_input_as_handled()
 		return
 	var pos := Vector2.ZERO
 	if event is InputEventMouseButton:
@@ -316,6 +329,9 @@ func _typing() -> bool:
 
 func _process(delta: float) -> void:
 	frame += 1
+	state.undo_tick()
+	if btn_undo:
+		btn_undo.disabled = not state.can_undo()
 	ui_timer += delta
 	if ui_dirty and ui_timer > 0.15 and not _typing():
 		ui_dirty = false

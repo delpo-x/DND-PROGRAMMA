@@ -152,5 +152,40 @@ func _init() -> void:
 	check("public lines hide monster HP", not str(pub).contains("PF ") and str(pub).contains("Orco subisce"), pub)
 	var atk_pub := Actions.public_lines(p2, ["Spada lunga contro Orco: 17 (12+5) vs CA 13, colpito", "Orco - TS Destrezza: 9 (8+1) vs CD 13, fallito"])
 	check("public lines hide AC and monster bonus", atk_pub == ["Spada lunga contro Orco: 17 (12+5), colpito", "Orco - TS Destrezza: 9 vs CD 13, fallito"], atk_pub)
+	# 0 PF: unconscious and prone, a critical counts two failures
+	var p3 := GameState.new()
+	p3.persist = false
+	p3.new_campaign("Prova3")
+	var kid: Dictionary = p3.add_character("Lia", "")
+	kid.hp_max = 20
+	kid.hp = 5
+	kid.concentration = "Benedizione"
+	p3.change_hp(kid.id, -8)
+	check("0 PF: unconscious and prone", Actions.has_cond(kid, "Privo di sensi") and Actions.has_cond(kid, "Prono") and str(kid.concentration) == "", kid.conditions)
+	p3.damage(kid.id, 3, "Tagliente", true)
+	check("critical at 0 PF: two failures", int(kid.death_ko) == 2, kid.death_ko)
+	p3.change_hp(kid.id, 4)
+	check("back up: no longer unconscious, still prone", not Actions.has_cond(kid, "Privo di sensi") and Actions.has_cond(kid, "Prono") and int(kid.death_ko) == 0, kid.conditions)
+	# incapacitating conditions end concentration
+	kid.concentration = "Benedizione"
+	p3.toggle_condition(kid.id, "Stordito")
+	check("stunned: concentration lost", str(kid.concentration) == "")
+	# proficiency follows the level unless changed by hand
+	Rules.merge_sheet(kid, {"level": 5})
+	check("level 5: proficiency +3", int(kid.prof) == 3, kid.prof)
+	kid.prof = 4
+	Rules.merge_sheet(kid, {"level": 9})
+	check("hand-set proficiency kept", int(kid.prof) == 4, kid.prof)
+	# reach weapon: no automatic critical on a paralysed target
+	check("reach weapon", Actions.is_reach({"name": "Alabarda"}) and not Actions.is_reach({"name": "Spada lunga"}))
+	# undo: back to before the last change, phones keep their characters
+	p3.undo_tick(true)
+	var hp0 := int(kid.hp)
+	p3._last_touch = -100000
+	p3.change_hp(kid.id, -2)
+	check("undo available", p3.can_undo())
+	p3.data["claims"] = {"tok": kid.id}
+	check("undo works", p3.undo() and int(p3.find_entity(kid.id).hp) == hp0 and p3.data.claims.has("tok"), p3.find_entity(kid.id).hp)
+	check("nothing left to undo", not p3.can_undo())
 	print("actions test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

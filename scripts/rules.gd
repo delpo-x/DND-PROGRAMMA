@@ -125,7 +125,15 @@ static func _to_int(v, fallback: int) -> int:
 
 
 ## Copies only known sheet fields from src into ch, with type and range checks.
+## Proficiency bonus by level (PHB): +2 at 1-4, +3 at 5-8 ... +6 at 17-20.
+static func prof_for(level: int) -> int:
+	return 2 + int((clampi(level, 1, 20) - 1) / 4)
+
+
 static func merge_sheet(ch: Dictionary, src: Dictionary) -> void:
+	# the proficiency bonus follows the level, unless it was changed by hand
+	var old_level := int(ch.get("level", 1))
+	var auto_prof := int(ch.get("prof", 2)) == prof_for(old_level)
 	var str_fields := {"name": 40, "player": 40, "cls": 40, "race": 40, "notes": 4000, "conditions": 200,
 		"resist": 200, "vuln": 200, "immune": 200}
 	for k in str_fields:
@@ -142,6 +150,8 @@ static func merge_sheet(ch: Dictionary, src: Dictionary) -> void:
 		if src.has(k):
 			ch[k] = clampi(_to_int(src[k], int(ch.get(k, 0))), int_fields[k][0], int_fields[k][1])
 	ch["hp"] = clampi(int(ch.get("hp", 0)), 0, int(ch.get("hp_max", 1)))
+	if auto_prof and int(ch.get("level", 1)) != old_level and (not src.has("prof") or int(src.prof) == prof_for(old_level)):
+		ch["prof"] = prof_for(int(ch.level))
 	sync_slots(ch)
 	if src.get("ab") is Dictionary:
 		var ab: Dictionary = ch.get("ab", {}).duplicate()

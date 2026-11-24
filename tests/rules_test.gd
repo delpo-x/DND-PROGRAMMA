@@ -56,7 +56,7 @@ func _init() -> void:
 	ok = ok and a.spells.size() == 2 and str(a.spells[0].name) == "Luce"
 	ok = ok and st.cast_spell(a.id, 0).contains("trucchetto")
 	ok = ok and st.cast_spell(a.id, 1) != "" and st.cast_spell(a.id, 1) != "" and st.cast_spell(a.id, 1) == ""
-	ok = ok and int(Rules.spell_numbers(a)[0]) == 8 + 2 + Rules.mod(a.ab.INT)
+	ok = ok and int(Rules.spell_numbers(a)[0]) == 8 + int(a.prof) + Rules.mod(a.ab.INT) and int(a.prof) == Rules.prof_for(int(a.level))
 	# 2024 rules: paladin slots from 1st level
 	var c: Dictionary = st.add_character("Cleo", "")
 	st.update_character(c.id, {"cls": "Paladino", "level": 1})
