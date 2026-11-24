@@ -19,8 +19,8 @@ Ogni volta che deve rispondere, il narratore riceve solo:
 | Il tono dell'avventura | Una riga, massimo 240 caratteri | Campo "Tono" della campagna |
 | Il gruppo | Nome, razza, classe, livello | Schede dei personaggi |
 | I mostri | Solo i nomi | Mostri della campagna e bestiario |
-| La traccia del capitolo | **I primi 1400 caratteri** (circa 220 parole) | Il PDF della storia importata |
-| Brani del testo completo | Al massimo 600 caratteri, solo quando servono | Paragrafi del capitolo che parlano di ciò che si è appena detto |
+| La traccia del capitolo | **I primi 1400 caratteri** (circa 220 parole), senza contare i paragrafi "Da leggere" | Il PDF della storia importata |
+| Brani del testo completo | Al massimo 600 caratteri, solo quando servono | Paragrafi del capitolo, e paragrafi "Da leggere" già letti, che parlano di ciò che si è appena detto |
 | La storia finora | Al massimo 250 parole | `riassunto.md`, riscritto a fine capitolo |
 | Le ultime battute | 14 righe | Quello che si è detto in questo capitolo |
 
@@ -106,13 +106,93 @@ carovana piegano verso una grotta da cui esce un filo di fumo.
   senza attese. Se nel frattempo un giocatore agisce, la preparazione si butta e si rifà dopo.
 - Mentre i giocatori improvvisano, il narratore conosce il prossimo paragrafo da leggere e può
   riportare la storia verso di esso, senza raccontarlo lui.
-- Scrivi quindi paragrafi brevi e indipendenti: uno per scena. Un paragrafo lungo che racconta
-  tre scene è più facile da sbagliare dopo una scelta inattesa.
+- Un paragrafo racconta una scena sola. Una scena lunga si divide in più paragrafi (l'arrivo,
+  il luogo, le persone, la sua storia): dopo una scelta inattesa il narratore adatta o salta
+  un paragrafo alla volta, e un paragrafo che racconta tre scene è più facile da sbagliare.
 - Un marcatore nel testo da leggere fa partire una prova o un combattimento e ferma la lettura:
   `Da leggere: Due lupi sbucano dagli alberi. [[COMBATTIMENTO: Lupo x2]]`.
 - **Tutto il resto non viene letto:** scheda, segreti, note per il master restano al narratore.
   Non mettere segreti nei paragrafi "Da leggere".
 - Se un capitolo non ha niente da leggere, lo apre il narratore come prima.
+
+### Scrivi il testo da leggere lungo e ricco, alla Tolkien
+
+Il testo da leggere è la parte migliore della serata: è scritto da te, con calma, e la voce lo
+legge senza errori. Il narratore invece improvvisa con un modello piccolo, scrive frasi brevi
+e a volte inventa. **Più racconta il testo scritto, meno deve improvvisare il narratore.** Per
+questo il testo da leggere va scritto **molto lungo e dettagliato**, come le descrizioni di
+Tolkien: non una riga per scena, ma pagine intere che si prendono il tempo di raccontare.
+
+Cosa metterci, per ogni luogo, persona o momento importante:
+
+- **Il luogo con tutti i sensi.** Non "una locanda buia", ma il fumo del camino che pizzica gli
+  occhi, il legno del bancone consumato da cent'anni di gomiti, l'odore di birra e lana bagnata,
+  il vento che fa battere l'insegna, chi siede ai tavoli e cosa fa.
+- **La storia del luogo.** Chi l'ha costruito, cosa ci è successo, perché ha quel nome, che cosa
+  ne dice la gente. Due o tre frasi di storia danno al posto una profondità che il narratore da
+  solo non inventa.
+- **Le spiegazioni.** Perché la strada è abbandonata, da quanto la carovana manca, chi la
+  aspettava, cosa si dice in paese dei goblin. I giocatori capiscono la situazione senza dover
+  fare dieci domande, e le domande che fanno trovano già la risposta nel testo.
+- **Le persone.** Aspetto, voce, gesti, cosa vogliono e cosa temono, come parlano (con una o due
+  battute di esempio). Il narratore riprende il loro modo di parlare quando i giocatori le
+  interrogano.
+- **Leggende, canti, dettagli del mondo.** Una filastrocca dei bambini, il nome antico del
+  bosco, la moneta che si usa, il santo che si prega. È il "colore" che rende il mondo vero.
+- **Il tempo che passa.** Il viaggio, la luce che cambia, la stanchezza, il tempo.
+
+Regole da tenere anche nei testi lunghi:
+
+- **Seconda persona plurale e niente decisioni dei personaggi.** "Vedete", "sentite", "davanti a
+  voi". Mai "Aria estrae la spada" o "decidete di entrare": quello lo dicono i giocatori.
+- **Niente segreti.** Il testo da leggere lo sentono tutti. Quello che il gruppo non deve sapere
+  va nella scheda, con la condizione per rivelarlo.
+- **Niente numeri di gioco** (dadi, PF, CA, CD): li gestisce il tavolo.
+- **Un paragrafo per idea, ogni paragrafo di 4-10 frasi.** Più paragrafi di fila per la stessa
+  scena vanno benissimo: la voce li legge uno dopo l'altro, e il gruppo può fermarla e agire
+  tra l'uno e l'altro.
+- **Chiudi la scena con una situazione aperta**, non con una domanda ("Cosa fate?" lo chiede il
+  narratore): una porta socchiusa, un rumore, una persona che aspetta una risposta.
+- **Frasi da leggere ad alta voce:** nomi facili (sezione 5), niente parentesi né elenchi.
+
+Esempio di apertura di un capitolo (tre paragrafi per la stessa scena):
+
+```
+## Da leggere
+
+La Locanda del Corvo Zoppo sorge dove la strada del nord si stacca dal fiume, ultima casa di
+pietra prima dei boschi. La costruì, raccontano, un mercenario tornato dalle guerre con una
+gamba sola e un corvo addomesticato che gli stava sulla spalla; del corvo resta l'insegna di
+ferro, che a ogni raffica di vento cigola sopra la porta come un uccello che si lamenta. Stasera
+piove, una pioggia fine e fredda che arriva di traverso dalla valle, e le finestre basse sono
+l'unica luce per miglia.
+
+Dentro, l'aria è densa di fumo di legna e di odore di lana bagnata. Il bancone di quercia è
+segnato da cento anni di boccali; dietro di esso Marta, la locandiera, una donna larga e
+rossa di guance con le maniche rimboccate, asciuga gli stessi bicchieri da troppo tempo e
+guarda spesso la porta. Al tavolo vicino al camino un mercante grasso conta e riconta un
+sacchetto di monete, e a ogni rumore alza la testa di scatto.
+
+In paese non si parla d'altro: la carovana di Ilario il vetraio, sei carri di vetro e sale
+partiti per Pietrafonda dieci giorni fa, non è mai arrivata. Il sentiero del Bosco dei Salici,
+che i carrettieri prendono per risparmiare mezza giornata, è lo stesso dove l'inverno scorso
+sparirono due pastori. Marta vi versa da bere senza che lo chiediate, si appoggia al bancone e
+abbassa la voce: «Siete gente di spada, si vede. C'è chi pagherebbe bene per sapere che fine
+hanno fatto quei carri.»
+```
+
+Quanto costa un testo lungo:
+
+- **Niente, finché i giocatori non cambiano la storia.** Un paragrafo letto così com'è parte
+  subito, qualunque sia la sua lunghezza.
+- **Dopo una scelta inattesa il narratore lo riscrive**, e riscrivere un paragrafo lungo
+  richiede più tempo (con gemma4 e4b, circa 10-20 secondi ogni 500 caratteri). Quasi sempre
+  lo prepara durante le pause, quindi senza attese; i paragrafi da 4-10 frasi tengono basso
+  anche il caso peggiore.
+- **Non toglie spazio alla scheda.** Il narratore legge i 1400 caratteri della scheda senza
+  contare i paragrafi "Da leggere", che puoi quindi scrivere lunghi quanto vuoi, prima o dopo
+  la scheda. I paragrafi già letti restano a disposizione del narratore: se un giocatore chiede
+  della storia della locanda, il narratore ritrova il paragrafo e risponde con i tuoi dettagli.
 
 ### Le prove
 
@@ -158,7 +238,8 @@ Un'indicazione che vale solo per un capitolo va nella sua scheda, per esempio
 
 Quando importi il PDF, l'app del master controlla ogni capitolo e mostra sotto la storia
 cosa sistemare. Dnd The Game avvisa quando comincia un capitolo con una scheda incompleta.
-I controlli, tutti sulla parte che il narratore legge (i primi 1400 caratteri):
+I controlli, tutti sulla parte che il narratore legge (i primi 1400 caratteri, senza i
+paragrafi "Da leggere"):
 
 - capitolo più lungo di 1400 caratteri senza "Obiettivo" all'inizio;
 - manca "Il capitolo finisce quando...";
@@ -304,7 +385,7 @@ punteggio non scende. Le istruzioni del dettaglio sono in `tests/llm_results/LEG
 
 - [ ] Un titolo grande per capitolo nel PDF
 - [ ] Scheda in prosa di massimo 1400 caratteri all'inizio di ogni capitolo, con i momenti in ordine
-- [ ] Paragrafi "Da leggere:" per l'apertura del capitolo, senza segreti
+- [ ] Paragrafi "Da leggere:" lunghi e ricchi (luoghi, storia, persone, spiegazioni), senza segreti
 - [ ] Obiettivo, luoghi con un dettaglio, PNG con cosa sanno
 - [ ] Mostri con i nomi esatti dell'app, già preparati con attacchi e note
 - [ ] Prove scritte come `Abilità CD n`

@@ -135,7 +135,7 @@ static func check(story: Dictionary, known: Array) -> Array:
 	var out: Array = []
 	var chs: Array = story.get("chapters", [])
 	for i in chs.size():
-		var text := str(chs[i].get("text", ""))
+		var text := master_text(str(chs[i].get("text", "")))
 		var head := text.left(READ_CHARS)
 		var low := head.to_lower()
 		var issues: Array = []
@@ -173,7 +173,20 @@ static func check(story: Dictionary, known: Array) -> Array:
 ## "Da leggere:" and those under a "## Da leggere" heading, up to the next
 ## heading. Returned without the label.
 static func read_aloud(text: String) -> Array:
+	return _split_read(text)[0]
+
+
+## The chapter without its read-aloud paragraphs: the master's part (sheet,
+## secrets, notes). The narrator reads its first READ_CHARS characters, so a
+## long text to read aloud does not push the sheet out of reach.
+static func master_text(text: String) -> String:
+	return "\n\n".join(_split_read(text)[1])
+
+
+## [read-aloud paragraphs, master paragraphs] of a chapter.
+static func _split_read(text: String) -> Array:
 	var out: Array = []
+	var rest: Array = []
 	var under := false
 	for para in text.split("\n\n"):
 		var p := para.strip_edges()
@@ -185,13 +198,17 @@ static func read_aloud(text: String) -> Array:
 			if under and nl > 0:
 				p = p.substr(nl + 1).strip_edges()
 			else:
+				if not under:
+					rest.append(p)
 				continue
 		var m := _re("(?i)^da leggere\\s*[:.\\-–]\\s*").search(p)
 		if m:
 			out.append(p.substr(m.get_end()).strip_edges())
 		elif under and p != "":
 			out.append(p)
-	return out.filter(func(x): return x != "")
+		elif p != "":
+			rest.append(p)
+	return [out.filter(func(x): return x != ""), rest]
 
 
 ## Monster names the narrator can use: the campaign's and the bestiary's.

@@ -605,7 +605,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 		"prep":
 			_prep_done(full, ok)
 		"secret":
-			story.set_secret_reply(_secret_cid, GameStory.strip_tags(full) if ok and full.strip_edges() != "" else "(Il master ora non riesce a rispondere: riprova tra poco.)")
+			var reply := GameStory.clean_secret(full) if ok else ""
+			story.set_secret_reply(_secret_cid, reply if reply != "" else "(Il master ora non riesce a rispondere: riprova tra poco.)")
 		_:
 			voice.end()
 			var e := _live
@@ -776,7 +777,8 @@ func _adapt(raw: String) -> void:
 	if test_mode and not llm_in_tests:
 		return  # tests answer with _on_finished(..., "adapt")
 	add_feed("Tavolo", "Il master adatta il prossimo testo alle vostre scelte...", "info")
-	if not narrator.ask(story.adapt_messages(GameStory.strip_tags(raw)), {"max": 260, "temp": 0.4, "tag": "adapt"}):
+	var plain := GameStory.strip_tags(raw)
+	if not narrator.ask(story.adapt_messages(plain), {"max": GameStory.adapt_tokens(plain), "temp": 0.4, "tag": "adapt"}):
 		_adapt_done("", false)
 
 
@@ -820,7 +822,8 @@ func _prepare_next() -> void:
 	if test_mode and not llm_in_tests:
 		return  # tests answer with _on_finished(..., "prep")
 	var raw := str(story.read_aloud()[story.read_pos])
-	narrator.ask(story.adapt_messages(GameStory.strip_tags(raw)), {"max": 260, "temp": 0.4, "tag": "prep"})
+	var plain := GameStory.strip_tags(raw)
+	narrator.ask(story.adapt_messages(plain), {"max": GameStory.adapt_tokens(plain), "temp": 0.4, "tag": "prep"})
 
 
 func _prep_done(full: String, ok: bool) -> void:
@@ -948,6 +951,12 @@ func _finish_chapter(new_summary: String) -> void:
 	if _chapter_prose != "":
 		add_feed("Riassunto", _chapter_prose, "info")
 	_chapter_prose = ""
+	if story.adventure_over():
+		# every chapter played: an epilogue, then free play (it used to start
+		# the last chapter again)
+		add_feed("Tavolo", "L'avventura è finita: il master racconta come si chiude la storia. Potete continuare a giocare liberamente.", "info")
+		_event("L'avventura scritta è finita. Racconta in 3-5 frasi come si chiude la storia, partendo da quello che il gruppo ha fatto, poi chiedi ai giocatori cosa vogliono fare.")
+		return
 	_check_chapter()
 	_start_chapter("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 
@@ -1098,6 +1107,9 @@ func start_combat(arg: String) -> bool:
 	return true
 
 
+const NOT_MONSTERS := ["nessuno", "nessun", "niente", "nulla", "none", "nobody", "mostro", "mostri", "nemico", "nemici", "creatura", "creature", "sconosciuto", "tbd", "da definire"]
+
+
 func spawn(arg: String) -> Array:
 	var out: Array = []
 	for part in arg.split(","):
@@ -1116,7 +1128,7 @@ func spawn(arg: String) -> Array:
 				p = mn.get_string(2).strip_edges()
 		count = clampi(count, 1, 8)
 		var want := Actions.norm(p)
-		if want == "":
+		if want == "" or want in NOT_MONSTERS:
 			continue
 		var template: Dictionary = {}
 		var got: Array = []

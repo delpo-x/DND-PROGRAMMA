@@ -214,7 +214,16 @@ Altro.".repeat(300)}
 	# read-aloud text: only the marked paragraphs, read without the model
 	var ra := StoryImport.read_aloud("Obiettivo: segreto del master.\n\nDa leggere: La pioggia batte sulla strada.\n\nTobia mente.\n\n## Da leggere\n\nUna grotta si apre nella collina.\n\nUn fumo sottile esce dall'imbocco.\n\n## Note\n\nIl capo ha la chiave.")
 	check("read aloud: marked paragraphs only", ra == ["La pioggia batte sulla strada.", "Una grotta si apre nella collina.", "Un fumo sottile esce dall'imbocco."], ra)
+	var mt := StoryImport.master_text("Da leggere: " + "Lunga descrizione della valle. ".repeat(80) + "\n\nObiettivo: segreto del master.\n\n## Da leggere\n\nUna grotta.\n\n## Note\n\nIl capo ha la chiave.")
+	check("master text: sheet without the long read-aloud text", mt == "Obiettivo: segreto del master.\n\n## Note\n\nIl capo ha la chiave.", mt)
+	check("adapt room grows with the paragraph", GameStory.adapt_tokens("breve") == 260 and GameStory.adapt_tokens("x".repeat(2000)) > 600)
 	st.set_story({"title": "Prova", "chapters": [{"title": "La strada", "text": "Obiettivo: segreto.\n\nDa leggere: La pioggia batte sulla strada.\n\nDa leggere: Due lupi sbucano dagli alberi. [[COMBATTIMENTO: Lupo x2]]\n\nDa leggere: Dopo la lotta, il silenzio."}]})
+	var ch_was: int = g.story.chapter
+	g.story.chapter = 2
+	check("past the last chapter: adventure over, nothing repeated", g.story.adventure_over() and g.story.chapter_info().is_empty() and not g.story.reading_left())
+	g.story.chapter = 1
+	check("first chapter not over", not g.story.adventure_over())
+	g.story.chapter = ch_was
 	g.story.transcript = []
 	g.story.read_pos = 0
 	check("chapter has text to read", g.story.reading_left())
@@ -278,6 +287,11 @@ Altro.".repeat(300)}
 	check("hint: traps", GameStory.check_hint("Prima di toccarla cerco con attenzione trappole.") == "Percezione")
 	check("hint: climbing", GameStory.check_hint("Provo ad arrampicarmi sulla parete.") == "Atletica")
 	check("hint: talking", GameStory.check_hint("Saluto l'oste e ordino da bere.") == "")
+	check("hint: negated word", GameStory.check_hint("Alzo le mani per sembrare non minacciosa.") == "")
+	# found in tests/playtest.gd: the private answer copied the request's notes
+	var cs := GameStory.clean_secret("[[MESSAGGIO SEGRETO per Dario]]: Noti un residuo sulla paglia, come di veleno.\n\nIl goblin strilla e scappa. Cosa fate?\n[Messaggio SEGRETO di Dario: altro]")
+	check("secret answer cleaned", cs == "Noti un residuo sulla paglia, come di veleno.", cs)
+	check("not a monster", g.spawn("Nessuno").is_empty())
 	g.state.combat_end()
 	g.checks.clear()
 	g.story.add("user", "Bruno", "Provo ad arrampicarmi sulla parete fino in cima.")

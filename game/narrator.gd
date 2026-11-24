@@ -194,4 +194,8 @@ func _done(ok: bool, why: String) -> void:
 			_set_status("Narratore pronto (%s, su questo PC)" % model)
 	else:
 		_set_status(why)
-	finished.emit(_full, ok, _tag)
+	# copies: GDScript passes members by reference, and the first listener may
+	# start the next request (new _full and _tag) before the others hear this one
+	var full := _full
+	var tag := _tag
+	finished.emit(full, ok, tag)

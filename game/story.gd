@@ -96,6 +96,12 @@ func adapt_messages(passage: String) -> Array:
 		+ "Se racconta cose già successe o un luogo dove il gruppo non andrà più, rispondi solo SALTA.]")
 
 
+## Room for a rewrite as long as the paragraph (Italian is about 3.5
+## characters per token), so a long paragraph is not cut short.
+static func adapt_tokens(passage: String) -> int:
+	return clampi(int(passage.length() / 3.2) + 40, 260, 900)
+
+
 ## Reads the narrator's answer to adapt_messages():
 ## {mode: "read" | "skip" | "text", text}.
 static func parse_adapt(full: String) -> Dictionary:
@@ -145,7 +151,7 @@ static func check_hint(text: String) -> String:
 		for w in row[1]:
 			var i := low.find(str(w))
 			while i >= 0:
-				if i == 0 or not low[i - 1].is_valid_identifier():
+				if (i == 0 or not low[i - 1].is_valid_identifier()) and not low.left(i).ends_with("non "):
 					return str(row[0])
 				i = low.find(str(w), i + 1)
 	return ""
@@ -199,14 +205,36 @@ func secrets_by_char() -> Dictionary:
 	return out
 
 
-func _secrets_note() -> String:
+## Players' secrets for a request. private: the request answers a secret, so
+## the master's earlier private answers are added too. In public requests
+## they are left out: the model copied them word for word into the public
+## narration (tests/playtest.gd).
+func _secrets_note(private := false) -> String:
 	var lines: Array = []
-	for s in secrets.slice(maxi(0, secrets.size() - 6)):
-		lines.append("- %s: %s%s" % [s.who, str(s.text).left(200), (" (tu: %s)" % str(s.reply).left(160)) if str(s.reply) != "" else ""])
+	var seen := {}
+	for s in secrets.slice(maxi(0, secrets.size() - (6 if private else 4))):
+		var key := str(s.who) + str(s.text).left(60)
+		if seen.has(key):
+			continue  # the same secret said twice
+		seen[key] = true
+		lines.append("- %s: %s%s" % [s.who, str(s.text).left(200 if private else 140), (" (tu: %s)" % str(s.reply).left(160)) if private and str(s.reply) != "" else ""])
 	if lines.is_empty():
 		return ""
 	return ("[Complotti segreti dei giocatori, gli altri giocatori non li conoscono:\n" + "\n".join(lines)
-		+ "\nNon rivelarli e non nominarli in pubblico: falli pesare sulla storia solo quando accadono in scena.]\n")
+		+ "\nNon rivelarli, non nominarli e non riprenderne le parole in pubblico: falli pesare sulla storia solo quando accadono in scena.]\n")
+
+
+## The master's private answer, cleaned: markers and bracketed notes the model
+## copies from the request ("[Messaggio SEGRETO di ...]") and anything after
+## the first paragraph (it went on narrating the public scene).
+static func clean_secret(full: String) -> String:
+	var s := RegEx.create_from_string(TAG_RE).sub(full, "", true)
+	s = RegEx.create_from_string("\\[[^\\]]*\\]?").sub(s, "", true)
+	s = s.strip_edges().trim_prefix(":").strip_edges()
+	var para := s.find("\n\n")
+	if para > 40:
+		s = s.left(para)
+	return s.strip_edges()
 
 
 ## Prompt for the private answer to one player's secret.
@@ -217,7 +245,7 @@ func secret_messages(who: String, text: String) -> Array:
 			out.append({"role": "assistant", "content": t.text})
 		else:
 			out.append({"role": "user", "content": "%s: %s" % [t.who, t.text]})
-	out.append({"role": "user", "content": _secrets_note()
+	out.append({"role": "user", "content": _secrets_note(true)
 		+ ("[Messaggio SEGRETO di %s: lo leggete solo tu e %s. Rispondi solo a %s, in seconda persona, in 2-4 frasi: " % [who, who, who]
 		+ "cosa riesce a fare o a scoprire di nascosto e cosa potrebbe succedere. Niente tag, niente prove, non far parlare gli altri personaggi.]\n")
 		+ "%s: %s" % [who, text]})
@@ -249,9 +277,15 @@ static func bestiary_names() -> Array:
 func chapter_info() -> Dictionary:
 	var story: Dictionary = st.data.get("story", {})
 	var chs: Array = story.get("chapters", [])
-	if chs.is_empty():
+	if chs.is_empty() or chapter > chs.size():
 		return {}
 	return chs[clampi(chapter - 1, 0, chs.size() - 1)]
+
+
+## True when every chapter of the imported adventure has been played.
+func adventure_over() -> bool:
+	var chs: Array = st.data.get("story", {}).get("chapters", [])
+	return not chs.is_empty() and chapter > chs.size()
 
 
 ## Fixed part of the prompt: it changes only between chapters.
@@ -296,7 +330,7 @@ func system_prompt() -> String:
 		p.append("Avventura: %s." % str(story.get("title", "")))
 		var ch := chapter_info()
 		if not ch.is_empty():
-			p.append("Traccia del capitolo (seguila liberamente): %s. %s" % [str(ch.get("title", "")), str(ch.get("text", "")).left(StoryImport.READ_CHARS)])
+			p.append("Traccia del capitolo (seguila liberamente): %s. %s" % [str(ch.get("title", "")), StoryImport.master_text(str(ch.get("text", ""))).left(StoryImport.READ_CHARS)])
 	p.append("")
 	p.append("La storia finora: " + (summary.strip_edges() if summary.strip_edges() != "" else "è l'inizio della campagna."))
 	p.append("Capitolo attuale: %d%s." % [chapter, (" - " + chapter_title) if chapter_title != "" else ""])
@@ -343,8 +377,12 @@ func messages(extra := "") -> Array:
 ## (a room, a NPC, a clue) are looked up by their words and sent with that
 ## one request. Words of the players count double, names count double too.
 func passages(limit := PASSAGE_CHARS) -> String:
-	var text := str(chapter_info().get("text", ""))
-	if text.length() <= StoryImport.READ_CHARS or transcript.is_empty():
+	var full := str(chapter_info().get("text", ""))
+	var text := StoryImport.master_text(full)
+	# what has been read aloud already is public: its details and lore can be
+	# looked up too, so the narrator answers questions about it
+	var done: Array = StoryImport.read_aloud(full).slice(0, read_pos)
+	if (text.length() <= StoryImport.READ_CHARS and done.is_empty()) or transcript.is_empty():
 		return ""
 	var want := {}
 	var seen := 0
@@ -365,10 +403,14 @@ func passages(limit := PASSAGE_CHARS) -> String:
 	# paragraphs past the part the narrator already reads
 	var scored: Array = []
 	var at := 0
+	var cands: Array = []
 	for para in _pieces(text):
 		at += para.length() + 1
-		if at <= StoryImport.READ_CHARS or para.length() < 40:
-			continue
+		if at > StoryImport.READ_CHARS and para.length() >= 40:
+			cands.append(para)
+	for d in done:
+		cands.append_array(_pieces(str(d)))
+	for para in cands:
 		var have := {}
 		for word in _words(para, false):
 			have[word] = true
