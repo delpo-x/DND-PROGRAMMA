@@ -244,6 +244,30 @@ a ogni risposta, in tutti i capitoli.
 Un'indicazione che vale solo per un capitolo va nella sua scheda, per esempio
 "Tono: si ride, l'oste è un buffone".
 
+### Fatti fissati e fazioni
+
+Accanto al tono ci sono due caselle, nell'app del master (scheda Campagne, sezione Storia) e in
+Dnd The Game ("Impostazioni"). Valgono per tutta la campagna e il narratore le legge in ogni
+risposta.
+
+- **Fatti fissati**, uno per riga, al massimo 8: le cose che devono restare vere anche dopo che
+  i capitoli sono stati riassunti. Una promessa ("Marta ha promesso 50 monete d'oro per la
+  carovana"), un debito, un nemico giurato, un nome deciso al tavolo, una regola della casa.
+  Il riassunto di fine capitolo tiene i fatti principali ma perde i dettagli: quello che non
+  deve perdersi va qui.
+- **Fazioni**, una per riga, al massimo 5, nella forma "nome: cosa vuole"
+  ("Goblin di Sgnacco: vogliono il sale della carovana per comprarsi i lupi"). A fine capitolo,
+  dopo il riassunto, il narratore scrive in una frase cosa ha fatto ogni fazione mentre il
+  gruppo era impegnato altrove. Le mosse finiscono nel diario del capitolo e nella cronaca
+  (solo per il master), e nel capitolo dopo il narratore le conosce come cose successe "fuori
+  scena": le fa emergere con indizi e conseguenze (una taglia appesa alla locanda, prigionieri
+  spostati), senza raccontarle. Così il mondo si muove anche quando il gruppo non guarda.
+  Costa circa 10 secondi in più alla chiusura del capitolo.
+
+Come per il tono: righe brevi e concrete, niente segreti dei giocatori. Le fazioni e i fatti
+fissati sono informazioni per il master, ma il narratore può farli capire: un segreto che i
+giocatori non devono scoprire va nella scheda del capitolo, con la condizione per rivelarlo.
+
 ### Il controllo delle schede
 
 Quando importi il PDF, l'app del master controlla ogni capitolo e mostra sotto la storia
@@ -404,3 +428,4 @@ punteggio non scende. Le istruzioni del dettaglio sono in `tests/llm_results/LEG
 - [ ] Niente azioni o battute dei personaggi dei giocatori
 - [ ] Nomi facili da leggere ad alta voce
 - [ ] Capitoli da 1-2 ore di gioco
+- [ ] Fatti fissati per le promesse e i nomi che non devono perdersi, fazioni con cosa vogliono

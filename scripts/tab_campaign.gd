@@ -170,6 +170,13 @@ func _story_section(st: GameState) -> void:
 		btns.add_child(UI.color_btn("Rimuovi storia", Color(0.35, 0.12, 0.1), func(): app.confirm("Rimuovere la storia importata da questa campagna?", func(): st.set_story({})), 52))
 	body.add_child(btns)
 	body.add_child(_tone_row(st))
+	body.add_child(_lines_row(st, "Fatti fissati", "pinned", GameState.PINNED_MAX,
+		"Uno per riga: cose che devono restare vere anche dopo i riassunti (una promessa, un debito, un nome deciso al tavolo)", func(t): st.set_pinned(t)))
+	body.add_child(_lines_row(st, "Fazioni", "factions", GameState.FACTIONS_MAX,
+		"Una per riga, nome: cosa vuole. A fine capitolo Dnd The Game scrive cosa ha fatto ognuna nel frattempo", func(t): st.set_factions(t)))
+	var moves: Array = st.data.get("faction_moves", [])
+	if not moves.is_empty():
+		body.add_child(UI.wrap_lbl("Ultime mosse delle fazioni: " + " ".join(moves), 17, UI.DIM))
 	if story.is_empty():
 		body.add_child(UI.wrap_lbl("Nessuna storia. Importa il PDF dell'avventura: il testo viene diviso in capitoli e resta visibile solo a te.", 18, UI.DIM))
 		return
@@ -213,6 +220,21 @@ func _tone_row(st: GameState) -> Control:
 	e.text_submitted.connect(save)
 	e.focus_exited.connect(save)
 	return UI.hbox([UI.lbl("Tono", 19, UI.DIM), e], 10)
+
+
+## A box of lines for the narrator of Dnd The Game (pinned facts, factions),
+## saved when it loses focus.
+func _lines_row(st: GameState, label: String, key: String, most: int, hint: String, setter: Callable) -> Control:
+	var te := TextEdit.new()
+	te.text = "\n".join(st.data.get(key, []))
+	te.placeholder_text = hint
+	te.custom_minimum_size = Vector2(0, 90)
+	te.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	te.focus_exited.connect(func():
+		if GameState.text_lines(te.text, most) != st.data.get(key, []):
+			setter.call(te.text)
+			app.toast("Salvato: " + label))
+	return UI.vbox([UI.lbl("%s (al massimo %d)" % [label, most], 19, UI.DIM), te], 4)
 
 
 func _story_bbcode(t: String) -> String:

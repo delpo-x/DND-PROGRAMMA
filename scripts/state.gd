@@ -568,6 +568,43 @@ func set_tone(t: String) -> void:
 	touch()
 
 
+const PINNED_MAX := 8      # pinned facts the narrator reads in every reply
+const FACTIONS_MAX := 5    # factions that move between chapters
+const FACT_CHARS := 140    # longest pinned fact or faction line
+
+
+## Lines of a text box: trimmed, without list dashes, empty ones dropped.
+static func text_lines(t: String, most: int, chars := FACT_CHARS) -> Array:
+	var out: Array = []
+	for l in t.split("\n"):
+		var s := l.strip_edges().trim_prefix("-").trim_prefix("*").strip_edges()
+		if s != "" and out.size() < most:
+			out.append(s.left(chars))
+	return out
+
+
+## Pinned facts of the campaign, one per line: what must stay true even after
+## the chapters are summarised (a promise, a debt, a name decided at the table).
+func set_pinned(t: String) -> void:
+	data.pinned = text_lines(t, PINNED_MAX)
+	touch()
+
+
+## Factions of the campaign, one per line ("Goblin di Sgnacco: vogliono il sale
+## della carovana"). At the end of each chapter the narrator writes what each
+## one did meanwhile (faction_moves).
+func set_factions(t: String) -> void:
+	data.factions = text_lines(t, FACTIONS_MAX)
+	if data.factions.is_empty():
+		data.faction_moves = []
+	touch()
+
+
+func set_faction_moves(moves: Array) -> void:
+	data.faction_moves = moves.slice(0, FACTIONS_MAX)
+	touch()
+
+
 ## Replaces the campaign story (chapters imported from a PDF). Master only.
 func set_story(story: Dictionary) -> void:
 	data.story = story

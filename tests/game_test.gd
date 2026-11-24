@@ -171,6 +171,31 @@ func _init() -> void:
 	st.set_tone("")
 	check("no tone, no line", not g.story.system_prompt().contains("Tono dell'avventura"))
 
+	# pinned facts: always in the prompt, kept few and short
+	st.set_pinned("- Marta ha promesso 50 monete d'oro\n\n" + "y".repeat(300) + "\n" + "riga\n".repeat(20))
+	check("pinned facts kept few and short", st.data.pinned.size() == GameState.PINNED_MAX and st.data.pinned[0] == "Marta ha promesso 50 monete d'oro" and str(st.data.pinned[1]).length() == GameState.FACT_CHARS, st.data.pinned)
+	check("pinned facts in the prompt", g.story.system_prompt().contains("Fatti fissati") and g.story.system_prompt().contains("50 monete"))
+	st.set_pinned("")
+	check("no pinned facts, no line", not g.story.system_prompt().contains("Fatti fissati"))
+
+	# factions: listed in the prompt, they move at the end of a chapter
+	st.set_factions("Goblin di Sgnacco: vogliono il sale della carovana\nGilda dei vetrai: rivuole i carri")
+	check("factions in the prompt", g.story.system_prompt().contains("Gilda dei vetrai"))
+	check("factions prompt", str(g.story.factions_prompt("Il gruppo ha trovato la grotta.")[0].content).contains("Goblin di Sgnacco") and str(g.story.factions_prompt("x")[0].content).contains("Nome: cosa ha fatto"))
+	var fm := GameStory.parse_faction_moves("Ecco le mosse:\n- **Goblin di Sgnacco**: hanno venduto il sale ai mercanti del nord.\nGilda dei vetrai: ha mandato un esattore alla locanda.\nDraghi: niente di nuovo da segnalare.", st.data.factions)
+	check("faction moves read", fm.size() == 2 and str(fm[0]).begins_with("Goblin di Sgnacco: hanno venduto"), fm)
+	var ch_before: int = g.story.chapter
+	g.story.add("user", "Bruno", "Entriamo nella grotta.")
+	g._closing = true
+	g._on_finished("Il gruppo è entrato nella grotta.", true, "camp")
+	check("factions move before the next chapter", g.story.chapter == ch_before)
+	g._on_finished("Goblin di Sgnacco: hanno spostato i prigionieri nelle gabbie basse.\nGilda dei vetrai: ha messo una taglia sui goblin.", true, "factions")
+	check("chapter closed after the factions", g.story.chapter == ch_before + 1 and st.data.faction_moves.size() == 2)
+	check("moves in the prompt, off stage", g.story.system_prompt().contains("Intanto, fuori scena") and g.story.system_prompt().contains("taglia sui goblin"))
+	check("moves in the chapter diary", g.story.chapter_markdown("x").contains("## Intanto, fuori scena"))
+	st.set_factions("")
+	check("no factions, no moves", st.data.faction_moves.is_empty() and not g.story.system_prompt().contains("Fazioni"))
+
 	# chapter outlines checked for what the narrator needs
 	var known := StoryImport.known_monsters(st)
 	var good := {"title": "La grotta", "text": "Obiettivo: liberare i mercanti.

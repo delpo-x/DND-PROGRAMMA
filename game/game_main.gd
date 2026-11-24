@@ -80,6 +80,7 @@ var _wait_max := 0.0
 var checks: Dictionary = {}  # request id -> {label, dc, chars, results: {cid: [total, outcome]}}
 var _closing := false
 var _chapter_prose := ""
+var _camp_summary := ""  # campaign summary kept while the factions move
 
 
 func _init() -> void:
@@ -398,12 +399,27 @@ func _open_diary() -> void:
 	toast("Diario della campagna: " + p)
 
 
+static func _text_box(text: String, placeholder: String, h := 110) -> TextEdit:
+	var te := TextEdit.new()
+	te.text = text
+	te.placeholder_text = placeholder
+	te.custom_minimum_size = Vector2(0, h)
+	te.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	return te
+
+
 func _show_settings() -> void:
 	var model := UI.edit(str(settings.model), Narrator.DEFAULT_MODEL, Callable(), 300)
 	var tone := UI.edit(str(state.data.get("tone", "")), "es. cupo, poca luce, PNG sospettosi")
 	tone.max_length = StoryImport.TONE_MAX
+	var pinned := _text_box("\n".join(state.data.get("pinned", [])), "es. Marta ha promesso 50 monete d'oro per la carovana", 90)
+	var factions := _text_box("\n".join(state.data.get("factions", [])), "es. Goblin di Sgnacco: vogliono il sale della carovana per comprarsi i lupi", 90)
 	var box := UI.vbox([UI.lbl("Tono dell'avventura (lo segue in ogni risposta)", 20, UI.DIM), tone,
 		UI.wrap_lbl("Una riga breve e concreta: atmosfera, ritmo, come si comportano i PNG. Vale per questa campagna.", 17, UI.DIM),
+		UI.lbl("Fatti fissati (uno per riga, al massimo %d)" % GameState.PINNED_MAX, 20, UI.DIM), pinned,
+		UI.wrap_lbl("Cose che devono restare vere anche dopo i riassunti: una promessa, un debito, un nome deciso al tavolo. Il narratore le legge in ogni risposta.", 17, UI.DIM),
+		UI.lbl("Fazioni (una per riga: nome: cosa vuole, al massimo %d)" % GameState.FACTIONS_MAX, 20, UI.DIM), factions,
+		UI.wrap_lbl("A fine capitolo il narratore scrive cosa ha fatto ogni fazione nel frattempo, e lo fa emergere nella storia con indizi.%s" % (("\nUltime mosse: " + " ".join(state.data.get("faction_moves", []))) if not state.data.get("faction_moves", []).is_empty() else ""), 17, UI.DIM),
 		UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
 		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Provati: gemma4:e4b-it-q4_K_M (consigliato), qwen3.5:4b (più veloce), qwen2.5:7b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
 	var opt: OptionButton = null
@@ -418,13 +434,17 @@ func _show_settings() -> void:
 		opt = UI.option(names, sel)
 		box.add_child(UI.lbl("Voce del master", 20, UI.DIM))
 		box.add_child(opt)
-	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone), 50))
+	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone, pinned, factions), 50))
 	_modal("Impostazioni", box, 640)
 
 
-func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit) -> void:
+func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit, pinned: TextEdit, factions: TextEdit) -> void:
 	if tone.text.strip_edges() != str(state.data.get("tone", "")):
 		state.set_tone(tone.text)
+	if GameState.text_lines(pinned.text, GameState.PINNED_MAX) != state.data.get("pinned", []):
+		state.set_pinned(pinned.text)
+	if GameState.text_lines(factions.text, GameState.FACTIONS_MAX) != state.data.get("factions", []):
+		state.set_factions(factions.text)
 	settings.model = model.text.strip_edges() if model.text.strip_edges() != "" else Narrator.DEFAULT_MODEL
 	narrator.model = str(settings.model)
 	if opt:
@@ -599,7 +619,21 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 				return
 			_finish_chapter("")
 		"camp":
-			_finish_chapter(full.strip_edges() if ok else "")
+			var camp := full.strip_edges() if ok else ""
+			if ok and not state.data.get("factions", []).is_empty():
+				# the factions move too before the next chapter
+				_camp_summary = camp
+				if test_mode and not llm_in_tests:
+					return  # tests answer with _on_finished(..., "factions")
+				narrator.ask(story.factions_prompt(camp), {"max": 260, "temp": 0.6, "tag": "factions"})
+				return
+			_finish_chapter(camp)
+		"factions":
+			var moves := GameStory.parse_faction_moves(full, state.data.get("factions", [])) if ok else []
+			if not moves.is_empty():
+				state.set_faction_moves(moves)
+				state.chronicle_add("storia", "Intanto, fuori scena: " + " ".join(moves), false)
+			_finish_chapter(_camp_summary)
 		"adapt":
 			_adapt_done(full, ok)
 		"prep":

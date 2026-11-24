@@ -336,6 +336,23 @@ func system_prompt() -> String:
 	if tone != "":
 		p.append("")
 		p.append("Tono dell'avventura (seguilo in ogni risposta): %s" % tone.left(StoryImport.TONE_MAX))
+	var pinned: Array = st.data.get("pinned", [])
+	if not pinned.is_empty():
+		p.append("")
+		p.append("Fatti fissati della campagna, sempre veri: non contraddirli e non dimenticarli.")
+		for f in pinned:
+			p.append("- " + str(f))
+	var facs: Array = st.data.get("factions", [])
+	if not facs.is_empty():
+		p.append("")
+		p.append("Fazioni e cosa vogliono (agiscono anche quando il gruppo non le vede):")
+		for f in facs:
+			p.append("- " + str(f))
+		var moves: Array = st.data.get("faction_moves", [])
+		if not moves.is_empty():
+			p.append("Intanto, fuori scena (i giocatori non lo sanno: fallo capire solo con indizi e conseguenze, non raccontarlo):")
+			for m in moves:
+				p.append("- " + str(m))
 	var story: Dictionary = st.data.get("story", {})
 	if not story.is_empty():
 		p.append("")
@@ -542,6 +559,49 @@ func campaign_summary_prompt(chapter_text: String) -> Array:
 	return [{"role": "user", "content": txt}]
 
 
+## Prompt for what each faction did while the party played the chapter just
+## closed. new_summary: the campaign summary that includes that chapter.
+func factions_prompt(new_summary: String) -> Array:
+	var txt := ("Sei il master di una campagna di D&D. Il gruppo ha appena finito un capitolo. Per ogni fazione qui sotto scrivi cosa ha fatto nel frattempo, "
+		+ "lontano dagli occhi del gruppo: una frase concreta al passato prossimo, coerente con quello che vuole e con quello che è successo. "
+		+ "Fai andare avanti i suoi piani, non risolvere i misteri e non anticipare i colpi di scena. "
+		+ "Una riga per fazione, nella forma Nome: cosa ha fatto. Niente altro.\n\n")
+	txt += "Fazioni:\n- " + "\n- ".join(st.data.get("factions", [])) + "\n\n"
+	var moves: Array = st.data.get("faction_moves", [])
+	if not moves.is_empty():
+		txt += "Le loro mosse precedenti:\n- " + "\n- ".join(moves) + "\n\n"
+	txt += "Riassunto della campagna:\n" + (new_summary.strip_edges() if new_summary.strip_edges() != "" else summary) + "\n"
+	var chs: Array = st.data.get("story", {}).get("chapters", [])
+	if chapter < chs.size():  # the next chapter, for coherence only
+		var nx: Dictionary = chs[chapter]
+		txt += "\nProssimo capitolo (solo per coerenza, non raccontarlo): %s. %s\n" % [str(nx.get("title", "")), StoryImport.master_text(str(nx.get("text", ""))).left(500)]
+	return [{"role": "user", "content": txt}]
+
+
+## Lines "Name: what it did" of the answer to factions_prompt(), only for the
+## campaign's factions (matched by a word of their name).
+static func parse_faction_moves(full: String, factions: Array) -> Array:
+	var out: Array = []
+	for line in full.split("\n"):
+		var l := line.strip_edges().trim_prefix("-").trim_prefix("*").strip_edges().replace("**", "")
+		var colon := l.find(":")
+		if colon < 2 or l.length() - colon < 12:
+			continue
+		var head := Actions.norm(l.left(colon))
+		for f in factions:
+			var fname := Actions.norm(str(f).get_slice(":", 0))
+			var hit := head == fname
+			for w in fname.split(" "):
+				if w.length() >= 4 and head.contains(w):
+					hit = true
+			if hit:
+				out.append(l.left(GameState.FACT_CHARS + 40))
+				break
+		if out.size() >= GameState.FACTIONS_MAX:
+			break
+	return out
+
+
 func chapter_markdown(prose: String) -> String:
 	var md := PackedStringArray()
 	md.append("# Capitolo %d%s" % [chapter, (": " + chapter_title) if chapter_title != "" else ""])
@@ -558,6 +618,13 @@ func chapter_markdown(prose: String) -> String:
 		md.append("")
 		for x in f:
 			md.append("- " + x)
+		md.append("")
+	var moves: Array = st.data.get("faction_moves", [])
+	if not moves.is_empty():
+		md.append("## Intanto, fuori scena")
+		md.append("")
+		for m in moves:
+			md.append("- " + str(m))
 		md.append("")
 	md.append("## Trascrizione")
 	md.append("")
