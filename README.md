@@ -26,7 +26,13 @@ Pagine del telefono e dello schermo condiviso:
 
 App master e Dnd The Game: testo secondario a 4.5:1, bordi dei campi a 3:1, tutti i comandi raggiungibili con Tab e attivabili con Invio o Spazio, contorno dorato sul comando che ha il fuoco, stato dei telefoni scritto e non solo colorato.
 
-Limiti noti: Godot 4.4 non espone i controlli ai lettori di schermo di Windows e Android (arriva con Godot 4.5), quindi l'app master resta accessibile da tastiera ma non da lettore di schermo. I dadi 3D e la mappa sono immagini: il loro contenuto è scritto anche in testo (risultato del tiro, iniziativa, registro).
+Lettori di schermo su Windows (NVDA, JAWS, Assistente vocale), grazie a Godot 4.5:
+
+- pulsanti, schede, caselle ed etichette vengono letti col loro testo;
+- ogni campo, menu e contatore ha un nome, preso dall'etichetta accanto o dal testo d'esempio; i pulsanti fatti di un solo simbolo (X, +, −) hanno un nome a parole;
+- avvisi, risultati dei tiri e righe della storia di Dnd The Game vengono annunciati senza spostare il fuoco (la narrazione quando è finita, non parola per parola).
+
+Limiti noti: su Android Godot 4.5 non funziona ancora con TalkBack, quindi sul tablet l'app master si usa senza lettore di schermo (i giocatori usano le pagine web, che funzionano con TalkBack e VoiceOver). I dadi 3D e la mappa sono immagini: il loro contenuto è scritto anche in testo (risultato del tiro, iniziativa, registro).
 
 ## Scaricare l'app
 
@@ -34,9 +40,9 @@ Gli eseguibili (Windows `.exe`, Android `.apk`) sono nelle [Releases](../../rele
 
 ## Sviluppo
 
-Progetto Godot 4.4.1 (GDScript). Le pagine per telefono e schermo condiviso sono in `web/` e vengono servite dall'app master sulla rete locale.
+Progetto Godot 4.5.2 (GDScript). Le pagine per telefono e schermo condiviso sono in `web/` e vengono servite dall'app master sulla rete locale.
 
-- Test: `godot --headless --path . -- --self-test out.json`, `godot --headless --path . -s tests/rules_test.gd` e `godot --headless --path . -s tests/master_new_test.gd`; pagine dei telefoni: `node tests/web_syntax.js`
+- Test: `godot --headless --path . -- --self-test out.json`, `godot --headless --path . -s tests/rules_test.gd` e `godot --headless --path . -s tests/master_new_test.gd`, lettori di schermo `godot --headless --path . -s tests/a11y_test.gd`; pagine dei telefoni: `node tests/web_syntax.js`
 - Build: `sh build.sh` (vedi i commenti nello script per la chiave di firma Android, che non è nel repository).
 
 ## Licenze

@@ -63,6 +63,8 @@ var _prep := {}
 var _prep_key: Array = []
 var modal_layer: Control
 var toast_box: VBoxContainer
+## Screen-reader live region (Godot 4.5): toasts and story lines are read aloud
+var sr: Label
 
 var feed: Array = []  # {who, text, kind, node}
 var _live: Dictionary = {}  # entry of the reply being written
@@ -95,6 +97,7 @@ func _init() -> void:
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UI.make_theme()
+	sr = UI.enable_a11y(self)
 	rng.randomize()
 	_background()
 	if test_mode:
@@ -307,6 +310,7 @@ func _toggle_ambience(on: bool) -> void:
 
 
 func toast(text: String) -> void:
+	UI.announce(sr, text)
 	var l := UI.lbl(text, 20, Color.WHITE)
 	var c := UI.card(l, Color(0.25, 0.17, 0.08, 0.95), 10)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -475,6 +479,9 @@ func add_feed(who: String, text: String, kind := "player") -> Dictionary:
 			old.node.get_parent().queue_free()
 	_feed_dirty = true
 	_scroll_down.call_deferred()
+	# the narration is announced once it is complete, not while it streams
+	if text != "":
+		UI.announce(sr, "%s: %s" % [who, text])
 	return e
 
 
@@ -659,6 +666,7 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			else:
 				var clean := GameStory.strip_tags(full)
 				_set_feed_text(e, clean)
+				UI.announce(sr, "Master: " + clean)
 				story.add("assistant", "Master", clean)
 				ambience.follow(clean)
 				var tags := GameStory.tags(full)

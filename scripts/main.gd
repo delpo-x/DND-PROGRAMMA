@@ -30,6 +30,8 @@ var top_clients: Label
 var btn_undo: Button
 var modal_layer: Control
 var toast_box: VBoxContainer
+## Screen-reader live region (Godot 4.5): toasts are read aloud
+var sr: Label
 var fx_layer: Control
 var ui_dirty := true
 var ui_timer := 0.0
@@ -60,6 +62,7 @@ func _ready() -> void:
 		queue_free()
 		return
 	theme = UI.make_theme()
+	sr = UI.enable_a11y(self)
 	# candlelight: warm glow in the middle, dark leather towards the edges
 	var bg := TextureRect.new()
 	var grad := Gradient.new()
@@ -367,6 +370,7 @@ func _on_roll_toast(e: Dictionary) -> void:
 
 
 func toast(text: String) -> void:
+	UI.announce(sr, text)
 	var l := UI.lbl(text, 22, Color.WHITE)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var c := UI.card(l, Color(0.25, 0.17, 0.08, 0.95), 12)

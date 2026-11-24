@@ -22,6 +22,7 @@ func setup(a) -> void:
 	app = a
 	f_name = UI.edit("", "Nome (es. Goblin)", Callable(), 220)
 	f_kind = UI.option(["Mostro", "PNG"], 0, Callable(), 130)
+	f_kind.accessibility_name = "Mostro o PNG"
 	f_ac = UI.spin(0, 40, 13, Callable(), 100)
 	f_hp = UI.spin(1, 999, 10, Callable(), 110)
 	f_init = UI.spin(-10, 20, 0, Callable(), 100)
@@ -32,6 +33,7 @@ func setup(a) -> void:
 	for mm in Rules.MONSTERS:
 		names.append("%s  (GS %s, %d PE)" % [mm[0], mm[5], Rules.cr_xp(mm[5])])
 	f_preset = UI.option(names, 0, _preset, 420)
+	f_preset.accessibility_name = "Creatura dal Manuale dei Mostri"
 	var form := UI.vbox([
 		UI.title("Aggiungi mostro o PNG"),
 		UI.hbox([f_preset]),

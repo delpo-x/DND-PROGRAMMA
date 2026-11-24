@@ -31,6 +31,7 @@ func setup(a) -> void:
 	for c in GameState.CHRONICLE_MANUAL:
 		names.append(GameState.CHRONICLE_CATS[c])
 	cat_add = UI.option(names, 0, Callable(), 210)
+	cat_add.accessibility_name = "Categoria della nuova voce"
 	text_add = TextEdit.new()
 	text_add.placeholder_text = "Cosa è successo? (es. Il gruppo incontra Mastro Brann, il fabbro di Valmora, che chiede aiuto contro i goblin)"
 	text_add.custom_minimum_size = Vector2(0, 74)
@@ -50,6 +51,8 @@ func setup(a) -> void:
 		all_names.append(GameState.CHRONICLE_CATS[c])
 	cat_filter = UI.option(all_names, 0, func(_i): refresh(), 220)
 	sess_filter = UI.option(["Tutte le sessioni"], 0, func(_i): refresh(), 200)
+	cat_filter.accessibility_name = "Mostra la categoria"
+	sess_filter.accessibility_name = "Mostra la sessione"
 	add_child(UI.hbox([search, cat_filter, sess_filter,
 		UI.btn("Esporta cronaca", _export, 52)], 10))
 	info_lbl = UI.wrap_lbl("", 16, UI.DIM)

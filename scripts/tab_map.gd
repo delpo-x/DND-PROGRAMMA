@@ -23,6 +23,7 @@ var _sig := ""
 func setup(a) -> void:
 	app = a
 	map_opt = UI.option([], 0, _on_pick, 260)
+	map_opt.accessibility_name = "Mappa da mostrare"
 	show_btn = UI.btn("Mostra ai giocatori", _toggle_show, 48)
 	add_child(UI.flow([
 		map_opt,
@@ -41,7 +42,8 @@ func setup(a) -> void:
 		UI.lbl("Inizio X", 18, UI.DIM), ox_spin, UI.lbl("Y", 18, UI.DIM), oy_spin,
 		UI.btn("Rileva griglia", _detect, 48), grid_chk,
 		UI.check("Segna terreno difficile", false, func(on): view.paint_difficult = on),
-		UI.btn("−", func(): view.zoom_by(1.0 / 1.25), 48, 48), UI.btn("+", func(): view.zoom_by(1.25), 48, 48),
+		UI.named(UI.btn("−", func(): view.zoom_by(1.0 / 1.25), 48, 48), "Rimpicciolisci la mappa"),
+		UI.named(UI.btn("+", func(): view.zoom_by(1.25), 48, 48), "Ingrandisci la mappa"),
 		UI.btn("Adatta", func(): view.fit(), 48),
 	]))
 	body = UI.hbox([], 10)

@@ -211,6 +211,9 @@ si possono ritoccare se la "sensazione" non convince.
   caso usa la rete di casa o l'hotspot del tablet.
 - L'app Android è stata verificata ma non ancora provata su un tablet reale.
 - Aspetto grafico e "sensazione" dei dadi sono scelte iniziali, modificabili.
+- Lettori di schermo: su Windows l'app master e Dnd The Game funzionano con NVDA, JAWS e
+  Assistente vocale (campi con nome, avvisi e storia letti ad alta voce). Su Android l'app
+  master non funziona ancora con TalkBack; le pagine dei telefoni sì.
 
 ## 11. File in questa cartella
 

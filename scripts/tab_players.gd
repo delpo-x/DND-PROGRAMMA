@@ -94,6 +94,7 @@ func refresh() -> void:
 			mods.append("%s %d (%s)" % [a, int(ch.ab[a]), Rules.fmt_mod(Rules.mod(ch.ab[a]))])
 		var info := UI.wrap_lbl("   ".join(mods) + "    Iniz. %s   Perc. passiva %d" % [Rules.fmt_mod(Rules.init_mod(ch)), 10 + Rules.skill_mod(ch, "percezione")], 17, UI.DIM)
 		var amt := UI.spin(1, 999, int(amounts.get(id, 5)), func(v): amounts[id] = v, 100)
+		UI.named(amt, "Punti ferita da togliere o curare a %s" % str(ch.name))
 		var actions := UI.flow([
 			UI.btn("Scheda", edit_dialog.bind(id), 48),
 			amt,

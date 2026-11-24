@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the Windows and Android apps into build/.
-# Needs the Godot 4.4.1 editor in .tools/godot and a JDK 17 in .tools/jdk17.
+# Needs the Godot 4.5.2 editor in .tools/godot and a JDK 17 in .tools/jdk17.
 # The Android signing key is read from environment variables, never from git:
 #   GODOT_ANDROID_KEYSTORE_RELEASE_PATH, GODOT_ANDROID_KEYSTORE_RELEASE_USER,
 #   GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD

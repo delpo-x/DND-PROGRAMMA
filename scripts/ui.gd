@@ -378,3 +378,100 @@ static func make_theme() -> Theme:
 	t.set_constant("separation", "HBoxContainer", 8)
 	t.set_constant("separation", "VBoxContainer", 8)
 	return t
+
+# ------------------------------------------------------------ screen readers
+# Godot 4.5 exposes controls to screen readers (AccessKit: NVDA, JAWS and
+# Narrator on Windows). Buttons, labels and check boxes read their own text;
+# fields, spin boxes, menus and symbol buttons need a name, and messages that
+# appear on their own (toasts, narration) need a live region.
+
+## Gives every control under root (now and later) a screen-reader name and
+## returns a hidden live-region label: pass it to announce() to have short
+## messages read aloud without moving the focus.
+static func enable_a11y(root: Control) -> Label:
+	var sr := Label.new()
+	sr.name = "ScreenReaderAnnouncer"
+	sr.accessibility_live = DisplayServer.LIVE_POLITE
+	sr.self_modulate = Color(1, 1, 1, 0)
+	sr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sr.clip_text = true
+	sr.custom_minimum_size = Vector2(1, 1)
+	sr.size = Vector2(1, 1)
+	root.add_child(sr)
+	_name_tree(root)
+	var tree := root.get_tree()
+	var on_added := func(n: Node):
+		if n is Control and is_instance_valid(root) and root.is_ancestor_of(n):
+			_name_control.call_deferred(n)
+	tree.node_added.connect(on_added)
+	root.tree_exiting.connect(func(): tree.node_added.disconnect(on_added), CONNECT_ONE_SHOT)
+	return sr
+
+
+## Sets the screen-reader name of a control and returns it (for builders).
+static func named(c: Control, a11y_name: String) -> Control:
+	c.accessibility_name = a11y_name
+	return c
+
+
+## Reads text aloud through the announcer made by enable_a11y().
+static func announce(sr: Label, text: String) -> void:
+	if sr == null or not is_instance_valid(sr) or text.strip_edges() == "":
+		return
+	# the same message twice in a row is not a change: alternate a space
+	sr.text = text if sr.text != text else text + " "
+
+
+static func _name_tree(n: Node) -> void:
+	if n is Control:
+		_name_control(n)
+	for c in n.get_children():
+		_name_tree(c)
+
+
+## Symbol-only buttons used in the app, spelled out.
+const SYMBOL_NAMES := {"X": "Elimina", "+": "Aumenta", "-": "Diminuisci", "−": "Diminuisci"}
+
+
+static func _name_control(c: Control) -> void:
+	if not is_instance_valid(c) or c.accessibility_name != "":
+		return
+	var nm := ""
+	if c is Button and not (c is OptionButton):
+		var t: String = (c as Button).text.strip_edges()
+		if t != "" and not SYMBOL_NAMES.has(t):
+			return
+		nm = c.tooltip_text if c.tooltip_text != "" else str(SYMBOL_NAMES.get(t, ""))
+		var near := _label_before(c, 1)
+		if near != "" and t != "":
+			nm += " " + near.to_lower()
+	elif c is LineEdit or c is TextEdit or c is SpinBox or c is OptionButton:
+		nm = _label_before(c, 1)
+		if nm == "" and (c is LineEdit or c is TextEdit):
+			nm = c.placeholder_text
+		if nm == "":
+			nm = c.tooltip_text
+		if nm == "":
+			nm = _label_before(c, 2)
+	if nm.strip_edges() != "":
+		c.accessibility_name = nm.strip_edges().left(80)
+		if c is SpinBox:
+			(c as SpinBox).get_line_edit().accessibility_name = c.accessibility_name
+
+
+## Text of the closest Label before the control in the same row (levels = 2:
+## also before the box that holds the control).
+static func _label_before(c: Control, levels := 1) -> String:
+	var node: Node = c
+	for depth in levels:
+		var p := node.get_parent()
+		if p == null:
+			return ""
+		var i := node.get_index() - 1
+		while i >= 0:
+			var s := p.get_child(i)
+			if s is Label and (s as Label).text.strip_edges() != "":
+				return (s as Label).text.strip_edges().trim_suffix(":")
+			i -= 1
+		node = p
+	return ""

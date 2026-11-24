@@ -120,7 +120,8 @@ func setup(a) -> void:
 	mod_lbl.custom_minimum_size = Vector2(80, 0)
 	mod_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(UI.hbox([UI.lbl("Modificatore", 20, UI.DIM), UI.spacer(),
-		UI.btn("-", func(): _set_mod(mod - 1), 56, 64), mod_lbl, UI.btn("+", func(): _set_mod(mod + 1), 56, 64)]))
+		UI.named(UI.btn("-", func(): _set_mod(mod - 1), 56, 64), "Diminuisci il modificatore"), mod_lbl,
+		UI.named(UI.btn("+", func(): _set_mod(mod + 1), 56, 64), "Aumenta il modificatore")]))
 	var adv_row := UI.hbox([], 6)
 	for pair in [["dis", "Svantaggio"], ["none", "Normale"], ["adv", "Vantaggio"]]:
 		var b := UI.btn(pair[1], _set_adv.bind(pair[0]), 56)
