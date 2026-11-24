@@ -287,6 +287,10 @@ func chapter_info() -> Dictionary:
 	return chs[clampi(chapter - 1, 0, chs.size() - 1)]
 
 
+func chapters_total() -> int:
+	return st.data.get("story", {}).get("chapters", []).size()
+
+
 ## True when every chapter of the imported adventure has been played.
 func adventure_over() -> bool:
 	var chs: Array = st.data.get("story", {}).get("chapters", [])
@@ -307,7 +311,7 @@ func system_prompt() -> String:
 	p.append("Sei il Dungeon Master di una partita di Dungeons & Dragons 5ª edizione. Parli sempre in italiano, a un gruppo di amici seduti attorno al tavolo.")
 	p.append("Regole del tuo modo di narrare:")
 	p.append("- Al massimo 4 frasi, un solo paragrafo: la tua voce viene letta ad alta voce.")
-	p.append("- Comincia dall'effetto di quello che il giocatore ha appena fatto o detto, poi racconta come reagiscono il luogo e i PNG.")
+	p.append("- Comincia da come il luogo e i PNG reagiscono a quello che il giocatore ha appena fatto o detto, senza raccontare di nuovo la sua azione.")
 	p.append("- Parla solo di luoghi, rumori, PNG e mostri. I personaggi dei giocatori fanno e dicono soltanto ciò che scrivono i giocatori: non farli muovere, parlare o pensare.")
 	p.append("- Chiudi sempre con la domanda: Cosa fate?")
 	p.append("- Non tirare dadi e non inventare numeri: dadi, danni e punti ferita li gestisce il tavolo.")
@@ -315,7 +319,8 @@ func system_prompt() -> String:
 	p.append("- Se un'azione ha un esito incerto chiedi una prova scrivendo alla fine, su una riga a parte, ad esempio: [[PROVA: Percezione CD 15: Aria]] (abilità, difficoltà da 10 a 20, chi la tira oppure tutti).")
 	p.append("- Per un tiro salvezza: [[PROVA: TS Destrezza CD 13: tutti]].")
 	p.append("- Quando inizia un combattimento scrivi alla fine: [[COMBATTIMENTO: Goblin x2, Lupo]] usando i nomi dei mostri qui sotto. Poi non narrare i colpi: li risolve il tavolo.")
-	p.append("- Quando il capitolo arriva a una conclusione naturale scrivi alla fine [[FINE CAPITOLO]].")
+	if not adventure_over():
+		p.append("- Quando il capitolo arriva a una conclusione naturale scrivi alla fine [[FINE CAPITOLO]].")
 	p.append("- I marcatori tra doppie parentesi quadre vanno solo alla fine e solo quando servono.")
 	p.append("- La traccia del capitolo può essere scritta ad appunti, senza articoli: tu racconta sempre in italiano pieno e scorrevole, senza sigle.")
 	p.append("- Se la traccia ha una linea temporale, porta il gruppo da un momento al successivo seguendo le loro scelte, senza saltare avanti. Quando arriva il momento indicato come fine, chiudi il capitolo.")

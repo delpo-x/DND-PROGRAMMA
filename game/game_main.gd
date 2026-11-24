@@ -655,7 +655,10 @@ func _on_tag(name: String, arg: String) -> void:
 		"prova":
 			ask_check(arg)
 		"fine capitolo":
-			_ask_close_chapter()
+			# after the last chapter the narrator kept ending empty chapters,
+			# one a minute (playtest): there the players close by hand
+			if not story.adventure_over():
+				_ask_close_chapter()
 
 
 # ------------------------------------------------------------------ chapters
@@ -951,7 +954,7 @@ func _finish_chapter(new_summary: String) -> void:
 	if _chapter_prose != "":
 		add_feed("Riassunto", _chapter_prose, "info")
 	_chapter_prose = ""
-	if story.adventure_over():
+	if story.adventure_over() and n == story.chapter - 1 and n == story.chapters_total():
 		# every chapter played: an epilogue, then free play (it used to start
 		# the last chapter again)
 		add_feed("Tavolo", "L'avventura è finita: il master racconta come si chiude la storia. Potete continuare a giocare liberamente.", "info")

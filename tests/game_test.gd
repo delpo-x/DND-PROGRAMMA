@@ -221,6 +221,10 @@ Altro.".repeat(300)}
 	var ch_was: int = g.story.chapter
 	g.story.chapter = 2
 	check("past the last chapter: adventure over, nothing repeated", g.story.adventure_over() and g.story.chapter_info().is_empty() and not g.story.reading_left())
+	# found in the third playtest: the epilogue ended empty chapters again and again
+	check("no chapter end asked after the adventure", not g.story.system_prompt().contains("[[FINE CAPITOLO]]"))
+	g._on_tag("fine capitolo", "")
+	check("narrator's chapter end ignored after the adventure", not g._closing and g.story.chapter == 2)
 	g.story.chapter = 1
 	check("first chapter not over", not g.story.adventure_over())
 	g.story.chapter = ch_was

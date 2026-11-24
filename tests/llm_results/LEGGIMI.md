@@ -64,3 +64,22 @@ scritta dal giocatore ("Aria esamina la porta"). Le istruzioni lo vietano, quind
 - `storico.csv`: una riga per ogni giro completo: data, modello, versione delle istruzioni
   (cambia da sola quando cambia il prompt), punteggio, tempo alla prima parola, tempo della
   risposta completa, token al secondo.
+
+## Partite simulate
+
+`tests/playtest.gd` gioca una partita intera, fino a un'ora, con quattro giocatori simulati dallo
+stesso modello: ognuno ha un carattere e vede solo quello che si è detto al tavolo. Scrive
+`<data>_partita.md` con le misure (tempi, prove, PG fatti agire dal master, segreti che
+riaffiorano, testo da leggere letto o adattato) e la trascrizione completa.
+
+```
+godot --headless --path . -s tests/playtest.gd -- --minutes 60
+```
+
+Le partite del 2026-11-24, in ordine:
+
+| File | Cosa ha trovato |
+|---|---|
+| `2026-11-24_partita_prima.md` | segreti ripetuti in pubblico, combattimento contro "Nessuno", ultimo capitolo ricominciato da capo, prove anche per "non minacciosa" |
+| `2026-11-24_partita_seconda.md` | il segreto raccontato ad alta voce anche senza la risposta privata; dopo la sconfitta di tutto il gruppo la partita resta ferma |
+| `2026-11-24_partita.md` | prove da 19 a 9 l'ora, nessun segreto in pubblico; dopo l'epilogo il narratore chiudeva capitoli vuoti (corretto dopo) |
