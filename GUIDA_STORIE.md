@@ -114,6 +114,14 @@ carovana piegano verso una grotta da cui esce un filo di fumo.
   Non mettere segreti nei paragrafi "Da leggere".
 - Se un capitolo non ha niente da leggere, lo apre il narratore come prima.
 
+### Le prove
+
+Quando un giocatore fa qualcosa dall'esito incerto (cercare trappole, arrampicarsi, convincere,
+nascondersi...), il tavolo riconosce l'azione dalle parole e ricorda al narratore di chiedere la
+prova, con la difficoltà che sceglie lui (da 10 a 20). Se il narratore se ne dimentica, la prova
+la chiede il tavolo con difficoltà 15 (media). I giocatori tirano dal telefono; chi non ha il
+telefono collegato tira in automatico. Durante un combattimento questo controllo è spento.
+
 ### Regole per la scheda
 
 - **Obiettivo in una frase.** Il narratore lo usa per riportare il gruppo sulla strada.

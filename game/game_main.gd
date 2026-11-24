@@ -51,6 +51,7 @@ var _reading := false   # reading the "Da leggere" text of the chapter aloud
 var _read_clock := 0.0  # time since the paragraph started
 var _read_quiet := 0.0  # time the voice has been silent
 var _read_min := 0.0    # time to leave a paragraph on screen without voice
+var _want_check := {}  # check the last player's action needs (see GameStory.pending_check)
 var _adapting := false  # the narrator is checking the next paragraph
 var _adapt_raw := ""
 ## The adaptation of the next paragraph, prepared while the reading is paused:
@@ -519,6 +520,7 @@ func narrate() -> void:
 	var filler := filler_line()
 	if filler != "":
 		voice.say(filler)
+	_want_check = story.pending_check()
 	narrator.ask(story.messages())
 	_sync_phones()
 
@@ -585,13 +587,28 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 				_set_feed_text(e, clean)
 				story.add("assistant", "Master", clean)
 				ambience.follow(clean)
-				for t in GameStory.tags(full):
+				var tags := GameStory.tags(full)
+				for t in tags:
 					_on_tag(str(t[0]), str(t[1]))
+				_ensure_check(tags)
 	_sync_phones()
 	if _want_narration and not narrator.busy:
 		narrate()
 	else:
 		_prepare_next()
+
+
+## The player's action needed a check and the narrator forgot to ask for it:
+## the table asks for it anyway (difficulty 15, "media" in the rules).
+func _ensure_check(tags: Array) -> void:
+	var pc := _want_check
+	_want_check = {}
+	if pc.is_empty() or state.ini().active or not checks.is_empty():
+		return
+	for t in tags:
+		if str(t[0]) in ["prova", "combattimento", "fine capitolo"]:
+			return
+	ask_check("%s CD 15: %s" % [pc.skill, pc.who])
 
 
 func _on_tag(name: String, arg: String) -> void:

@@ -107,6 +107,55 @@ static func parse_adapt(full: String) -> Dictionary:
 	return {"mode": "text", "text": t} if t.length() >= 20 else {"mode": "read", "text": ""}
 
 
+## Words of a player's action that call for a check, and which skill.
+## Order matters: the first match wins. Words at the start of a word only.
+const CHECK_WORDS: Array = [
+	["Percezione", ["cerco trappol", "trappol", "ascolt", "orecchio", "scrut", "osserv", "guardo attent", "con attenzione", "sbirci", "origli", "annus"]],
+	["Indagare", ["esamin", "ispezion", "frug", "perquis", "cerco indiz", "indizi", "cerco passagg", "cerco", "rovist"]],
+	["Atletica", ["arrampic", "scalo", "scalare", "salto", "saltare", "nuot", "sfond", "forzo", "forzare", "spingo", "sollev", "trascin"]],
+	["Acrobazia", ["equilibri", "capriol", "schiv", "rotol", "in bilico"]],
+	["Furtività", ["di nascosto", "nascond", "furtiv", "silenzios", "senza farmi", "senza fare rumore", "pedin", "sgattaiol"]],
+	["Rapidità di Mano", ["borseggi", "scassin", "grimald", "rubo", "serratur", "disinnesc"]],
+	["Persuasione", ["convinc", "persuad", "supplic"]],
+	["Inganno", ["mento", "mentire", "ingann", "bluff", "fingo", "fingere", "travest"]],
+	["Intimidire", ["minacc", "intimid", "spavent"]],
+	["Intuizione", ["sta mentendo", "mi fido", "capire se", "intenzion"]],
+	["Sopravvivenza", ["tracce", "orme", "orient"]],
+	["Medicina", ["curo", "medico", "fascio", "stabilizz"]],
+	["Arcano", ["rune", "runa", "magia", "incantes", "glif"]],
+	["Storia", ["ricordo", "leggend"]],
+	["Religione", ["simbolo sacr", "divinit", "altare"]],
+	["Addestrare Animali", ["calmo il", "calmare il", "addomest"]],
+]
+
+
+## The skill a player's action probably needs, or "" (see CHECK_WORDS).
+static func check_hint(text: String) -> String:
+	var low := " " + text.to_lower() + " "
+	for row in CHECK_WORDS:
+		for w in row[1]:
+			var i := low.find(str(w))
+			while i >= 0:
+				if i == 0 or not low[i - 1].is_valid_identifier():
+					return str(row[0])
+				i = low.find(str(w), i + 1)
+	return ""
+
+
+## The last line, if it is a player's action outside a fight that probably
+## needs a check: {skill, who}; otherwise {}.
+func pending_check() -> Dictionary:
+	if transcript.is_empty() or st.ini().active:
+		return {}
+	var last: Dictionary = transcript.back()
+	if str(last.role) != "user" or str(last.who) in ["Tavolo", "Master"]:
+		return {}
+	var skill := check_hint(str(last.text))
+	if skill == "":
+		return {}
+	return {"skill": skill, "who": "tutti" if str(last.who) == "Il gruppo" else str(last.who)}
+
+
 func add(role: String, who: String, text: String) -> void:
 	var t := text.strip_edges()
 	if t == "":
@@ -216,6 +265,10 @@ func messages(extra := "") -> Array:
 	var paras := read_aloud()
 	if extra == "" and read_pos > 0 and read_pos < paras.size():
 		last = "[Prossimo testo che verrà letto ai giocatori, non raccontarlo tu: %s]\n" % str(paras[read_pos]).left(200) + last
+	var pc := pending_check() if extra == "" else {}
+	if not pc.is_empty():
+		last = ("[Questa azione ha un esito incerto: racconta il tentativo senza dire come finisce e chiudi con la prova, "
+			+ "ad esempio [[PROVA: %s CD 15: %s]]. Scegli tu la difficoltà da 10 a 20.]\n" % [pc.skill, pc.who]) + last
 	if extra != "":
 		last = extra + "\n" + last
 	out.append({"role": "user", "content": last})
