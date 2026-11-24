@@ -264,6 +264,33 @@ risposta.
   spostati), senza raccontarle. Così il mondo si muove anche quando il gruppo non guarda.
   Costa circa 10 secondi in più alla chiusura del capitolo.
 
+### PNG e atteggiamento
+
+Una terza casella, negli stessi due posti, tiene i PNG con un nome e cosa pensano del gruppo:
+uno per riga, al massimo 12, nella forma "nome: atteggiamento, nota"
+("Marta: amichevole, ci deve un favore"). Gli atteggiamenti sono cinque, dal peggiore al
+migliore: ostile, diffidente, neutrale, amichevole, alleato.
+
+- Il narratore li legge in ogni risposta e fa parlare ogni PNG di conseguenza: una locandiera
+  diffidente risponde a monosillabi e non fa sconti, una alleata rischia per il gruppo.
+- Quando un PNG cambia idea sul gruppo (o ne compare uno nuovo che conta), il narratore lo
+  scrive con un marcatore, `[[PNG: Marta diffidente]]`, e la lista si aggiorna da sola. Il
+  cambio finisce anche nella cronaca, visibile solo al master.
+- Nella scheda del capitolo puoi indicare l'atteggiamento iniziale dei PNG importanti
+  ("Marta è amichevole finché il gruppo non tocca il vetro"): il narratore lo usa quando li
+  incontra per la prima volta.
+
+### Ispirazione
+
+Una regola della casa: chi fa **20 naturale** su un attacco, una prova o un tiro salvezza
+(compreso il tiro salvezza contro la morte, non l'iniziativa) guadagna **ispirazione**, una
+alla volta come nel Manuale del Giocatore. Il tavolo lo annuncia, e sul telefono compare
+"Usa ispirazione": dà vantaggio al prossimo tiro di d20 (dadi o attacco nel pannello del turno)
+e poi si consuma. Il master la vede e la cambia dalla scheda del personaggio (pulsante
+"Ispirazione"), ad esempio per premiare una bella interpretazione.
+
+### Riservatezza di fatti, fazioni e PNG
+
 Come per il tono: righe brevi e concrete, niente segreti dei giocatori. Le fazioni e i fatti
 fissati sono informazioni per il master, ma il narratore può farli capire: un segreto che i
 giocatori non devono scoprire va nella scheda del capitolo, con la condizione per rivelarlo.
@@ -429,3 +456,4 @@ punteggio non scende. Le istruzioni del dettaglio sono in `tests/llm_results/LEG
 - [ ] Nomi facili da leggere ad alta voce
 - [ ] Capitoli da 1-2 ore di gioco
 - [ ] Fatti fissati per le promesse e i nomi che non devono perdersi, fazioni con cosa vogliono
+- [ ] PNG importanti con il loro atteggiamento iniziale verso il gruppo

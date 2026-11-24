@@ -196,6 +196,55 @@ func _init() -> void:
 	st.set_factions("")
 	check("no factions, no moves", st.data.faction_moves.is_empty() and not g.story.system_prompt().contains("Fazioni"))
 
+	# inspiration: a natural 20 on a d20 test gives it, the phone spends it
+	var pid := str(st.characters()[0].id)
+	var pch: Dictionary = st.find_entity(pid)
+	pch.inspiration = false
+	var e20 := st.player_roll(pid, {"dice": [{"s": 20, "v": 20}], "kind": "Prova", "mod": 2, "reason": "Prova di Atletica"})
+	check("natural 20 gives inspiration", bool(e20.get("inspired", false)) and bool(pch.inspiration), e20)
+	check("only one inspiration at a time", not bool(st.player_roll(pid, {"dice": [{"s": 20, "v": 20}], "kind": "Tiro salvezza"}).get("inspired", false)))
+	pch.inspiration = false
+	check("initiative 20 gives none", not bool(st.player_roll(pid, {"dice": [{"s": 20, "v": 20}], "kind": "Iniziativa"}).get("inspired", false)) and not bool(pch.inspiration))
+	check("damage dice give none", not bool(st.player_roll(pid, {"dice": [{"s": 20, "v": 20}], "kind": "Danni"}).get("inspired", false)))
+	pch.inspiration = true
+	var used := st.player_roll(pid, {"dice": [{"s": 20, "v": 4, "drop": true}, {"s": 20, "v": 15}], "kind": "Prova", "adv": "adv", "insp": true, "reason": "Prova di Furtività"})
+	check("inspiration spent for advantage", not bool(pch.inspiration) and str(used.reason).contains("ispirazione"), used)
+	check("no inspiration, nothing to spend", not str(st.player_roll(pid, {"dice": [{"s": 20, "v": 9}, {"s": 20, "v": 3, "drop": true}], "kind": "Prova", "adv": "adv", "insp": true}).reason).contains("ispirazione"))
+	check("phones see inspiration", st.player_view(pid).me.has("inspiration"))
+	check("phones cannot set it", (func():
+		st.update_character(pid, {"inspiration": true})
+		return not bool(pch.inspiration)).call())
+	var hp0 := int(pch.hp)
+	pch.hp = 0
+	pch.death_ok = 0
+	pch.death_ko = 0
+	check("death save 20 gives inspiration", st.death_save(pid, 20).contains("ispirazione") and bool(pch.inspiration))
+	pch.hp = hp0
+	st.set_inspiration(pid, false)
+
+	# NPC attitudes: kept in the campaign, sent to the narrator, changed by a marker
+	st.set_npcs("Marta: amichevole, ci deve un favore
+Sgnacco: nemico giurato
+Ilario")
+	var npcs: Array = st.data.npcs
+	check("NPCs read", npcs.size() == 3 and npcs[0].att == "amichevole" and npcs[0].note == "ci deve un favore" and npcs[1].att == "ostile" and npcs[2].att == "neutrale", npcs)
+	check("NPCs in the prompt", g.story.system_prompt().contains("Marta: amichevole (ci deve un favore)") and g.story.system_prompt().contains("[[PNG:"))
+	check("NPC text box round trip", st.npcs_text().split("
+").slice(0, 2) == PackedStringArray(["Marta: amichevole, ci deve un favore", "Sgnacco: ostile"]), st.npcs_text().split("
+"))
+	var tg := GameStory.tags("Marta vi guarda storto.
+[[PNG: Marta diffidente]]")
+	check("NPC marker read", tg.size() == 1 and tg[0][0] == "png", tg)
+	g._on_tag("png", "Marta diffidente")
+	check("NPC attitude changed by the narrator", st.data.npcs[0].att == "diffidente")
+	g._on_tag("png", "Bruno il fabbro ora è alleato")
+	check("new NPC from the narrator", st.data.npcs.size() == 4 and st.data.npcs[3].name == "Bruno il fabbro" and st.data.npcs[3].att == "alleato", st.data.npcs)
+	g._on_tag("png", "Qualcuno")
+	check("marker without attitude ignored", st.data.npcs.size() == 4)
+	check("NPC change in the private chronicle", st.data.chronicle.any(func(c): return c.cat == "png" and str(c.text).contains("Marta: diffidente") and not bool(c.get("public", true))))
+	st.set_npcs("")
+	check("no NPCs, no line", not g.story.system_prompt().contains("PNG già incontrati"))
+
 	# chapter outlines checked for what the narrator needs
 	var known := StoryImport.known_monsters(st)
 	var good := {"title": "La grotta", "text": "Obiettivo: liberare i mercanti.

@@ -900,6 +900,8 @@ static func phone_act(st, char_id: String, msg: Dictionary) -> Dictionary:
 	var adv := str(msg.get("adv", "auto"))
 	if not adv in ["auto", "adv", "none", "dis"]:
 		adv = "auto"
+	if bool(msg.get("insp", false)) and a.get("mode", "") == "attack" and st.use_inspiration(char_id):
+		adv = "adv"  # advantage paid with inspiration
 	return resolve(st, char_id, a, targets, {"adv": adv, "slot": clampi(int(msg.get("slot", a.lvl)), 0, 9)})
 
 

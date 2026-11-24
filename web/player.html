@@ -68,6 +68,7 @@
     <div class="seg" id="advSeg">
       <button data-adv="dis">Svantaggio</button><button data-adv="none" class="sel">Normale</button><button data-adv="adv">Vantaggio</button>
     </div>
+    <button id="inspBtn" class="insp hidden">&#10022; Usa ispirazione: vantaggio al prossimo d20</button>
     <div class="seg" id="modeSeg">
       <button data-mode="app" class="sel">Dadi dell'app</button><button data-mode="real">Dadi veri</button>
     </div>
@@ -305,11 +306,12 @@
   function renderAll() {
     renderJoin();
     if (!S.me) return;
-    $('topName').textContent = S.me.name;
+    $('topName').textContent = S.me.name + (S.me.inspiration ? ' ✦' : '');
     var hp = 'PF ' + S.me.hp + '/' + S.me.hp_max + (S.me.hp_temp > 0 ? ' +' + S.me.hp_temp : '') + '  CA ' + S.me.ac;
     $('topHp').textContent = hp;
     $('topHp').className = 'hp' + (S.me.hp <= 0 ? ' down' : (S.me.hp * 2 <= S.me.hp_max ? ' low' : ''));
     renderShortcuts();
+    renderDice();
     renderPortrait();
     renderSheet();
     renderInit();
@@ -335,7 +337,15 @@
     $('formula').textContent = formulaText(currentLogical(), S.mod, S.adv);
     $('modVal').textContent = T.fmtMod(S.mod);
     document.querySelectorAll('#advSeg button').forEach(function (b) { b.classList.toggle('sel', b.getAttribute('data-adv') === S.adv); });
+    var hasInsp = !!(S.me && S.me.inspiration);
+    if (!hasInsp) S.insp = false;
+    $('inspBtn').classList.toggle('hidden', !hasInsp);
+    $('inspBtn').classList.toggle('sel', !!S.insp);
   }
+  // ispirazione (20 naturale): vantaggio su un tiro di d20, poi si consuma
+  $('inspBtn').addEventListener('click', function () {
+    S.insp = !S.insp; S.adv = S.insp ? 'adv' : 'none'; renderDice();
+  });
   $('diceGrid').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
     if (b.id === 'clearBtn') { S.counts = {}; S.mod = 0; S.adv = 'none'; }
@@ -345,7 +355,7 @@
   $('modMinus').addEventListener('click', function () { S.mod = Math.max(-30, S.mod - 1); renderDice(); });
   $('modPlus').addEventListener('click', function () { S.mod = Math.min(30, S.mod + 1); renderDice(); });
   $('advSeg').addEventListener('click', function (ev) {
-    var b = ev.target.closest('button'); if (!b) return; S.adv = b.getAttribute('data-adv'); renderDice();
+    var b = ev.target.closest('button'); if (!b) return; S.adv = b.getAttribute('data-adv'); if (S.adv !== 'adv') S.insp = false; renderDice();
   });
   function currentLogical() {
     var out = [];
@@ -428,8 +438,10 @@
     }
     var total = o.mod, kept20 = [];
     dice.forEach(function (d) { if (!d.drop) { total += d.v; if (d.s === 20) kept20.push(d.v); } });
-    var sent = link.send({ t: 'roll', dice: dice, mod: o.mod, adv: o.adv, kind: o.kind, reason: o.reason || '', request_id: o.requestId || '', formula: formula, manual: manual });
-    if (S.adv !== 'none') { S.adv = 'none'; renderDice(); }  // vantaggio/svantaggio valgono per un tiro solo
+    var insp = !!(S.insp && o.adv === 'adv');
+    var sent = link.send({ t: 'roll', dice: dice, mod: o.mod, adv: o.adv, kind: o.kind, reason: o.reason || '', request_id: o.requestId || '', formula: formula, manual: manual, insp: insp });
+    S.insp = false;
+    if (S.adv !== 'none' || insp) { S.adv = 'none'; renderDice(); }  // vantaggio/svantaggio valgono per un tiro solo
     var html = '<div>' + esc(o.reason || formula) + (manual ? ' <span class="realdice">dadi veri</span>' : '') + '</div><div>' + dice.map(function (d) {
       var cls = d.drop ? 'die drop' : (d.s === 20 && d.v === 20 ? 'die nat20' : (d.s === 20 && d.v === 1 ? 'die nat1' : 'die'));
       return '<span class="' + cls + '">' + d.v + '</span>';
@@ -957,6 +969,7 @@
       h += sl ? '<div class="tlabel">Slot</div><div class="seg tslots">' + sl + '</div>' : '<p class="bad">Nessuno slot di questo livello</p>';
     }
     if (a.mode === 'attack') h += '<div class="seg tadv">' + ADV_LABELS.map(function (x) { return '<button data-adv="' + x[0] + '"' + (st.adv === x[0] ? ' class="sel"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
+    if (a.mode === 'attack' && S.me.inspiration) h += '<button class="tinsp insp' + (st.insp ? ' sel' : '') + '">&#10022; Usa ispirazione: vantaggio</button>';
     var hint = 'Su chi';
     if (a.targets === 0) hint += ' (area: tocca tutti quelli presi)';
     else if (a.targets > 1) hint += ' (fino a ' + a.targets + ')';
@@ -988,7 +1001,8 @@
     if (!tr || !tr.actions) return;
     if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
     else if (b.classList.contains('tslot')) { st.slot = +b.getAttribute('data-l'); }
-    else if (b.hasAttribute('data-adv')) { st.adv = b.getAttribute('data-adv'); }
+    else if (b.hasAttribute('data-adv')) { st.adv = b.getAttribute('data-adv'); st.insp = false; }
+    else if (b.classList.contains('tinsp')) { st.insp = !st.insp; st.adv = st.insp ? 'adv' : 'auto'; }
     else if (b.classList.contains('ttarget')) {
       var ref = b.getAttribute('data-ref'), a = tr.actions[turnAction(tr)];
       if (st.targets[ref]) delete st.targets[ref];
@@ -1002,7 +1016,8 @@
       var i = turnAction(tr);
       if (i < 0) return;
       st.busy = true;
-      if (!link.send({ t: 'act', i: i, name: tr.actions[i].name, targets: Object.keys(st.targets), adv: st.adv, slot: st.slot })) { st.busy = false; toast('Non collegato al tavolo'); }
+      if (!link.send({ t: 'act', i: i, name: tr.actions[i].name, targets: Object.keys(st.targets), adv: st.adv, slot: st.slot, insp: !!st.insp })) { st.busy = false; toast('Non collegato al tavolo'); }
+      st.insp = false;
     }
     renderTurn();
   });

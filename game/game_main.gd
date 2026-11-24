@@ -414,11 +414,14 @@ func _show_settings() -> void:
 	tone.max_length = StoryImport.TONE_MAX
 	var pinned := _text_box("\n".join(state.data.get("pinned", [])), "es. Marta ha promesso 50 monete d'oro per la carovana", 90)
 	var factions := _text_box("\n".join(state.data.get("factions", [])), "es. Goblin di Sgnacco: vogliono il sale della carovana per comprarsi i lupi", 90)
+	var npcs := _text_box(state.npcs_text(), "es. Marta: amichevole, ci deve un favore", 90)
 	var box := UI.vbox([UI.lbl("Tono dell'avventura (lo segue in ogni risposta)", 20, UI.DIM), tone,
 		UI.wrap_lbl("Una riga breve e concreta: atmosfera, ritmo, come si comportano i PNG. Vale per questa campagna.", 17, UI.DIM),
 		UI.lbl("Fatti fissati (uno per riga, al massimo %d)" % GameState.PINNED_MAX, 20, UI.DIM), pinned,
 		UI.wrap_lbl("Cose che devono restare vere anche dopo i riassunti: una promessa, un debito, un nome deciso al tavolo. Il narratore le legge in ogni risposta.", 17, UI.DIM),
 		UI.lbl("Fazioni (una per riga: nome: cosa vuole, al massimo %d)" % GameState.FACTIONS_MAX, 20, UI.DIM), factions,
+		UI.lbl("PNG e atteggiamento (uno per riga, al massimo %d)" % GameState.NPC_MAX, 20, UI.DIM), npcs,
+		UI.wrap_lbl("Nome: atteggiamento (%s), nota. Il narratore li fa parlare di conseguenza e aggiorna la lista quando un PNG cambia idea sul gruppo." % ", ".join(GameState.ATTITUDES), 17, UI.DIM),
 		UI.wrap_lbl("A fine capitolo il narratore scrive cosa ha fatto ogni fazione nel frattempo, e lo fa emergere nella storia con indizi.%s" % (("\nUltime mosse: " + " ".join(state.data.get("faction_moves", []))) if not state.data.get("faction_moves", []).is_empty() else ""), 17, UI.DIM),
 		UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
 		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Provati: gemma4:e4b-it-q4_K_M (consigliato), qwen3.5:4b (più veloce), qwen2.5:7b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
@@ -434,17 +437,19 @@ func _show_settings() -> void:
 		opt = UI.option(names, sel)
 		box.add_child(UI.lbl("Voce del master", 20, UI.DIM))
 		box.add_child(opt)
-	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone, pinned, factions), 50))
+	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone, pinned, factions, npcs), 50))
 	_modal("Impostazioni", box, 640)
 
 
-func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit, pinned: TextEdit, factions: TextEdit) -> void:
+func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit, pinned: TextEdit, factions: TextEdit, npcs: TextEdit) -> void:
 	if tone.text.strip_edges() != str(state.data.get("tone", "")):
 		state.set_tone(tone.text)
 	if GameState.text_lines(pinned.text, GameState.PINNED_MAX) != state.data.get("pinned", []):
 		state.set_pinned(pinned.text)
 	if GameState.text_lines(factions.text, GameState.FACTIONS_MAX) != state.data.get("factions", []):
 		state.set_factions(factions.text)
+	if npcs.text.strip_edges() != state.npcs_text():
+		state.set_npcs(npcs.text)
 	settings.model = model.text.strip_edges() if model.text.strip_edges() != "" else Narrator.DEFAULT_MODEL
 	narrator.model = str(settings.model)
 	if opt:
@@ -688,11 +693,35 @@ func _on_tag(name: String, arg: String) -> void:
 			start_combat(arg)
 		"prova":
 			ask_check(arg)
+		"png":
+			_npc_tag(arg)
 		"fine capitolo":
 			# after the last chapter the narrator kept ending empty chapters,
 			# one a minute (playtest): there the players close by hand
 			if not story.adventure_over():
 				_ask_close_chapter()
+
+
+## [[PNG: Marta amichevole]]: the attitude goes in the campaign (private
+## chronicle only: the players see it in how the NPC behaves).
+func _npc_tag(arg: String) -> void:
+	var att := GameState.attitude_of(arg)
+	if att == "":
+		return
+	# the name is what comes before the attitude ("Bruno il fabbro ora è alleato")
+	var words: Array = []
+	for w in arg.replace(",", " ").replace(":", " ").split(" ", false):
+		if GameState.attitude_of(w) != "":
+			break
+		words.append(w)
+	while not words.is_empty() and str(words[-1]).to_lower() in ["ora", "adesso", "è", "e", "diventa", "si", "fa", "resta"]:
+		words.pop_back()
+	var npc_name := " ".join(words).strip_edges()
+	if npc_name == "" or npc_name.length() > 40:
+		return
+	var before := state.set_npc_attitude(npc_name, att)
+	if before != "-":
+		state.chronicle_add("png", "%s: %s%s" % [npc_name, att, (" (prima %s)" % before) if before != "" else ""], false)
 
 
 # ------------------------------------------------------------------ chapters
@@ -1074,6 +1103,8 @@ func _auto_roll_check(rid: String, cid: String) -> void:
 
 func _on_roll(entry: Dictionary) -> void:
 	var cid := str(entry.get("who_id", ""))
+	if bool(entry.get("inspired", false)):
+		add_feed("Tavolo", "20 naturale! %s guadagna ispirazione: potrà usarla per avere vantaggio su un tiro." % entry.who, "info")
 	for rid in checks:
 		var ck: Dictionary = checks[rid]
 		if ck.chars.has(cid) and not ck.results.has(cid) and int(entry.get("dc", -1)) == int(ck.dc) and str(entry.get("kind", "")) != "Iniziativa":

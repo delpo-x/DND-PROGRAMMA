@@ -473,6 +473,7 @@ func _normalize(j: Dictionary) -> Dictionary:
 		ch.death_ok = int(ch.get("death_ok", 0))
 		ch.death_ko = int(ch.get("death_ko", 0))
 		ch.xp = int(ch.get("xp", 0))
+		ch.inspiration = bool(ch.get("inspiration", false))
 		Rules.sync_slots(ch)
 	for m in j.monsters:
 		m.xp = int(m.get("xp", 0))
@@ -603,6 +604,70 @@ func set_factions(t: String) -> void:
 func set_faction_moves(moves: Array) -> void:
 	data.faction_moves = moves.slice(0, FACTIONS_MAX)
 	touch()
+
+
+const NPC_MAX := 12   # named NPCs whose attitude the narrator keeps
+## How an NPC feels about the party, from worst to best.
+const ATTITUDES := ["ostile", "diffidente", "neutrale", "amichevole", "alleato"]
+
+
+## Attitude word in a text ("amichevole", "Amica", "alleata"), or "".
+static func attitude_of(t: String) -> String:
+	var low := t.to_lower()
+	for a in ATTITUDES:
+		if low.contains(a.left(a.length() - 1)):
+			return a
+	for pair in [["amic", "amichevole"], ["nemic", "ostile"], ["sospett", "diffidente"], ["indifferent", "neutrale"]]:
+		if low.contains(pair[0]):
+			return pair[1]
+	return ""
+
+
+## NPCs of the campaign from a text box, one per line: "Marta: amichevole,
+## ci deve un favore". Lines without an attitude count as neutral.
+func set_npcs(t: String) -> void:
+	var out: Array = []
+	for l in text_lines(t, NPC_MAX):
+		var colon := str(l).find(":")
+		var npc_name := (str(l).left(colon) if colon > 0 else str(l)).strip_edges()
+		var rest := str(l).substr(colon + 1).strip_edges() if colon > 0 else ""
+		var att := attitude_of(rest.get_slice(",", 0))
+		var note := rest.substr(rest.find(",") + 1).strip_edges() if rest.contains(",") else ("" if att != "" else rest)
+		if npc_name != "":
+			out.append({"name": npc_name.left(40), "att": att if att != "" else "neutrale", "note": note.left(FACT_CHARS)})
+	data.npcs = out
+	touch()
+
+
+## The NPC list as the text box shows it.
+func npcs_text() -> String:
+	var lines: Array = []
+	for n in data.get("npcs", []):
+		lines.append("%s: %s%s" % [n.name, n.att, (", " + str(n.note)) if str(n.get("note", "")) != "" else ""])
+	return "\n".join(lines)
+
+
+## Sets one NPC's attitude (added when new). Returns the attitude before, ""
+## for a new NPC, or "-" when nothing changed.
+func set_npc_attitude(npc_name: String, att: String) -> String:
+	npc_name = npc_name.strip_edges().left(40)
+	if npc_name == "" or not ATTITUDES.has(att):
+		return "-"
+	var npcs: Array = data.get("npcs", [])
+	for n in npcs:
+		if Actions.norm(str(n.name)) == Actions.norm(npc_name):
+			if n.att == att:
+				return "-"
+			var before := str(n.att)
+			n.att = att
+			touch()
+			return before
+	if npcs.size() >= NPC_MAX:
+		npcs.pop_front()  # the oldest one makes room
+	npcs.append({"name": npc_name, "att": att, "note": ""})
+	data.npcs = npcs
+	touch()
+	return ""
 
 
 ## Replaces the campaign story (chapters imported from a PDF). Master only.
@@ -949,6 +1014,8 @@ func death_save(id: String, roll: int) -> String:
 		ch.death_ko = 0
 		out = "20 naturale: %s torna a 1 PF!" % ch.name
 		chronicle_add("personaggio", "%s si rialza con un 20 naturale al tiro salvezza contro la morte" % ch.name)
+		if _grant_inspiration(ch):
+			out += " E guadagna ispirazione."
 	elif roll >= 10:
 		ch.death_ok = int(ch.get("death_ok", 0)) + 1
 		out = "Successo (%d/3)" % ch.death_ok
@@ -1469,6 +1536,8 @@ func add_roll(info: Dictionary, emit := true) -> Dictionary:
 		"manual": bool(info.get("manual", false)),
 	}
 	data.log.append(entry)
+	if nat == 20 and entry.who_type == "pc" and not entry.secret and str(entry.kind) in INSPIRING_KINDS:
+		entry.inspired = _grant_inspiration(find_entity(entry.who_id))
 	if nat != 0 and not entry.secret and str(entry.kind) != "Danni":
 		chronicle_add("tiro", "%s di %s%s" % ["20 naturale" if nat == 20 else "1 naturale", entry.who, (" (%s)" % entry.reason) if entry.reason != "" else ""])
 	if data.log.size() > LOG_LIMIT:
@@ -1477,6 +1546,41 @@ func add_roll(info: Dictionary, emit := true) -> Dictionary:
 	if emit:
 		touch()
 	return entry
+
+
+## d20 tests whose natural 20 gives inspiration (house rule of this table:
+## attacks, ability checks and saving throws; not initiative).
+const INSPIRING_KINDS := ["Attacco", "Prova", "Tiro salvezza"]
+
+
+## Gives inspiration to a character who has none (one at a time, as in the
+## Player's Handbook). True when it was given.
+func _grant_inspiration(ch: Dictionary) -> bool:
+	if ch.is_empty() or not is_pc(str(ch.get("id", ""))) or bool(ch.get("inspiration", false)):
+		return false
+	ch.inspiration = true
+	chronicle_add("personaggio", "%s guadagna ispirazione con un 20 naturale" % ch.name)
+	return true
+
+
+## Inspiration on or off, from the master's sheet.
+func set_inspiration(id: String, on: bool) -> void:
+	var ch := find_entity(id)
+	if ch.is_empty() or not is_pc(id):
+		return
+	ch.inspiration = on
+	touch()
+
+
+## Spends a character's inspiration (advantage on one d20 roll). False when
+## the character has none.
+func use_inspiration(id: String) -> bool:
+	var ch := find_entity(id)
+	if ch.is_empty() or not is_pc(id) or not bool(ch.get("inspiration", false)):
+		return false
+	ch.inspiration = false
+	touch()
+	return true
 
 
 ## Master roll from the 3D tray.
@@ -1520,6 +1624,9 @@ func player_roll(char_id: String, msg: Dictionary) -> Dictionary:
 		"mod": clampi(int(msg.get("mod", 0)), -50, 50), "adv": str(msg.get("adv", "none")).left(8),
 		"reason": str(msg.get("reason", "")).left(120), "secret": false,
 		"formula": str(msg.get("formula", "")).left(80), "manual": bool(msg.get("manual", false))}
+	# advantage paid with inspiration (the phone rolled 2d20)
+	if bool(msg.get("insp", false)) and info.adv == "adv" and use_inspiration(char_id):
+		info.reason = (str(info.reason) + " (ispirazione)").strip_edges()
 	var req := find_request(str(msg.get("request_id", "")))
 	var check := {}
 	if not req.is_empty() and req.chars.has(char_id) and not req.done.has(char_id):

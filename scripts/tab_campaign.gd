@@ -177,6 +177,7 @@ func _story_section(st: GameState) -> void:
 	var moves: Array = st.data.get("faction_moves", [])
 	if not moves.is_empty():
 		body.add_child(UI.wrap_lbl("Ultime mosse delle fazioni: " + " ".join(moves), 17, UI.DIM))
+	body.add_child(_npcs_row(st))
 	if story.is_empty():
 		body.add_child(UI.wrap_lbl("Nessuna storia. Importa il PDF dell'avventura: il testo viene diviso in capitoli e resta visibile solo a te.", 18, UI.DIM))
 		return
@@ -235,6 +236,22 @@ func _lines_row(st: GameState, label: String, key: String, most: int, hint: Stri
 			setter.call(te.text)
 			app.toast("Salvato: " + label))
 	return UI.vbox([UI.lbl("%s (al massimo %d)" % [label, most], 19, UI.DIM), te], 4)
+
+
+## NPCs and their attitude, one per line ("Marta: amichevole, ci deve un
+## favore"). Dnd The Game updates it when the narrator writes [[PNG: ...]].
+func _npcs_row(st: GameState) -> Control:
+	var te := TextEdit.new()
+	te.text = st.npcs_text()
+	te.placeholder_text = "Uno per riga, nome: atteggiamento (%s), nota. Dnd The Game lo aggiorna quando un PNG cambia idea sul gruppo" % ", ".join(GameState.ATTITUDES)
+	te.custom_minimum_size = Vector2(0, 110)
+	te.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	te.focus_exited.connect(func():
+		if te.text.strip_edges() != st.npcs_text():
+			st.set_npcs(te.text)
+			te.text = st.npcs_text()
+			app.toast("Salvato: PNG"))
+	return UI.vbox([UI.lbl("PNG e atteggiamento (al massimo %d)" % GameState.NPC_MAX, 19, UI.DIM), te], 4)
 
 
 func _story_bbcode(t: String) -> String:

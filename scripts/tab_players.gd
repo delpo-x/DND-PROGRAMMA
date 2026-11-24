@@ -99,6 +99,9 @@ func refresh() -> void:
 			UI.btn("PF temp.", func(): st.give_temp_hp(id, UI.spin_value(amt)), 48),
 			UI.btn("Difese", func(): CombatUI.defenses_dialog(app, id), 48),
 			UI.btn("Slot", _slots_dialog.bind(id), 48),
+			UI.color_btn("Ispirazione ✦" if bool(ch.get("inspiration", false)) else "Ispirazione",
+				Color(0.55, 0.42, 0.1) if bool(ch.get("inspiration", false)) else Color(0.2, 0.2, 0.24),
+				func(): st.set_inspiration(id, not bool(ch.get("inspiration", false))), 48),
 			UI.btn("Dado vita (%d/%d)" % [int(ch.get("level", 1)) - int(ch.get("hd_used", 0)), int(ch.get("level", 1))],
 				func():
 					var t := st.spend_hit_die(id)

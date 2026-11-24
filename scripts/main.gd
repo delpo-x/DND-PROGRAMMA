@@ -361,6 +361,8 @@ func _on_roll_toast(e: Dictionary) -> void:
 			txt += "  (RIUSCITA)"
 		elif e.outcome == "fail":
 			txt += "  (FALLITA)"
+		if bool(e.get("inspired", false)):
+			txt += "  + ispirazione"
 		toast(txt)
 
 

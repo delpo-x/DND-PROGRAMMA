@@ -321,6 +321,7 @@ func system_prompt() -> String:
 	p.append("- Quando inizia un combattimento scrivi alla fine: [[COMBATTIMENTO: Goblin x2, Lupo]] usando i nomi dei mostri qui sotto. Poi non narrare i colpi: li risolve il tavolo.")
 	if not adventure_over():
 		p.append("- Quando il capitolo arriva a una conclusione naturale scrivi alla fine [[FINE CAPITOLO]].")
+	p.append("- Quando un PNG con un nome cambia atteggiamento verso il gruppo, o ne incontrate uno nuovo che conta, scrivi alla fine [[PNG: Marta amichevole]] con uno di questi: ostile, diffidente, neutrale, amichevole, alleato.")
 	p.append("- I marcatori tra doppie parentesi quadre vanno solo alla fine e solo quando servono.")
 	p.append("- La traccia del capitolo può essere scritta ad appunti, senza articoli: tu racconta sempre in italiano pieno e scorrevole, senza sigle.")
 	p.append("- Se la traccia ha una linea temporale, porta il gruppo da un momento al successivo seguendo le loro scelte, senza saltare avanti. Quando arriva il momento indicato come fine, chiudi il capitolo.")
@@ -353,6 +354,12 @@ func system_prompt() -> String:
 			p.append("Intanto, fuori scena (i giocatori non lo sanno: fallo capire solo con indizi e conseguenze, non raccontarlo):")
 			for m in moves:
 				p.append("- " + str(m))
+	var npcs: Array = st.data.get("npcs", [])
+	if not npcs.is_empty():
+		p.append("")
+		p.append("PNG già incontrati e cosa pensano del gruppo (fallo sentire in come parlano e in cosa sono disposti a fare):")
+		for n in npcs:
+			p.append("- %s: %s%s" % [n.name, n.att, (" (" + str(n.note) + ")") if str(n.get("note", "")) != "" else ""])
 	var story: Dictionary = st.data.get("story", {})
 	if not story.is_empty():
 		p.append("")
