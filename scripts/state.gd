@@ -39,6 +39,7 @@ var _last_backup := 0.0
 # box to talk to it. Not saved with the campaign.
 var ai_master := false
 var ai_feed: Array = []  # [{who, text}]
+var ai_secrets: Dictionary = {}  # char id -> [{q, a}]: each player sees only their own
 var ai_busy := false
 var ai_reading := ""  # Dnd The Game: "on" while the chapter text is read aloud, "paused" when there is more to read
 
@@ -1629,7 +1630,8 @@ func player_view(char_id: String) -> Dictionary:
 		"map": _public_map(char_id),
 		"me_img": Art.key_for(me, "pc") if not me.is_empty() else "",
 		"turn": Actions.phone_turn(self, char_id) if not me.is_empty() else {},
-		"ai": {"feed": ai_feed.slice(maxi(0, ai_feed.size() - 8)), "busy": ai_busy, "reading": ai_reading} if ai_master else null,
+		"ai": {"feed": ai_feed.slice(maxi(0, ai_feed.size() - 8)), "busy": ai_busy, "reading": ai_reading,
+			"secrets": ai_secrets.get(char_id, [])} if ai_master else null,
 	}
 
 

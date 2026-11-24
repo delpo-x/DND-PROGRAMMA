@@ -29,6 +29,11 @@ var chapter_title := ""
 var transcript: Array = []  # {role: "user"|"assistant", who, text}
 var chron_start := 0
 var summary := ""
+## Plots a player told the master privately: {cid, who, text, reply}. They are
+## not in the transcript (so not in the table feed, the chapter text or its
+## summary) but the narrator always knows them.
+var secrets: Array = []
+const SECRETS_MAX := 30
 var read_pos := 0  # next "Da leggere" paragraph of the chapter to read aloud
 var read_mark := 0  # transcript size right after the last paragraph read
 
@@ -50,6 +55,7 @@ func open(state) -> void:
 		chapter = maxi(1, int(j.get("chapter", 1)))
 		chapter_title = str(j.get("title", ""))
 		transcript = j.get("transcript", []) if j.get("transcript") is Array else []
+		secrets = j.get("secrets", []) if j.get("secrets") is Array else []
 		chron_start = clampi(int(j.get("chron_start", chron_start)), 0, st.data.get("chronicle", []).size())
 		read_pos = maxi(0, int(j.get("read_pos", 0)))
 		read_mark = clampi(int(j.get("read_mark", transcript.size())), 0, transcript.size())
@@ -59,7 +65,7 @@ func save() -> void:
 	if not st.persist:
 		return
 	_write(dir + "/corrente.json", JSON.stringify({"chapter": chapter, "title": chapter_title,
-		"transcript": transcript, "chron_start": chron_start, "read_pos": read_pos, "read_mark": read_mark}, "\t"))
+		"transcript": transcript, "secrets": secrets, "chron_start": chron_start, "read_pos": read_pos, "read_mark": read_mark}, "\t"))
 
 
 ## Paragraphs of the current chapter written to be read aloud to the players:
@@ -165,6 +171,57 @@ func add(role: String, who: String, text: String) -> void:
 		return
 	transcript.append({"role": role, "who": who, "text": t})
 	save()
+
+
+func add_secret(cid: String, who: String, text: String) -> void:
+	secrets.append({"cid": cid, "who": who, "text": text.strip_edges().left(400), "reply": ""})
+	if secrets.size() > SECRETS_MAX:
+		secrets.pop_front()
+	save()
+
+
+## The master's private answer to the oldest unanswered secret of a player.
+func set_secret_reply(cid: String, reply: String) -> void:
+	for s in secrets:
+		if str(s.cid) == cid and str(s.reply) == "":
+			s.reply = reply.strip_edges()
+			break
+	save()
+
+
+## For the phones: char id -> last secrets of that player [{q, a}].
+func secrets_by_char() -> Dictionary:
+	var out := {}
+	for s in secrets:
+		var l: Array = out.get(str(s.cid), [])
+		l.append({"q": str(s.text), "a": str(s.reply)})
+		out[str(s.cid)] = l.slice(maxi(0, l.size() - 4))
+	return out
+
+
+func _secrets_note() -> String:
+	var lines: Array = []
+	for s in secrets.slice(maxi(0, secrets.size() - 6)):
+		lines.append("- %s: %s%s" % [s.who, str(s.text).left(200), (" (tu: %s)" % str(s.reply).left(160)) if str(s.reply) != "" else ""])
+	if lines.is_empty():
+		return ""
+	return ("[Complotti segreti dei giocatori, gli altri giocatori non li conoscono:\n" + "\n".join(lines)
+		+ "\nNon rivelarli e non nominarli in pubblico: falli pesare sulla storia solo quando accadono in scena.]\n")
+
+
+## Prompt for the private answer to one player's secret.
+func secret_messages(who: String, text: String) -> Array:
+	var out: Array = [{"role": "system", "content": system_prompt()}]
+	for t in transcript.slice(maxi(0, transcript.size() - RECENT)):
+		if t.role == "assistant":
+			out.append({"role": "assistant", "content": t.text})
+		else:
+			out.append({"role": "user", "content": "%s: %s" % [t.who, t.text]})
+	out.append({"role": "user", "content": _secrets_note()
+		+ ("[Messaggio SEGRETO di %s: lo leggete solo tu e %s. Rispondi solo a %s, in seconda persona, in 2-4 frasi: " % [who, who, who]
+		+ "cosa riesce a fare o a scoprire di nascosto e cosa potrebbe succedere. Niente tag, niente prove, non far parlare gli altri personaggi.]\n")
+		+ "%s: %s" % [who, text]})
+	return out
 
 
 func is_new() -> bool:
@@ -275,6 +332,7 @@ func messages(extra := "") -> Array:
 			+ "la prova, ad esempio [[PROVA: %s CD 15: %s]], con la difficoltà che scegli tu da 10 a 20.]\n" % [pc.skill, pc.who]) + last
 	if extra != "":
 		last = extra + "\n" + last
+	last = _secrets_note() + last
 	out.append({"role": "user", "content": last})
 	return out
 

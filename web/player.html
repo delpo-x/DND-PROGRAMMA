@@ -840,11 +840,13 @@
     box.classList.remove('hidden');
     if (!$('aiFeed')) {
       box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
-        '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Cosa fai? Scrivi, o detta col microfono della tastiera"></textarea><button class="primary" id="aiSend">Invia</button></div>';
+        '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Cosa fai? Scrivi, o detta col microfono della tastiera"></textarea><button class="primary" id="aiSend">Invia</button></div>' +
+        '<label class="aisec"><input type="checkbox" id="aiSecret"> In segreto: lo sa solo il master</label><div id="aiSecrets" class="aisecrets"></div>';
       $('aiSend').addEventListener('click', function () {
         var t = $('aiText').value.trim();
         if (!t) return;
-        if (link.send({ t: 'say', text: t })) { $('aiText').value = ''; T.buzz([30]); }
+        var sec = $('aiSecret').checked;
+        if (link.send({ t: 'say', text: t, secret: sec })) { $('aiText').value = ''; $('aiSecret').checked = false; T.buzz([30]); if (sec) toast('Inviato in segreto al master'); }
         else toast('Non collegato al tavolo');
       });
       // pause or resume the reading of the chapter text, for everyone
@@ -865,6 +867,12 @@
       return '<p class="' + (x.who === 'Master' ? 'aim' : 'aip') + '"><b>' + esc(x.who) + '</b> ' + esc(x.text).replace(/\n/g, '<br>') + (x.live ? '<span class="aicaret"></span>' : '') + '</p>';
     }).join('');
     f.scrollTop = f.scrollHeight;
+    // this player's own secrets with the master's private answers
+    var ss = ai.secrets || [];
+    $('aiSecrets').innerHTML = ss.length ? '<div class="dim">I tuoi segreti (solo tu li vedi)</div>' + ss.map(function (s) {
+      return '<p class="aip"><b>Tu</b> ' + esc(s.q) + '</p><p class="aim"><b>Master</b> ' +
+        (s.a ? esc(s.a).replace(/\n/g, '<br>') : '<span class="aidots"><i></i><i></i><i></i></span>') + '</p>';
+    }).join('') : '';
   }
 
   function renderTurn() {

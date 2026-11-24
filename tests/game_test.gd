@@ -291,6 +291,26 @@ Altro.".repeat(300)}
 	g._on_finished("Bruno sale. [[PROVA: Atletica CD 12: Bruno]]", true, "")
 	check("narrator's own check kept", g.feed.any(func(e): return str(e.text).contains("Atletica (CD 12)")), g.feed.back().text)
 	g.checks.clear()
+	# secret plots: not on the table, only on that phone, known to the narrator
+	var c0 := str(st.characters()[0].id)
+	var c1 := str(st.characters()[1].id)
+	var feed_n: int = g.feed.size()
+	g.net.player_secret.emit(c0, "Di nascosto rubo la mappa dal tavolo del capitano.")
+	check("secret not on the table", g.feed.size() == feed_n)
+	check("secret queued for the narrator", g._secret_queue.has(c0) or g.narrator.current_tag() == "secret")
+	var tr := ""
+	for line in g.story.transcript:
+		tr += str(line.text)
+	check("secret not in the transcript", not tr.contains("mappa dal tavolo"))
+	g._secret_cid = c0
+	g._on_finished("Le tue dita scivolano sulla pergamena: la mappa ora è nel tuo mantello.", true, "secret")
+	var v0: Dictionary = st.player_view(c0).ai
+	var v1: Dictionary = st.player_view(c1).ai
+	check("secret answered on own phone", v0.secrets.size() == 1 and str(v0.secrets[0].a).contains("mantello"), v0.secrets)
+	check("other phone sees nothing", v1.secrets.is_empty())
+	var msgs: Array = g.story.messages()
+	check("narrator remembers the secret", str(msgs.back().content).contains("rubo la mappa"))
+	g._secret_queue.clear()
 	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

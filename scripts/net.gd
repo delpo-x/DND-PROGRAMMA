@@ -12,6 +12,7 @@ signal player_action(char_id: String, title: String, lines: Array)
 ## Dnd The Game only (state.ai_master): a player talks to the AI master, or
 ## ends their turn in combat.
 signal player_said(char_id: String, text: String)
+signal player_secret(char_id: String, text: String)  # Dnd The Game: only the master hears it
 signal player_end_turn(char_id: String)
 signal player_read(char_id: String, on: bool)  # Dnd The Game: Pausa / Riprendi lettura
 
@@ -561,7 +562,9 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 		"say":
 			if c.role == "player" and c.char_id != "" and state.ai_master:
 				var txt := str(msg.get("text", "")).strip_edges().left(400)
-				if txt != "":
+				if txt != "" and bool(msg.get("secret", false)):
+					player_secret.emit(c.char_id, txt)
+				elif txt != "":
 					player_said.emit(c.char_id, txt)
 		"read":
 			if c.role == "player" and c.char_id != "" and state.ai_master:

@@ -52,6 +52,8 @@ var _reading := false   # reading the "Da leggere" text of the chapter aloud
 var _read_clock := 0.0  # time since the paragraph started
 var _read_quiet := 0.0  # time the voice has been silent
 var _read_min := 0.0    # time to leave a paragraph on screen without voice
+var _secret_queue: Array = []  # char ids waiting for a private answer
+var _secret_cid := ""
 var _want_check := {}  # check the last player's action needs (see GameStory.pending_check)
 var _adapting := false  # the narrator is checking the next paragraph
 var _adapt_raw := ""
@@ -123,6 +125,7 @@ func _ready() -> void:
 	net.clients_changed.connect(func(): _ui_dirty = true)
 	net.player_message.connect(toast)
 	net.player_said.connect(_on_player_said)
+	net.player_secret.connect(_on_player_secret)
 	net.player_end_turn.connect(func(cid): _end_pc_turn(cid))
 	net.player_read.connect(_on_player_read)
 	net.player_action.connect(_on_player_action)
@@ -467,7 +470,8 @@ func _sync_phones(light := false) -> void:
 		if str(e.text) != "" or live:
 			out.append({"who": e.who, "text": e.text, "live": live})
 	state.ai_feed = out
-	state.ai_busy = narrator.busy and narrator.current_tag() != "prep"
+	state.ai_secrets = story.secrets_by_char()
+	state.ai_busy = narrator.busy and not narrator.current_tag() in ["prep", "secret"]
 	if light:
 		net.broadcast_pending = true
 	else:
@@ -491,6 +495,29 @@ func _send_input() -> void:
 
 func _on_player_said(cid: String, text: String) -> void:
 	_player_says(str(state.find_entity(cid).get("name", "Giocatore")), text)
+
+
+## A player plots in secret: the table shows nothing, the narrator answers on
+## that phone only, and keeps the plot in mind for the story.
+func _on_player_secret(cid: String, text: String) -> void:
+	story.add_secret(cid, str(state.find_entity(cid).get("name", "Giocatore")), text)
+	_secret_queue.append(cid)
+	if narrator.current_tag() == "prep":
+		narrator.cancel()
+	_run_secret()
+	_sync_phones()
+
+
+func _run_secret() -> void:
+	if _secret_queue.is_empty() or narrator.busy or _closing:
+		return
+	if test_mode and not llm_in_tests:
+		return
+	_secret_cid = str(_secret_queue.pop_front())
+	for s in story.secrets:
+		if str(s.cid) == _secret_cid and str(s.reply) == "":
+			narrator.ask(story.secret_messages(str(s.who), str(s.text)), {"max": 160, "tag": "secret"})
+			return
 
 
 func _player_says(who: String, text: String) -> void:
@@ -573,6 +600,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			_adapt_done(full, ok)
 		"prep":
 			_prep_done(full, ok)
+		"secret":
+			story.set_secret_reply(_secret_cid, GameStory.strip_tags(full) if ok and full.strip_edges() != "" else "(Il master ora non riesce a rispondere: riprova tra poco.)")
 		_:
 			voice.end()
 			var e := _live
@@ -595,6 +624,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 	_sync_phones()
 	if _want_narration and not narrator.busy:
 		narrate()
+	elif not _secret_queue.is_empty():
+		_run_secret()
 	else:
 		_prepare_next()
 
