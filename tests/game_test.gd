@@ -252,6 +252,26 @@ Altro.".repeat(300)}
 	check("skipped text, next one checked", g.story.read_pos == 2 and g._adapting, g.story.read_pos)
 	g._on_finished("LEGGI", true, "adapt")
 	check("text read as written", g.story.transcript.back().text == "Dopo la lotta, il silenzio." and g.story.read_pos == 3)
+	# prepared during a pause: Riprendi lettura reads it at once
+	g.pause_reading()
+	g.state.combat_end()
+	g.story.read_pos = 1
+	g.story.read_mark = 0
+	g._prep = {}
+	g._prep_key = []
+	g._prepare_next()
+	check("pause prepares the next text", g._prep_key == g._reading_key(), [g._reading, g._adapting, g._closing, g.narrator.busy, g._want_narration, g.story.reading_diverged(), g.state.ini().active, g.checks.size()])
+	g._on_finished("La strada è vuota, i lupi sono fuggiti.", true, "prep")
+	check("prepared text kept", not g._prep.is_empty())
+	g.start_reading()
+	check("prepared text read without waiting", g.story.transcript.back().text == "La strada è vuota, i lupi sono fuggiti." and g.story.read_pos == 2, g.story.transcript.back())
+	g.pause_reading()
+	g.story.read_pos = 1
+	g.story.read_mark = 0
+	g._prep = {}
+	g._prepare_next()
+	g._player_says("Bruno", "Corro avanti.")
+	check("a player acting drops the preparation", g._prep_key.is_empty() and g._prep.is_empty())
 	g.story.read_pos = 1
 	check("narrator told the next text", str(g.story.messages().back().content).contains("Prossimo testo"))
 	st.set_story({})

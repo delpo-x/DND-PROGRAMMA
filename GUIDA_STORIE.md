@@ -101,6 +101,9 @@ carovana piegano verso una grotta da cui esce un filo di fumo.
   successivo il narratore lo confronta con la situazione: lo legge così com'è, lo riscrive
   adattato (la locanda è in fiamme, non silenziosa) o lo salta (il gruppo è andato altrove).
   Se nessuno ha fatto niente, il testo viene letto parola per parola, senza attese.
+- **Durante le pause il narratore lavora.** Quando la lettura è ferma e il narratore ha finito
+  di rispondere, prepara subito il paragrafo successivo adattato: "Riprendi lettura" lo legge
+  senza attese. Se nel frattempo un giocatore agisce, la preparazione si butta e si rifà dopo.
 - Mentre i giocatori improvvisano, il narratore conosce il prossimo paragrafo da leggere e può
   riportare la storia verso di esso, senza raccontarlo lui.
 - Scrivi quindi paragrafi brevi e indipendenti: uno per scena. Un paragrafo lungo che racconta

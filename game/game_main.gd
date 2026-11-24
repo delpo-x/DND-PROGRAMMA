@@ -53,6 +53,10 @@ var _read_quiet := 0.0  # time the voice has been silent
 var _read_min := 0.0    # time to leave a paragraph on screen without voice
 var _adapting := false  # the narrator is checking the next paragraph
 var _adapt_raw := ""
+## The adaptation of the next paragraph, prepared while the reading is paused:
+## {key: [read_pos, transcript size], full, ok}. Valid only for that key.
+var _prep := {}
+var _prep_key: Array = []
 var modal_layer: Control
 var toast_box: VBoxContainer
 
@@ -461,7 +465,7 @@ func _sync_phones(light := false) -> void:
 		if str(e.text) != "" or live:
 			out.append({"who": e.who, "text": e.text, "live": live})
 	state.ai_feed = out
-	state.ai_busy = narrator.busy
+	state.ai_busy = narrator.busy and narrator.current_tag() != "prep"
 	if light:
 		net.broadcast_pending = true
 	else:
@@ -501,6 +505,9 @@ func _event(text: String) -> void:
 
 func narrate() -> void:
 	pause_reading()
+	if narrator.current_tag() == "prep":
+		narrator.cancel()
+	_prep_key = []
 	if narrator.busy or _closing:
 		_want_narration = true
 		return
@@ -561,6 +568,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			_finish_chapter(full.strip_edges() if ok else "")
 		"adapt":
 			_adapt_done(full, ok)
+		"prep":
+			_prep_done(full, ok)
 		_:
 			voice.end()
 			var e := _live
@@ -581,6 +590,8 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 	_sync_phones()
 	if _want_narration and not narrator.busy:
 		narrate()
+	else:
+		_prepare_next()
 
 
 func _on_tag(name: String, arg: String) -> void:
@@ -597,6 +608,9 @@ func _on_tag(name: String, arg: String) -> void:
 func _ask_close_chapter() -> void:
 	if _closing:
 		return
+	if narrator.current_tag() == "prep":
+		narrator.cancel()
+		_prep_key = []
 	if state.ini().active:
 		toast("Prima finite il combattimento")
 		return
@@ -685,6 +699,22 @@ func _read_next() -> void:
 
 
 func _adapt(raw: String) -> void:
+	var key := _reading_key()
+	if not _prep.is_empty() and _prep.key == key:
+		# prepared during the pause: no wait
+		_adapting = true
+		_adapt_raw = raw
+		var ready: Dictionary = _prep
+		_prep = {}
+		_adapt_done(str(ready.full), bool(ready.ok))
+		return
+	if narrator.current_tag() == "prep" or (test_mode and _prep_key == key):
+		if _prep_key == key:
+			_adapting = true  # being prepared: _on_finished hands it over
+			_adapt_raw = raw
+			_refresh_read_btn()
+			return
+		narrator.cancel()
 	if narrator.busy:
 		return  # _reading_tick tries again when the narrator is free
 	_adapting = true
@@ -715,6 +745,38 @@ func _adapt_done(full: String, ok: bool) -> void:
 			_read_paragraph(raw, str(r.text))
 		_:
 			_read_paragraph(raw, raw)
+
+
+func _reading_key() -> Array:
+	return [story.read_pos, story.transcript.size()]
+
+
+## While the reading is paused after the players' choices, the narrator is
+## idle: it prepares the next paragraph then, so Riprendi lettura reads it at
+## once. A player acting cancels it (the situation changed).
+func _prepare_next() -> void:
+	if _reading or _adapting or _closing or narrator.busy or _want_narration:
+		return
+	if not story.reading_left() or not story.reading_diverged() or state.ini().active or not checks.is_empty():
+		return
+	var key := _reading_key()
+	if (not _prep.is_empty() and _prep.key == key) or _prep_key == key:
+		return
+	_prep = {}
+	_prep_key = key
+	if test_mode and not llm_in_tests:
+		return  # tests answer with _on_finished(..., "prep")
+	var raw := str(story.read_aloud()[story.read_pos])
+	narrator.ask(story.adapt_messages(GameStory.strip_tags(raw)), {"max": 260, "temp": 0.4, "tag": "prep"})
+
+
+func _prep_done(full: String, ok: bool) -> void:
+	var key := _prep_key
+	_prep_key = []
+	if _adapting and _adapt_raw != "" and key == _reading_key():
+		_adapt_done(full, ok)  # Riprendi lettura was pressed meanwhile
+	elif ok and key == _reading_key():
+		_prep = {"key": key, "full": full, "ok": ok}
 
 
 ## Reads one paragraph (text: as written or adapted) and moves past raw.

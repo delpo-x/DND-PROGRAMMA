@@ -54,6 +54,22 @@ func ask(messages: Array, opts := {}) -> bool:
 	return true
 
 
+## Tag of the request being written ("" when idle).
+func current_tag() -> String:
+	return _tag if busy else ""
+
+
+## Drops the request being written, without the finished signal. Closing the
+## connection also stops Ollama, so the model is free at once.
+func cancel() -> void:
+	if not busy:
+		return
+	_phase = 0
+	if _http:
+		_http.close()
+	busy = false
+
+
 ## Loads the model in memory, so the first real reply is not slow.
 func warm_up() -> void:
 	ask([{"role": "user", "content": "Rispondi solo: pronto"}], {"max": 2, "tag": "warm"})
