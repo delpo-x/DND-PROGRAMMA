@@ -119,7 +119,9 @@ func _process(delta: float) -> void:
 				_http.request(HTTPClient.METHOD_POST, "/api/chat", ["Content-Type: application/json"], _body)
 				_phase = 2
 				_clock = 0.0
-				if _tag != "warm":
+				if _tag == "secret" or _tag == "prep":
+					pass  # silent work: the table must not see it
+				elif _tag != "warm":
 					_set_status("Il narratore pensa...")
 				else:
 					_set_status("Carico il modello %s (la prima volta serve un minuto)..." % model)
@@ -188,7 +190,8 @@ func _done(ok: bool, why: String) -> void:
 		_http.close()
 	busy = false
 	if ok:
-		_set_status("Narratore pronto (%s, su questo PC)" % model)
+		if _tag != "secret":
+			_set_status("Narratore pronto (%s, su questo PC)" % model)
 	else:
 		_set_status(why)
 	finished.emit(_full, ok, _tag)
