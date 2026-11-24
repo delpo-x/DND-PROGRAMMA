@@ -196,6 +196,10 @@ Quanto costa un testo lungo:
 
 ### Le prove
 
+Una prova serve solo se fallire cambia la scena. Parlare con l'oste, guardarsi attorno o
+avvicinarsi a qualcuno senza pericolo riescono e basta: il narratore ha questa regola, e la
+scheda lo aiuta se scrive le prove vere del capitolo (`Atletica CD 15 per salire la parete`).
+
 Quando un giocatore fa qualcosa dall'esito incerto (cercare trappole, arrampicarsi, convincere,
 nascondersi...), il tavolo riconosce l'azione dalle parole e ricorda al narratore di chiedere la
 prova, con la difficoltà che sceglie lui (da 10 a 20). Se il narratore se ne dimentica, la prova
@@ -207,7 +211,13 @@ telefono collegato tira in automatico. Durante un combattimento questo controllo
 - **Obiettivo in una frase.** Il narratore lo usa per riportare il gruppo sulla strada.
 - **Luoghi con un dettaglio da sentire** (odore, rumore, luce). Sono le frasi che il narratore
   riprende meglio.
-- **PNG con nome, ruolo e cosa sanno.** Una sola informazione chiave per PNG.
+- **PNG con nome, ruolo e cosa sanno.** Una sola informazione chiave per PNG. Per i PNG
+  importanti aggiungi in una riga cosa vogliono, cosa temono, come trattano il gruppo (ostili,
+  diffidenti, neutrali, amichevoli) e l'eventuale segreto con la condizione per rivelarlo:
+  "Gualtiero, carrettiere ferito: vuole tenersi l'argento della carovana, teme i goblin,
+  diffidente; nasconde il sacchetto sotto la paglia e lo ammette solo se scoperto". L'aspetto,
+  la voce e il modo di parlare vanno invece nel testo da leggere, dove non tolgono spazio alla
+  scheda.
 - **Mostri con i nomi esatti** dei mostri preparati nell'app del master o del bestiario
   (`Goblin`, `Lupo`, `Capo goblin`...). Con un nome diverso il combattimento parte con un
   mostro generico.

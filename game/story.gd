@@ -123,9 +123,11 @@ static func parse_adapt(full: String) -> Dictionary:
 static var check_hints := true
 
 ## Words of a player's action that call for a check, and which skill.
+## Just looking ("osservo", "con attenzione") is left out: in the playtest it
+## asked for a check at almost every line, also where failing changed nothing.
 ## Order matters: the first match wins. Words at the start of a word only.
 const CHECK_WORDS: Array = [
-	["Percezione", ["cerco trappol", "trappol", "ascolt", "orecchio", "scrut", "osserv", "guardo attent", "con attenzione", "sbirci", "origli", "annus"]],
+	["Percezione", ["cerco trappol", "trappol", "ascolt", "orecchio", "sbirci", "origli", "annus"]],
 	["Indagare", ["esamin", "ispezion", "frug", "perquis", "cerco indiz", "indizi", "cerco passagg", "cerco", "rovist"]],
 	["Atletica", ["arrampic", "scalo", "scalare", "salto", "saltare", "nuot", "sfond", "forzo", "forzare", "spingo", "sollev", "trascin"]],
 	["Acrobazia", ["equilibri", "capriol", "schiv", "rotol", "in bilico"]],
@@ -134,7 +136,7 @@ const CHECK_WORDS: Array = [
 	["Persuasione", ["convinc", "persuad", "supplic"]],
 	["Inganno", ["mento", "mentire", "ingann", "bluff", "fingo", "fingere", "travest"]],
 	["Intimidire", ["minacc", "intimid", "spavent"]],
-	["Intuizione", ["sta mentendo", "mi fido", "capire se", "intenzion"]],
+	["Intuizione", ["sta mentendo", "mi fido", "intenzion"]],
 	["Sopravvivenza", ["tracce", "orme", "orient"]],
 	["Medicina", ["curo", "medico", "fascio", "stabilizz"]],
 	["Arcano", ["rune", "runa", "magia", "incantes", "glif"]],
@@ -205,11 +207,14 @@ func secrets_by_char() -> Dictionary:
 	return out
 
 
-## Players' secrets for a request. private: the request answers a secret, so
-## the master's earlier private answers are added too. In public requests
-## they are left out: the model copied them word for word into the public
-## narration (tests/playtest.gd).
+## Players' secrets for a request that answers a secret, with the master's
+## earlier private answers. Public requests get only a line saying there are
+## secrets: given the secrets themselves, even without the answers, the model
+## narrated them aloud (two playtests in tests/llm_results).
 func _secrets_note(private := false) -> String:
+	if not private:
+		return "" if secrets.is_empty() else "[Alcuni giocatori hanno fatto mosse segrete con te in privato: qui rispondi solo a quello che si dice al tavolo e non raccontare azioni nascoste di nessuno.]
+"
 	var lines: Array = []
 	var seen := {}
 	for s in secrets.slice(maxi(0, secrets.size() - (6 if private else 4))):
@@ -302,9 +307,11 @@ func system_prompt() -> String:
 	p.append("Sei il Dungeon Master di una partita di Dungeons & Dragons 5ª edizione. Parli sempre in italiano, a un gruppo di amici seduti attorno al tavolo.")
 	p.append("Regole del tuo modo di narrare:")
 	p.append("- Al massimo 4 frasi, un solo paragrafo: la tua voce viene letta ad alta voce.")
+	p.append("- Comincia dall'effetto di quello che il giocatore ha appena fatto o detto, poi racconta come reagiscono il luogo e i PNG.")
 	p.append("- Parla solo di luoghi, rumori, PNG e mostri. I personaggi dei giocatori fanno e dicono soltanto ciò che scrivono i giocatori: non farli muovere, parlare o pensare.")
 	p.append("- Chiudi sempre con la domanda: Cosa fate?")
 	p.append("- Non tirare dadi e non inventare numeri: dadi, danni e punti ferita li gestisce il tavolo.")
+	p.append("- Chiedi una prova solo se fallire cambierebbe la scena: parlare, guardarsi attorno o avvicinarsi senza pericolo riescono e basta.")
 	p.append("- Se un'azione ha un esito incerto chiedi una prova scrivendo alla fine, su una riga a parte, ad esempio: [[PROVA: Percezione CD 15: Aria]] (abilità, difficoltà da 10 a 20, chi la tira oppure tutti).")
 	p.append("- Per un tiro salvezza: [[PROVA: TS Destrezza CD 13: tutti]].")
 	p.append("- Quando inizia un combattimento scrivi alla fine: [[COMBATTIMENTO: Goblin x2, Lupo]] usando i nomi dei mostri qui sotto. Poi non narrare i colpi: li risolve il tavolo.")

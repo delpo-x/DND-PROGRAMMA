@@ -1392,8 +1392,18 @@ func _check_end() -> bool:
 		add_feed("Tavolo", txt, "combat")
 		_event("Il combattimento è finito. " + txt + " Descrivi la scena dopo la battaglia.")
 	else:
-		add_feed("Tavolo", "Tutti i personaggi sono a terra.", "combat")
-		_event("Il combattimento è finito: tutti i personaggi sono a terra. Racconta cosa succede ora, senza decidere chi muore.")
+		# nobody left to act: the game stood still (playtest). The party
+		# wakes up later at 1 PF; the master can change it on the sheets.
+		for e in state.characters():
+			if int(e.hp) <= 0 and int(e.get("death_ko", 0)) < 3:
+				state.set_condition(str(e.id), "Privo di sensi", false)
+				e.hp = 1
+				e.death_ok = 0
+				e.death_ko = 0
+		state.chronicle_add("sconfitta", "Il gruppo è sconfitto e perde i sensi")
+		state.touch()
+		add_feed("Tavolo", "Tutti i personaggi sono a terra. Il gruppo si risveglia più tardi con 1 PF (il master può cambiarlo nelle schede).", "combat")
+		_event("Il combattimento è finito: tutti i personaggi hanno perso i sensi. Racconta come si risvegliano più tardi, feriti: catturati, salvati da qualcuno o lasciati lì. Non uccidere nessuno e non far agire i personaggi.")
 	_ui_dirty = true
 	return true
 

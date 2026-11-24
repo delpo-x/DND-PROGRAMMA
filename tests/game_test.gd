@@ -292,6 +292,21 @@ Altro.".repeat(300)}
 	var cs := GameStory.clean_secret("[[MESSAGGIO SEGRETO per Dario]]: Noti un residuo sulla paglia, come di veleno.\n\nIl goblin strilla e scappa. Cosa fate?\n[Messaggio SEGRETO di Dario: altro]")
 	check("secret answer cleaned", cs == "Noti un residuo sulla paglia, come di veleno.", cs)
 	check("not a monster", g.spawn("Nessuno").is_empty())
+	# public requests do not carry the secrets (the model told them aloud)
+	g.story.add_secret(str(st.characters()[0].id), "Aria", "Prendo di nascosto il sacchetto d'argento.")
+	var pub := str(g.story.messages().back().content)
+	check("secret not in public request", not pub.contains("sacchetto") and pub.contains("mosse segrete"), pub.left(300))
+	check("secret in the private request", str(g.story.secret_messages("Aria", "altro").back().content).contains("sacchetto"))
+	g.story.secrets.clear()
+	# everybody down: the party wakes up at 1 PF instead of standing still
+	g.state.combat_end()
+	check("fight for the defeat", g.start_combat("Goblin"))
+	for e in st.characters():
+		e.hp = 0
+	g._check_end()
+	check("defeat: party wakes at 1 PF", st.characters().all(func(e): return int(e.hp) == 1) and not g.state.ini().active)
+	for e in st.characters():
+		e.hp = int(e.hp_max)
 	g.state.combat_end()
 	g.checks.clear()
 	g.story.add("user", "Bruno", "Provo ad arrampicarmi sulla parete fino in cima.")
@@ -323,7 +338,10 @@ Altro.".repeat(300)}
 	check("secret answered on own phone", v0.secrets.size() == 1 and str(v0.secrets[0].a).contains("mantello"), v0.secrets)
 	check("other phone sees nothing", v1.secrets.is_empty())
 	var msgs: Array = g.story.messages()
-	check("narrator remembers the secret", str(msgs.back().content).contains("rubo la mappa"))
+	# public requests only say there are secrets: with the text the model told
+	# them aloud (tests/llm_results/2026-11-24_partita*.md)
+	check("public request keeps the secret out", not str(msgs.back().content).contains("rubo la mappa") and str(msgs.back().content).contains("mosse segrete"))
+	check("private request remembers the secret", str(g.story.secret_messages(str(st.find_entity(c0).name), "e poi?").back().content).contains("rubo la mappa"))
 	g._secret_queue.clear()
 	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
