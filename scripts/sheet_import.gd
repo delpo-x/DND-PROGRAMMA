@@ -297,19 +297,34 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 	# saving throws and skills: proficiency read from the total bonus
 	var saves: Array = []
 	var save_fields := false
+	# some exports also mark the proficiency next to the total ("StrProf" = "•",
+	# "AthleticsProf" = "P", "E" for expertise, "H" for half): when the marks
+	# are there they win over the totals, which magic items can raise
+	var save_marks := {}
+	for a in AB_KEYS:
+		for alias in AB_KEYS[a]:
+			if by.has(alias + "prof"):
+				save_marks[a] = _mark_level(str(by[alias + "prof"]))
 	for k in by:
 		var a := _save_ability(k)
 		var val := _first_int(str(by[k]), true)
 		if a == "" or val == "":
 			continue
 		save_fields = true
-		if not saves.has(a) and _prof_level(int(val), Rules.mod(ch.ab[a]), int(ch.prof)) > 0:
+		var lv: int = int(save_marks.get(a, 0)) if not save_marks.is_empty() \
+			else _prof_level(int(val), Rules.mod(ch.ab[a]), int(ch.prof))
+		if not saves.has(a) and lv > 0:
 			saves.append(a)
 	if save_fields:
 		ch.saves = saves
 		mark.call("tiri salvezza")
 	var skills := {}
 	var skill_fields := false
+	var skill_marks := false
+	for k in by:
+		if k.ends_with("prof") and k != "prof" and not k.begins_with("prof") and _save_ability_mark(k) == "":
+			skill_marks = true
+			break
 	for sid in SKILL_ALIASES:
 		var keys: Array = []
 		for alias in SKILL_ALIASES[sid]:
@@ -321,6 +336,12 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 			continue
 		skill_fields = true
 		var lv := _prof_level(int(val), Rules.mod(ch.ab[Rules.skill_info(sid)[2]]), int(ch.prof))
+		if skill_marks:
+			lv = 0
+			for kk in keys + [_fkey(sid)]:
+				if by.has(kk + "prof"):
+					lv = _mark_level(str(by[kk + "prof"]))
+					break
 		if lv > 0:
 			skills[sid] = lv
 	if skill_fields:
@@ -383,8 +404,9 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 		if str(r.get("name", "")) == "":
 			continue
 		var dm := dice_re.search(str(r.get("damage", "")))
+		var dmg := dm.get_string(1).replace(" ", "") if dm else _first_int(str(r.get("damage", "")))
 		atk.append({"name": str(r.name).left(40), "bonus": clampi(int(_first_int(str(r.get("bonus", "0")), true)), -20, 30),
-			"damage": dm.get_string(1).replace(" ", "") if dm else "1d6"})
+			"damage": dmg if dmg != "" else "1d6"})
 		if atk.size() >= 12:
 			break
 	if not atk.is_empty():
@@ -392,12 +414,71 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 		mark.call("attacchi")
 	# long text fields (features, equipment, proficiencies) go to the notes
 	var notes := PackedStringArray()
+	v = pick.call(["background", "trasfondo"])
+	if v != "":
+		notes.append("Background: " + v.left(60))
+	var gear := _equipment(by)
+	if gear != "":
+		notes.append(gear)
 	for n in fields:
+		var k := _fkey(str(n))
+		if k.begins_with("wpn") or k.begins_with("weapon") or k.begins_with("eq"):
+			continue
 		var t := str(fields[n]).strip_edges()
-		if t.length() >= 40 or t.contains("\n"):
+		if (t.length() >= 40 or t.contains("\n")) and not notes.has(t):
 			notes.append(t)
 	if not notes.is_empty():
 		ch.notes = ("Importato da PDF compilabile.\n" + "\n\n".join(notes)).left(4000)
+
+
+## Level of a proficiency mark: "E" expertise, "H" half (counted as none),
+## anything else written ("P", "•", "X", "Yes") proficient.
+static func _mark_level(s: String) -> int:
+	var t := s.strip_edges().to_upper()
+	if t == "" or t == "OFF" or t == "H" or t == "-" or t == "--":
+		return 0
+	return 2 if t == "E" else 1
+
+
+## Ability of a saving-throw mark field ("strprof"), "" otherwise.
+static func _save_ability_mark(k: String) -> String:
+	for a in AB_KEYS:
+		for alias in AB_KEYS[a]:
+			if k == alias + "prof":
+				return a
+	return ""
+
+
+## Equipment table ("Eq Name3" / "Eq Qty3") and coins as one line of notes:
+## "Equipaggiamento: Ascia (4), Corda; monete: 15 mo".
+static func _equipment(by: Dictionary) -> String:
+	var order: Array = []
+	var qty := {}
+	for i in 100:
+		var nm := str(by.get("eqname%d" % i, "")).strip_edges()
+		if nm == "":
+			if i > 0 and not by.has("eqname%d" % (i + 1)):
+				break
+			continue
+		var q := maxi(1, int(_first_int(str(by.get("eqqty%d" % i, "1")))))
+		if not qty.has(nm):
+			order.append(nm)
+			qty[nm] = 0
+		qty[nm] += q
+	var items := PackedStringArray()
+	for nm in order:
+		items.append(nm if int(qty[nm]) == 1 else "%s (%d)" % [nm, int(qty[nm])])
+	var coins := PackedStringArray()
+	for c in [["pp", "mp"], ["gp", "mo"], ["ep", "me"], ["sp", "ma"], ["cp", "mr"]]:
+		var n := int(_first_int(str(by.get(c[0], ""))))
+		if n > 0:
+			coins.append("%d %s" % [n, c[1]])
+	var out := ""
+	if not items.is_empty():
+		out = "Equipaggiamento: " + ", ".join(items)
+	if not coins.is_empty():
+		out += ("; " if out != "" else "") + "monete: " + " ".join(coins)
+	return out
 
 
 static func _esc(s: String) -> String:

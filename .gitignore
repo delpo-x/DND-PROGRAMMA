@@ -9,3 +9,6 @@ build/*.idsig
 # Test screenshots
 shots/
 audio_src/
+
+# local helper, not part of the repository
+tools/fetch_ambience.py

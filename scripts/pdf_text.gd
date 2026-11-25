@@ -75,7 +75,7 @@ func _run(bytes: PackedByteArray) -> Dictionary:
 	_collect_pages(_get(root.get(&"Pages")), {}, pages, 0)
 	for pg in pages:
 		pages_out.append(_page_text(pg))
-	return {"pages": pages_out, "fields": _form_fields(root), "error": error}
+	return {"pages": pages_out, "fields": _form_fields(root, pages), "error": error}
 
 
 # ------------------------------------------------------------------ forms
@@ -83,7 +83,7 @@ func _run(bytes: PackedByteArray) -> Dictionary:
 ## values here): full field name ("parent.child") -> value as text. Empty
 ## fields and check boxes that are off are left out; a check box that is on
 ## gives the name of its on state (usually "Yes").
-func _form_fields(root: Dictionary) -> Dictionary:
+func _form_fields(root: Dictionary, pages: Array) -> Dictionary:
 	var out := {}
 	var form = _get(root.get(&"AcroForm"))
 	if form is Dictionary:
@@ -91,7 +91,39 @@ func _form_fields(root: Dictionary) -> Dictionary:
 		if fl is Array:
 			for f in fl:
 				_form_field(_get(f), "", out, 0)
+	if out.is_empty():
+		# some tools that merge PDFs drop the /AcroForm entry and keep the
+		# fields only as widget annotations on the pages
+		for pg in pages:
+			var annots = _get(pg.get(&"Annots"))
+			if not annots is Array:
+				continue
+			for a in annots:
+				a = _get(a)
+				if a is Dictionary and str(a.get(&"Subtype", "")) == "Widget":
+					_widget_field(a, out)
 	return out
+
+
+## One widget annotation: its full name comes from the /T of the widget and
+## of its /Parent chain, its value from the first of them that has a /V.
+func _widget_field(w: Dictionary, out: Dictionary) -> void:
+	var parts := PackedStringArray()
+	var node = w
+	var value = null
+	for i in 12:
+		if not node is Dictionary:
+			break
+		var t = _get(node.get(&"T"))
+		if t is PackedByteArray:
+			parts.insert(0, pdf_string(t))
+		if value == null and node.has(&"V"):
+			value = node[&"V"]
+		node = _get(node.get(&"Parent"))
+	var name := ".".join(parts)
+	if name == "" or value == null or out.has(name) or out.size() >= 3000:
+		return
+	_form_field({&"V": value}, name, out, 0)
 
 
 func _form_field(node, parent: String, out: Dictionary, depth: int) -> void:
