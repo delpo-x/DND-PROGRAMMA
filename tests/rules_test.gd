@@ -114,6 +114,29 @@ func _init() -> void:
 	e_ok = e_ok and int(ce.party) == 1 and int(ce.unknown) == 2
 	print("encounter: ", "ok" if e_ok else "FAIL", " ", e, " ", se, " ", ce)
 	ok = ok and e_ok
+	# class resources: barbarian 3 rages at level 3, one back on a short rest,
+	# all on a long rest; paladin pool 5 x level; custom resources by the master
+	var bb: Dictionary = st.add_character("Brak", "")
+	st.update_character(bb.id, {"cls": "Barbaro", "level": 3})
+	var rr: Array = Rules.resources(bb)
+	var r_ok: bool = rr.size() == 1 and rr[0].key == "rage" and int(rr[0].max) == 3
+	r_ok = r_ok and st.use_resource(bb.id, "rage", 1) != "" and st.use_resource(bb.id, "rage", 1) != ""
+	r_ok = r_ok and int(Rules.resources(bb)[0].used) == 2
+	st.rest(false)
+	r_ok = r_ok and int(Rules.resources(bb)[0].used) == 1
+	st.set_custom_resources(bb.id, [{"name": "Bacchetta", "max": 7, "reset": "short"}, {"name": "", "max": 2}])
+	r_ok = r_ok and Rules.resources(bb).size() == 2 and st.use_resource(bb.id, "c0", 9) != "" and int(Rules.resources(bb)[1].used) == 7
+	st.rest(false)
+	r_ok = r_ok and int(Rules.resources(bb)[1].used) == 0 and int(Rules.resources(bb)[0].used) == 0
+	st.use_resource(bb.id, "rage", 3)
+	st.rest(true)
+	r_ok = r_ok and int(Rules.resources(bb)[0].used) == 0
+	r_ok = r_ok and int(Rules.class_resources("Paladino", 4, {})[0].max) == 20
+	r_ok = r_ok and int(Rules.class_resources("Bardo", 1, {"CAR": 16})[0].max) == 3
+	r_ok = r_ok and Rules.class_resources("Guerriero", 9, {}).size() == 3 and Rules.class_resources("Ladro", 5, {}).is_empty()
+	r_ok = r_ok and st.player_view(bb.id).me.resources.size() == 2 and not bb.has("resources")
+	print("resources: ", "ok" if r_ok else "FAIL", " ", Rules.resources(bb))
+	ok = ok and r_ok
 	var v: Dictionary = st.player_view(a.id)
 	ok = ok and v.chronicle.size() >= 4
 	print("rules test: ", "OK" if ok else "FAIL", "  cond=", a.conditions, " chron=", v.chronicle.size())

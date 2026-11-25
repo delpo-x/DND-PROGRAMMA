@@ -58,6 +58,7 @@
     <div id="aiBox" class="card hidden aibox"></div>
     <div class="turnbox"></div>
     <div id="slotCard" class="card hidden"></div>
+    <div id="resCard" class="card hidden"></div>
     <div id="reqCard" class="card hidden" style="border-color:var(--gold)"></div>
     <div id="trayWrap"><canvas id="tray"></canvas><div id="result"></div></div>
     <div class="dicegrid" id="diceGrid"></div>
@@ -324,6 +325,7 @@
     renderChronicle();
     renderDeath();
     renderSlots();
+    renderRes();
     renderLog();
   }
 
@@ -1116,6 +1118,31 @@
     box.innerHTML = '<h3 style="margin:0 0 4px">Incantesimi</h3>' + h;
     box.classList.remove('hidden');
   }
+  // ---------- risorse di classe (Ira, Incanalare divinita...): rombi fino a 8 usi, poi un contatore
+  var RESET = { short: 'riposo breve', long: 'riposo lungo', short1: '1 al riposo breve, tutte al lungo' };
+  function renderRes() {
+    var list = (S.me && S.me.resources) || [], box = $('resCard'), h = '';
+    list.forEach(function (r) {
+      var left = r.max - (r.used || 0);
+      h += '<div class="resrow"><div class="slotrow"><span class="resname">' + esc(r.name) + '</span>';
+      if (r.max <= 8) {
+        for (var k = 0; k < r.max; k++) h += '<button class="pip' + (k < left ? ' on' : '') + '" data-k="' + esc(r.key) + '" data-d="' + (k < left ? 1 : -1) + '" aria-label="' + (k < left ? 'Usa ' : 'Recupera ') + esc(r.name) + '">' + (k < left ? '&#9670;' : '&#9671;') + '</button>';
+      } else {
+        h += '<button class="resb" data-k="' + esc(r.key) + '" data-d="1" aria-label="Usa 1 ' + esc(r.name) + '">-1</button>';
+        if (r.max >= 10) h += '<button class="resb" data-k="' + esc(r.key) + '" data-d="5" aria-label="Usa 5 ' + esc(r.name) + '">-5</button>';
+        h += '<button class="resb" data-k="' + esc(r.key) + '" data-d="-1" aria-label="Recupera 1 ' + esc(r.name) + '">+1</button>';
+      }
+      h += '<span class="dim">' + left + '/' + r.max + '</span></div>';
+      h += '<p class="resnote">' + (r.note ? esc(r.note) + ' &middot; ' : '') + 'torna con: ' + (RESET[r.reset] || '') + '</p></div>';
+    });
+    if (!h) { box.classList.add('hidden'); return; }
+    box.innerHTML = '<h3 style="margin:0 0 4px">Risorse</h3>' + h;
+    box.classList.remove('hidden');
+  }
+  $('resCard').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-k]'); if (!b) return;
+    link.send({ t: 'res', k: b.getAttribute('data-k'), d: +b.getAttribute('data-d') });
+  });
   $('slotCard').addEventListener('click', function (ev) {
     var c = ev.target.closest('button.cast');
     if (c) { link.send({ t: 'cast', i: +c.getAttribute('data-cast') }); return; }

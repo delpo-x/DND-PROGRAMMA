@@ -6,7 +6,7 @@ Cosa fa:
 
 - dadi 3D con suoni, tiri segreti, vantaggio e svantaggio;
 - iniziativa con turni, PF, condizioni, tiri salvezza contro la morte;
-- schede dei personaggi (anche importate da PDF), slot e lista incantesimi, PF temporanei, resistenze;
+- schede dei personaggi (anche importate da PDF), slot e lista incantesimi, risorse di classe (Ira, Incanalare divinità, punti stregoneria...) con il ripristino ai riposi, PF temporanei, resistenze;
 - bestiario con creature pronte secondo le regole 2024 (valori SRD 5.2), grado di sfida e PE, difficoltà dell'incontro calcolata col budget di PE del gruppo;
 - missioni, cronaca della campagna, salvataggi automatici con punti di ripristino ed esportazione.
 

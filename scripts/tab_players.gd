@@ -103,6 +103,7 @@ func refresh() -> void:
 			UI.btn("PF temp.", func(): st.give_temp_hp(id, UI.spin_value(amt)), 48),
 			UI.btn("Difese", func(): CombatUI.defenses_dialog(app, id), 48),
 			UI.btn("Slot", _slots_dialog.bind(id), 48),
+			UI.btn("Risorse", _res_dialog.bind(id), 48),
 			UI.color_btn("Ispirazione ✦" if bool(ch.get("inspiration", false)) else "Ispirazione",
 				Color(0.55, 0.42, 0.1) if bool(ch.get("inspiration", false)) else Color(0.2, 0.2, 0.24),
 				func(): st.set_inspiration(id, not bool(ch.get("inspiration", false))), 48),
@@ -123,6 +124,9 @@ func refresh() -> void:
 		var sl := _slots_row(ch)
 		if sl != null:
 			rows.append(sl)
+		var rs := _res_rows(ch)
+		if rs != null:
+			rows.append(rs)
 		var spl := _spells_text(ch)
 		if spl != "":
 			rows.append(UI.wrap_lbl(spl, 17, Color(0.7, 0.78, 0.95)))
@@ -327,6 +331,96 @@ func _slots_row(ch: Dictionary) -> Control:
 			b.pressed.connect(func(): app.state.use_slot(id, lvl, 1 if free else -1))
 			row.add_child(b)
 	return row
+
+
+## Class resources (Rage, Channel Divinity...) and the master's own ones:
+## pips up to 8 uses (gold = available), otherwise a counter with buttons.
+func _res_rows(ch: Dictionary) -> Control:
+	var list: Array = Rules.resources(ch)
+	if list.is_empty():
+		return null
+	var id: String = ch.id
+	var st: GameState = app.state
+	var use := func(key: String, d: int):
+		var t := st.use_resource(id, key, d)
+		if t != "":
+			app.toast(t)
+	var box := UI.vbox([], 2)
+	for r in list:
+		var mx := int(r.max)
+		var left := mx - int(r.used)
+		var row := UI.hbox([UI.lbl(str(r.name), 18, UI.GOLD)], 6)
+		var tip := "Si recupera: %s" % Rules.RESET_NAMES.get(r.reset, "")
+		if str(r.note) != "":
+			tip = str(r.note) + "\n" + tip
+		if mx <= 8:
+			for k in mx:
+				var free := k < left
+				var b := Button.new()
+				b.text = "◆" if free else "◇"
+				b.flat = true
+				b.add_theme_font_size_override("font_size", 22)
+				b.add_theme_color_override("font_color", UI.GOLD if free else UI.DIM)
+				b.tooltip_text = ("Usa: %s" if free else "Recupera: %s") % r.name
+				UI.named(b, b.tooltip_text)
+				b.pressed.connect(use.bind(str(r.key), 1 if free else -1))
+				row.add_child(b)
+		else:
+			row.add_child(UI.lbl("%d/%d" % [left, mx], 18, UI.TEXT))
+			for d in [1, 5, -1]:
+				if d == 5 and mx < 10:
+					continue
+				var b := UI.btn("Usa %d" % d if d > 0 else "Recupera 1", use.bind(str(r.key), d), 40)
+				UI.named(b, "%s: %s" % [r.name, b.text])
+				row.add_child(b)
+		var rl := UI.lbl("  (%s)" % Rules.RESET_NAMES.get(r.reset, ""), 16, UI.DIM)
+		rl.tooltip_text = tip
+		rl.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(rl)
+		row.tooltip_text = tip
+		box.add_child(row)
+	return box
+
+
+## Resources added by hand (magic items, feats, multiclass): name, uses and
+## how they come back. The class ones are computed from class and level.
+func _res_dialog(id: String) -> void:
+	var ch: Dictionary = app.state.find_entity(id)
+	if ch.is_empty():
+		return
+	var resets: Array = Rules.RESET_NAMES.keys()
+	var reset_labels: Array = resets.map(func(k): return "Torna con: " + str(Rules.RESET_NAMES[k]))
+	var rows := UI.vbox([], 6)
+	var add_row := func(r: Dictionary):
+		var n := UI.edit(str(r.get("name", "")), "Nome (es. Bacchetta dei dardi)", Callable(), 300)
+		var m := UI.spin(1, 999, int(r.get("max", 1)), Callable(), 100)
+		UI.named(m, "Usi massimi")
+		var o := UI.option(reset_labels, maxi(0, resets.find(str(r.get("reset", "long")))), Callable(), 330)
+		var row := UI.hbox([n, m, o], 8)
+		row.add_child(UI.btn("X", func(): row.queue_free(), 44))
+		row.set_meta("f", [n, m, o])
+		rows.add_child(row)
+	for r in ch.get("res_custom", []):
+		add_row.call(r)
+	var auto: Array = Rules.class_resources(str(ch.cls), int(ch.level), ch.get("ab", {}))
+	var info := "Dalla classe (%s liv. %d): %s." % [ch.cls, int(ch.level),
+		", ".join(auto.map(func(r): return "%s %d" % [r.name, int(r.max)])) if not auto.is_empty() else "nessuna risorsa"]
+	info += " Qui aggiungi le altre: oggetti magici, talenti, multiclasse."
+	var box := UI.vbox([UI.wrap_lbl(info, 17, UI.DIM), rows,
+		UI.btn("+ Aggiungi risorsa", func(): add_row.call({"name": "", "max": 1, "reset": "long"}), 48)], 10)
+	app.show_modal("Risorse di %s" % ch.name, box, [
+		["Annulla", app.close_modal],
+		["Salva", func():
+			var out: Array = []
+			for r in rows.get_children():
+				if r.is_queued_for_deletion() or not r.has_meta("f"):
+					continue
+				var f: Array = r.get_meta("f")
+				f[1].apply()
+				out.append({"name": f[0].text, "max": int(f[1].value), "reset": resets[maxi(0, f[2].selected)]})
+			app.state.set_custom_resources(id, out)
+			app.close_modal(), Color(0.18, 0.48, 0.25)],
+	], 900)
 
 
 ## Maximum slots per level; "automatic" follows class and level (PHB table).

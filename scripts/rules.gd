@@ -133,6 +133,7 @@ static func blank_character(cname: String) -> Dictionary:
 		"saves": [], "skills": {}, "init_bonus": 0, "attacks": [], "notes": "", "conditions": "",
 		"resist": "", "vuln": "", "immune": "", "portrait": "",
 		"spells": [], "slots_auto": true, "slots_max": [0, 0, 0, 0, 0, 0, 0, 0, 0], "slots_used": [0, 0, 0, 0, 0, 0, 0, 0, 0],
+		"res_used": {}, "res_custom": [],
 	}
 
 
@@ -458,6 +459,76 @@ static func sync_slots(ch: Dictionary) -> void:
 	ch["slots_max"] = mx
 	ch["slots_used"] = u2
 
+
+
+# --------------------------------------------------------- class resources
+## How a resource comes back: "short" = all on a short or long rest, "long" =
+## all on a long rest, "short1" = one use on a short rest, all on a long rest.
+const RESET_NAMES := {"short": "riposo breve", "long": "riposo lungo", "short1": "1 al riposo breve, tutte al lungo"}
+
+
+## Value of a level table [[from_level, value], ...]: the last row reached.
+static func _by_level(level: int, rows: Array) -> int:
+	var v := 0
+	for r in rows:
+		if level >= int(r[0]):
+			v = int(r[1])
+	return v
+
+
+## Limited-use class features of a single-class character (2024 rules, SRD
+## 5.2): [{key, name, max, reset, note}], only those with max > 0.
+static func class_resources(cls: String, level: int, ab: Dictionary) -> Array:
+	var c := cls.to_lower()
+	var lv := clampi(level, 1, 20)
+	var out: Array = []
+	var add := func(key: String, name: String, mx: int, reset: String, note: String):
+		if mx > 0:
+			out.append({"key": key, "name": name, "max": mx, "reset": reset, "note": note})
+	if c.begins_with("barbar"):
+		add.call("rage", "Ira", _by_level(lv, [[1, 2], [3, 3], [6, 4], [12, 5], [17, 6]]), "short1", "Azione bonus, dura fino alla fine del tuo prossimo turno e si può prolungare")
+	elif c.begins_with("bard"):
+		add.call("bardic", "Ispirazione bardica", maxi(1, mod(ab.get("CAR", 10))), "short" if lv >= 5 else "long",
+			"Azione bonus: un alleato entro 18 m prende un d%d da aggiungere a un tiro" % _by_level(lv, [[1, 6], [5, 8], [10, 10], [15, 12]]))
+	elif c.begins_with("chieric") or c.begins_with("cleric"):
+		add.call("channel", "Incanalare divinità", _by_level(lv, [[2, 2], [6, 3], [18, 4]]), "short1", "")
+	elif c.begins_with("druid"):
+		add.call("wildshape", "Forma selvatica", _by_level(lv, [[2, 2], [6, 3], [17, 4]]), "short1", "Azione bonus")
+	elif c.begins_with("guerrier") or c.begins_with("fighter"):
+		add.call("secondwind", "Recuperare energie", _by_level(lv, [[1, 2], [4, 3], [10, 4]]), "short1", "Azione bonus: recuperi 1d10 + %d PF" % lv)
+		add.call("surge", "Azione impetuosa", _by_level(lv, [[2, 1], [17, 2]]), "short", "Un'azione in più nel turno (non per Magia)")
+		add.call("indomitable", "Indomabile", _by_level(lv, [[9, 1], [13, 2], [17, 3]]), "long", "Ritira un tiro salvezza fallito con +%d" % lv)
+	elif c.begins_with("monac") or c.begins_with("monk"):
+		add.call("focus", "Punti focus", lv if lv >= 2 else 0, "short", "Raffica di colpi, Difesa paziente, Passo del vento")
+	elif c.begins_with("paladin"):
+		add.call("layhands", "Imposizione delle mani", 5 * lv, "long", "Azione bonus: cura i PF spesi dalla riserva (5 PF tolgono anche il veleno)")
+		add.call("channel", "Incanalare divinità", _by_level(lv, [[3, 2], [11, 3]]), "short1", "")
+	elif c.begins_with("ranger"):
+		add.call("favored", "Nemico prescelto", _by_level(lv, [[1, 2], [5, 3], [9, 4], [13, 5], [17, 6]]), "long", "Marchio del cacciatore senza spendere uno slot")
+	elif c.begins_with("stregon") or c.begins_with("sorcer"):
+		add.call("innate", "Stregoneria innata", 2, "long", "Azione bonus, 1 minuto: CD +1 e vantaggio agli attacchi con incantesimi da stregone")
+		add.call("sorcery", "Punti stregoneria", lv if lv >= 2 else 0, "long", "Metamagia o slot incantesimo")
+	elif c.begins_with("mag") or c.begins_with("wizard"):
+		add.call("arcane", "Recupero arcano", 1, "long", "Dopo un riposo breve: slot recuperati fino a %d livelli totali (massimo 5° livello)" % int(ceil(lv / 2.0)))
+	elif c.begins_with("warlock"):
+		add.call("cunning", "Astuzia magica", 1 if lv >= 2 else 0, "long", "1 minuto: recuperi metà degli slot del Patto")
+	return out
+
+
+## Every resource of a character: the class ones plus those added by the
+## master (res_custom), each with "used" from res_used. Custom keys are "c0",
+## "c1"...
+static func resources(ch: Dictionary) -> Array:
+	var out: Array = class_resources(str(ch.get("cls", "")), int(ch.get("level", 1)), ch.get("ab", {}))
+	var custom: Array = ch.get("res_custom", [])
+	for i in custom.size():
+		var r: Dictionary = custom[i]
+		out.append({"key": "c%d" % i, "name": str(r.get("name", "")), "max": clampi(int(r.get("max", 1)), 1, 999),
+			"reset": str(r.get("reset", "long")), "note": ""})
+	var used: Dictionary = ch.get("res_used", {})
+	for r in out:
+		r.used = clampi(int(used.get(r.key, 0)), 0, int(r.max))
+	return out
 
 
 ## Spellcasting ability of a class (PHB): Intelligence for the wizard, Wisdom

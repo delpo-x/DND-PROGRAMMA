@@ -293,9 +293,16 @@ Nel Bestiario il menu "Dal Manuale dei Mostri" compila il modulo con 29 creature
 ## Slot incantesimo
 
 - Ogni personaggio incantatore mostra i suoi slot come rombi: pieno = disponibile, vuoto = usato. Toccando un rombo pieno si usa lo slot, toccando uno vuoto lo si recupera. Funziona sia nella scheda Giocatori del master sia sul telefono del giocatore (schermata Dadi).
-- Il numero di slot si calcola da solo dalla classe e dal livello, con la tabella del Manuale del Giocatore: incantatori completi (bardo, chierico, druido, mago, stregone), paladino e ranger dal 2° livello, warlock con la Magia del Patto.
+- Il numero di slot si calcola da solo dalla classe e dal livello, con la tabella del Manuale del Giocatore: incantatori completi (bardo, chierico, druido, mago, stregone), paladino e ranger dal 1° livello, warlock con la Magia del Patto.
 - Il pulsante "Slot" permette di scrivere i valori a mano (per esempio per un multiclasse) togliendo il calcolo automatico.
 - Il riposo lungo ripristina tutti gli slot, quello breve solo gli slot del warlock.
+
+## Risorse di classe
+
+- Ogni personaggio mostra le risorse della sua classe, calcolate da classe e livello con le regole 2024: Ira del barbaro, Ispirazione bardica (tante quante il modificatore di Carisma), Incanalare divinità di chierico e paladino, Forma selvatica del druido, Recuperare energie, Azione impetuosa e Indomabile del guerriero, Punti focus del monaco, Imposizione delle mani del paladino (riserva di 5 PF per livello), Nemico prescelto del ranger, Stregoneria innata e Punti stregoneria dello stregone, Recupero arcano del mago, Astuzia magica del warlock.
+- Fino a 8 usi si vedono come rombi, come gli slot: pieno = disponibile, vuoto = usato. Oltre 8 (punti focus, punti stregoneria, imposizione delle mani) c'è un contatore con i pulsanti per usare 1 o 5 punti e per recuperarne 1. Funziona nella scheda Giocatori del master e sul telefono (schermata Dadi, riquadro *Risorse*). Quando un giocatore usa una risorsa dal telefono, il master riceve l'avviso.
+- Accanto a ogni risorsa c'è come torna: con il riposo breve, con il riposo lungo, oppure una al riposo breve e tutte al lungo (Ira, Incanalare divinità, Forma selvatica, Recuperare energie). I pulsanti "Riposo breve" e "Riposo lungo" le ripristinano da soli.
+- Il pulsante **Risorse** aggiunge quelle che la classe non dà: cariche di un oggetto magico, un talento, un multiclasse. Per ognuna si scrivono nome, usi massimi e come torna.
 
 ## Lista incantesimi
 

@@ -474,6 +474,10 @@ func _normalize(j: Dictionary) -> Dictionary:
 		ch.death_ko = int(ch.get("death_ko", 0))
 		ch.xp = int(ch.get("xp", 0))
 		ch.inspiration = bool(ch.get("inspiration", false))
+		if not ch.get("res_used") is Dictionary:
+			ch.res_used = {}
+		if not ch.get("res_custom") is Array:
+			ch.res_custom = []
 		Rules.sync_slots(ch)
 	for m in j.monsters:
 		m.xp = int(m.get("xp", 0))
@@ -1018,10 +1022,11 @@ func rest(long: bool) -> void:
 			ch.death_ok = 0
 			ch.death_ko = 0
 			ch.slots_used = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+			ch.res_used = {}  # every class resource back
 			ch.hd_used = 0  # PHB 2024: all hit dice back
 			if Rules.exhaustion(ch) > 0:
 				exhaustion_add(str(ch.id), -1)
-		var txt := "Il gruppo fa un riposo lungo: punti ferita, dadi vita e slot incantesimo recuperati, un livello di indebolimento in meno"
+		var txt := "Il gruppo fa un riposo lungo: punti ferita, dadi vita, slot incantesimo e risorse di classe recuperati, un livello di indebolimento in meno"
 		if left_out.size() > 0:
 			txt += " (tranne %s: a 0 PF il riposo lungo non ha effetto)" % ", ".join(left_out)
 			notice.emit("Riposo lungo senza effetto per %s (0 PF)" % ", ".join(left_out))
@@ -1031,6 +1036,14 @@ func rest(long: bool) -> void:
 		for ch in characters():
 			if Rules.caster_kind(str(ch.cls)) == "pact":
 				ch.slots_used = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+			# resources: "short" all back, "short1" one use back
+			var used: Dictionary = ch.get("res_used", {})
+			for r in Rules.resources(ch):
+				if r.reset == "short":
+					used.erase(r.key)
+				elif r.reset == "short1" and int(r.used) > 0:
+					used[r.key] = int(r.used) - 1
+			ch.res_used = used
 		chronicle_add("riposo", "Il gruppo fa un riposo breve")
 	touch()
 
@@ -1102,6 +1115,52 @@ func cast_spell(id: String, idx: int) -> String:
 			var up := (" con uno slot di %d° livello" % l) if l > int(sp.lvl) else ""
 			return "%s lancia %s%s" % [ch.name, sp.name, up]
 	return ""
+
+
+## Spends (delta > 0) or recovers (delta < 0) uses of a class resource (key
+## from Rules.resources). Returns a short description, "" if nothing changed.
+func use_resource(id: String, key: String, delta: int) -> String:
+	var ch := find_entity(id)
+	if ch.is_empty() or not is_pc(id):
+		return ""
+	for r in Rules.resources(ch):
+		if r.key != key:
+			continue
+		var n := clampi(int(r.used) + delta, 0, int(r.max))
+		if n == int(r.used):
+			return ""
+		if not ch.get("res_used") is Dictionary:
+			ch.res_used = {}
+		ch.res_used[key] = n
+		touch()
+		var left := int(r.max) - n
+		if delta > 0:
+			return "%s usa %s%s (%d rimast%s)" % [ch.name, r.name, (" x%d" % (n - int(r.used))) if n - int(r.used) > 1 else "", left, "a" if left == 1 else "e"]
+		return "%s recupera %s (%d/%d)" % [ch.name, r.name, left, int(r.max)]
+	return ""
+
+
+## Resources added by the master (magic items, feats, multiclass): array of
+## {name, max, reset}. Uses already spent are kept by position.
+func set_custom_resources(id: String, list: Array) -> void:
+	var ch := find_entity(id)
+	if ch.is_empty() or not is_pc(id):
+		return
+	var out: Array = []
+	for r in list:
+		var n := str(r.get("name", "")).strip_edges().left(40)
+		if n == "":
+			continue
+		var reset := str(r.get("reset", "long"))
+		out.append({"name": n, "max": clampi(int(r.get("max", 1)), 1, 999),
+			"reset": reset if Rules.RESET_NAMES.has(reset) else "long"})
+	ch.res_custom = out
+	var used: Dictionary = ch.get("res_used", {})
+	for k in used.keys():
+		if str(k).begins_with("c") and int(str(k).substr(1)) >= out.size():
+			used.erase(k)
+	ch.res_used = used
+	touch()
 
 
 ## Master override of the maximum slots (auto = follow class and level).
@@ -1813,7 +1872,7 @@ func player_view(char_id: String) -> Dictionary:
 			reqs.append({"id": r.id, "type": r.type, "param": r.param, "label": request_label(r), "reason": r.reason})
 	return {
 		"campaign": data.get("name", ""), "session": int(data.get("session", 1)),
-		"me": me.duplicate(true) if not me.is_empty() else null,
+		"me": _me_view(me) if not me.is_empty() else null,
 		"party": _party(), "monsters": _public_monsters(), "init": _public_init(char_id),
 		"quests": _public_quests(), "log": _public_log(), "requests": reqs,
 		"chronicle": _public_chronicle(), "xp_total": int(data.get("xp_total", 0)),
@@ -1823,6 +1882,12 @@ func player_view(char_id: String) -> Dictionary:
 		"ai": {"feed": ai_feed.slice(maxi(0, ai_feed.size() - 8)), "busy": ai_busy, "reading": ai_reading,
 			"secrets": ai_secrets.get(char_id, [])} if ai_master else null,
 	}
+
+
+func _me_view(me: Dictionary) -> Dictionary:
+	var v := me.duplicate(true)
+	v.resources = Rules.resources(me)
+	return v
 
 
 func screen_view() -> Dictionary:

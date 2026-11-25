@@ -589,6 +589,11 @@ func _on_message(id: int, msg: Dictionary) -> bool:
 		"slot":
 			if c.role == "player" and c.char_id != "":
 				state.use_slot(c.char_id, int(msg.get("lvl", 0)), clampi(int(msg.get("d", 0)), -1, 1))
+		"res":
+			if c.role == "player" and c.char_id != "":
+				var txt := state.use_resource(c.char_id, str(msg.get("k", "")), clampi(int(msg.get("d", 0)), -5, 5))
+				if txt != "" and int(msg.get("d", 0)) > 0:
+					player_message.emit(txt)
 		"cast":
 			if c.role == "player" and c.char_id != "":
 				var res := state.cast_spell(c.char_id, int(msg.get("i", -1)))
