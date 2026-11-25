@@ -14,6 +14,7 @@ var f_rev: CheckBox
 var f_qty: SpinBox
 var f_preset: OptionButton
 var f_xp := 0
+var diff_lbl: Label  # difficulty of the living monsters, plus the ones in the form
 var f_defs := {}
 var amounts: Dictionary = {}
 
@@ -28,7 +29,7 @@ func setup(a) -> void:
 	f_init = UI.spin(-10, 20, 0, Callable(), 100)
 	f_notes = UI.edit("", "Note private (attacchi, tattiche...)")
 	f_rev = UI.check("Visibile ai giocatori", false)
-	f_qty = UI.spin(1, 20, 1, Callable(), 90)
+	f_qty = UI.spin(1, 20, 1, func(_v): _show_difficulty(), 90)
 	var names: Array = ["Dal Manuale dei Mostri…"]
 	for mm in Rules.MONSTERS:
 		names.append("%s  (GS %s, %d PE)" % [mm[0], mm[5], Rules.cr_xp(mm[5])])
@@ -41,6 +42,8 @@ func setup(a) -> void:
 			UI.lbl("Mod. iniz.", 18, UI.DIM), f_init, UI.lbl("Quanti", 18, UI.DIM), f_qty]),
 		UI.hbox([f_notes, f_rev, UI.color_btn("Aggiungi", Color(0.18, 0.42, 0.25), _add, 52)]),
 	], 8)
+	diff_lbl = UI.wrap_lbl("", 19)
+	form.add_child(diff_lbl)
 	add_child(UI.card(form, UI.PANEL, 12))
 	list = UI.vbox([], 8)
 	add_child(UI.scroll(list))
@@ -63,7 +66,24 @@ func _add() -> void:
 	f_preset.selected = 0
 
 
+## Difficulty (2024 rules) of all the living monsters of the bestiary against
+## the whole party; with a creature chosen in the form, also "adding these".
+func _show_difficulty() -> void:
+	var st: GameState = app.state
+	var ids: Array = []
+	for m in st.monsters():
+		ids.append(m.id)
+	var d: Dictionary = st.encounter(ids)
+	var extra := ""
+	if f_xp > 0 and int(d.party) > 0:
+		var qty := UI.spin_value(f_qty)
+		var more: Dictionary = st.encounter(ids, [], f_xp * qty)
+		extra = "\nAggiungendo %d x %s: %s (%s PE)" % [qty, f_name.text, str(more.name).to_lower(), Rules.fmt_thousands(int(more.xp))]
+	UI.difficulty_line(diff_lbl, d, extra)
+
+
 func refresh() -> void:
+	_show_difficulty()
 	UI.clear(list)
 	var st: GameState = app.state
 	if st.monsters().is_empty():
@@ -120,6 +140,15 @@ func _edit(id: String) -> void:
 	var hpm := UI.spin(1, 999, int(m.hp_max))
 	var ini := UI.spin(-10, 20, int(m.init_mod))
 	var tmp := UI.spin(0, 999, int(m.get("hp_temp", 0)))
+	# challenge rating: gives the XP used by the encounter difficulty
+	var crs: Array = Rules.CR_XP.keys()
+	var cr_names: Array = ["Sconosciuto"]
+	var cr_sel := 0
+	for i in crs.size():
+		cr_names.append("GS %s (%s PE)" % [crs[i], Rules.fmt_thousands(Rules.cr_xp(crs[i]))])
+		if cr_sel == 0 and Rules.cr_xp(crs[i]) == int(m.get("xp", 0)):
+			cr_sel = i + 1
+	var cr := UI.option(cr_names, cr_sel, Callable(), 260)
 	var defs := {}
 	var dg := GridContainer.new()
 	dg.columns = 4
@@ -141,17 +170,17 @@ func _edit(id: String) -> void:
 	notes.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	var g := GridContainer.new()
 	g.columns = 2
-	for pair in [["Nome", n], ["Tipo", kind], ["CA", ac], ["PF attuali", hp], ["PF massimi", hpm], ["PF temporanei", tmp], ["Mod. iniziativa", ini]]:
+	for pair in [["Nome", n], ["Tipo", kind], ["CA", ac], ["PF attuali", hp], ["PF massimi", hpm], ["PF temporanei", tmp], ["Mod. iniziativa", ini], ["Grado di sfida", cr]]:
 		g.add_child(UI.lbl(pair[0], 20, UI.DIM))
 		g.add_child(pair[1])
 	var box := UI.vbox([g, rev, UI.lbl("Resistenze, vulnerabilità e immunità ai danni", 20, UI.GOLD), dg, UI.lbl("Note private del master", 20, UI.GOLD), notes], 10)
 	app.show_modal("Modifica %s" % m.name, box, [
 		["Annulla", app.close_modal],
-		["Salva", func(): _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs), Color(0.18, 0.48, 0.25)],
+		["Salva", func(): _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs, cr), Color(0.18, 0.48, 0.25)],
 	])
 
 
-func _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs: Dictionary) -> void:
+func _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs: Dictionary, cr: OptionButton) -> void:
 	for s in [ac, hp, hpm, ini, tmp]:
 		s.apply()
 	var lists: Array = [[], [], [], []]
@@ -159,7 +188,8 @@ func _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs: Dictionary) -> 
 		lists[defs[t].selected].append(t)
 	app.state.update_monster(id, {"name": n.text, "kind": ["Mostro", "PNG"][kind.selected], "ac": int(ac.value),
 		"hp_max": int(hpm.value), "hp": int(hp.value), "init_mod": int(ini.value), "revealed": rev.button_pressed,
-		"notes": notes.text, "hp_temp": int(tmp.value), "resist": ", ".join(lists[1]), "vuln": ", ".join(lists[2]), "immune": ", ".join(lists[3])})
+		"notes": notes.text, "hp_temp": int(tmp.value), "resist": ", ".join(lists[1]), "vuln": ", ".join(lists[2]), "immune": ", ".join(lists[3]),
+		"xp": Rules.cr_xp(str(Rules.CR_XP.keys()[cr.selected - 1])) if cr.selected > 0 else 0})
 	app.close_modal()
 
 
@@ -176,3 +206,4 @@ func _preset(i: int) -> void:
 	f_xp = Rules.cr_xp(str(mm[5]))
 	f_defs = Rules.monster_defenses(str(mm[0]))
 	f_notes.text = "%s, GS %s (%d PE). %s" % [mm[1], mm[5], f_xp, mm[6]]
+	_show_difficulty()

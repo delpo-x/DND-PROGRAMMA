@@ -4,6 +4,7 @@ extends VBoxContainer
 
 var app
 var head_lbl: Label
+var diff_lbl: Label  # encounter difficulty of the fight
 var list: VBoxContainer
 var panel  # turn panel: what the current combatant does (turn_panel.gd)
 var amounts: Dictionary = {}
@@ -34,6 +35,8 @@ func setup(a) -> void:
 		UI.btn("Richiedi iniziativa ai giocatori", _ask_players, 56),
 		UI.color_btn("Termina combattimento", Color(0.45, 0.15, 0.12), func(): app.confirm("Terminare il combattimento?", func(): app.state.combat_end()), 56),
 	]))
+	diff_lbl = UI.wrap_lbl("", 19)
+	add_child(diff_lbl)
 	panel = preload("res://scripts/turn_panel.gd").new()
 	panel.setup(app)
 	list = UI.vbox([], 8)
@@ -53,6 +56,8 @@ func refresh() -> void:
 		head_lbl.text = "Nessun combattimento in corso"
 	else:
 		head_lbl.text = "Round %d   -   Turno di: %s" % [int(ini.round), cur.get("name", "(premi Turno successivo)")]
+	diff_lbl.visible = not ini.combatants.is_empty()
+	UI.difficulty_line(diff_lbl, app.state.combat_encounter())
 	UI.clear(list)
 	if ini.combatants.is_empty():
 		list.add_child(UI.wrap_lbl("Premi \"Nuovo combattimento\" per scegliere chi combatte. Poi tira l'iniziativa dei mostri e chiedi ai giocatori di tirare la loro: la classifica si ordina da sola.", 22, UI.DIM))

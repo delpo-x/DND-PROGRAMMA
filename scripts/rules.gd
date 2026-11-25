@@ -251,7 +251,20 @@ static func condition_info(name: String) -> String:
 ## Experience points by challenge rating.
 const CR_XP := {"0": 10, "1/8": 25, "1/4": 50, "1/2": 100, "1": 200, "2": 450, "3": 700, "4": 1100,
 	"5": 1800, "6": 2300, "7": 2900, "8": 3900, "9": 5000, "10": 5900, "11": 7200, "12": 8400,
-	"13": 10000, "14": 11500, "15": 13000, "16": 15000, "17": 18000, "18": 20000, "19": 22000, "20": 25000}
+	"13": 10000, "14": 11500, "15": 13000, "16": 15000, "17": 18000, "18": 20000, "19": 22000, "20": 25000,
+	"21": 33000, "22": 41000, "23": 50000, "24": 62000, "25": 75000, "26": 90000, "27": 105000,
+	"28": 120000, "29": 135000, "30": 155000}
+
+## Encounter XP budget per character, 2024 rules: [low, moderate, high] for
+## levels 1 to 20. The budgets of the characters are added up and compared
+## with the XP of all the monsters (no multiplier for their number).
+const ENCOUNTER_BUDGET: Array = [
+	[50, 75, 100], [100, 150, 200], [150, 225, 400], [250, 375, 500], [500, 750, 1100],
+	[600, 1000, 1400], [750, 1300, 1700], [1000, 1700, 2100], [1300, 2000, 2600], [1600, 2300, 3100],
+	[1900, 2900, 4100], [2200, 3700, 4700], [2600, 4200, 5400], [2900, 4900, 6200], [3300, 5400, 7800],
+	[3800, 6100, 9800], [4500, 7200, 11700], [5000, 8700, 14200], [5500, 10700, 17200], [6400, 13200, 22000],
+]
+const DIFFICULTY_NAMES: Array = ["Bassa", "Moderata", "Alta", "Oltre il limite"]
 
 ## Ready-made creatures, 2024 rules (System Reference Document 5.2, CC BY 4.0;
 ## the Orc has no 2024 stat block and keeps its SRD 5.1 values).
@@ -291,6 +304,36 @@ const MONSTERS: Array = [
 
 static func cr_xp(cr: String) -> int:
 	return int(CR_XP.get(cr, 0))
+
+
+## Encounter difficulty (2024 rules) of monsters worth xp experience points
+## against a party with the given levels. Returns {xp, budget: [low,
+## moderate, high], level: 0-3 (index in DIFFICULTY_NAMES, -1 = no monsters
+## or no characters), name}.
+static func encounter_difficulty(levels: Array, xp: int) -> Dictionary:
+	var budget := [0, 0, 0]
+	for l in levels:
+		var row: Array = ENCOUNTER_BUDGET[clampi(int(l), 1, 20) - 1]
+		for i in 3:
+			budget[i] += int(row[i])
+	var level := -1
+	if xp > 0 and not levels.is_empty():
+		level = 3
+		for i in 3:
+			if xp <= int(budget[i]):
+				level = i
+				break
+	return {"xp": xp, "budget": budget, "level": level, "name": DIFFICULTY_NAMES[level] if level >= 0 else ""}
+
+
+## Thousands with a dot, as written in Italian (12000 -> "12.000").
+static func fmt_thousands(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	while s.length() > 3:
+		out = "." + s.right(3) + out
+		s = s.left(s.length() - 3)
+	return ("-" if n < 0 else "") + s + out
 
 
 ## The 13 damage types of the Player's Handbook.

@@ -272,6 +272,8 @@ Se il telefono è impostato per ridurre le animazioni, gli effetti in movimento 
 
 Nel Bestiario il menu "Dal Manuale dei Mostri" compila il modulo con 29 creature pronte secondo le regole 2024 (valori SRD 5.2; l'orco, che nel 2024 non ha una scheda da mostro, resta con i valori 2014): CA, PF, iniziativa, grado di sfida, PE e un promemoria degli attacchi. I PE dei mostri sconfitti finiscono nel totale del gruppo a fine combattimento.
 
+**Difficoltà dell'incontro** (regole 2024). Nell'Iniziativa, sotto i pulsanti, una riga colorata dice quanto è duro il combattimento in corso: Bassa, Moderata, Alta o Oltre il limite. Si sommano i PE dei mostri ancora in piedi e si confrontano con il budget del gruppo, che dipende dal livello di ogni personaggio in combattimento (al livello 5, per esempio, 500 / 750 / 1.100 PE a testa). Nel Bestiario la stessa riga vale per tutti i mostri vivi della sessione contro tutto il gruppo e, quando scegli una creatura dal Manuale dei Mostri, dice anche come cambierebbe aggiungendola. I mostri creati a mano contano solo se in "Modifica" scegli il loro grado di sfida.
+
 ## Regole dal Manuale del Giocatore
 
 - **Scheda Giocatori**: pulsanti "Riposo breve" e "Riposo lungo" (il lungo riporta ai PF massimi e ridà gli slot a chi ha almeno 1 PF; a 0 PF non ha effetto) e "Assegna PE", che divide i punti esperienza in parti uguali. Ogni personaggio mostra i suoi PE.

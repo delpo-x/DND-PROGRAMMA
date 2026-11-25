@@ -467,11 +467,36 @@ static func _label_before(c: Control, levels := 1) -> String:
 		var p := node.get_parent()
 		if p == null:
 			return ""
-		var i := node.get_index() - 1
+		var i := node.get_index(true) - 1
 		while i >= 0:
-			var s := p.get_child(i)
+			var s := p.get_child(i, true)
 			if s is Label and (s as Label).text.strip_edges() != "":
 				return (s as Label).text.strip_edges().trim_suffix(":")
 			i -= 1
 		node = p
 	return ""
+
+# ------------------------------------------------------ encounter difficulty
+const DIFFICULTY_COLORS: Array = [Color(0.45, 0.75, 0.45), Color(0.9, 0.75, 0.35), Color(0.95, 0.55, 0.25), Color(0.95, 0.35, 0.3)]
+
+
+## One line for the master: difficulty and monster XP against the party
+## budget (GameState.encounter() result in d).
+static func difficulty_line(l: Label, d: Dictionary, extra := "") -> void:
+	var b: Array = d.budget
+	if int(d.party) == 0:
+		l.text = "Difficoltà dell'incontro: aggiungi i personaggi del gruppo per calcolarla."
+		l.add_theme_color_override("font_color", DIM)
+		return
+	var txt := ""
+	if int(d.level) < 0:
+		txt = "Difficoltà dell'incontro: nessun mostro con PE"
+		l.add_theme_color_override("font_color", DIM)
+	else:
+		txt = "Difficoltà: %s  -  %s PE di mostri" % [str(d.name).to_upper(), Rules.fmt_thousands(int(d.xp))]
+		l.add_theme_color_override("font_color", DIFFICULTY_COLORS[int(d.level)])
+	txt += "  (gruppo di %d: bassa fino a %s, moderata %s, alta %s)" % [int(d.party),
+		Rules.fmt_thousands(int(b[0])), Rules.fmt_thousands(int(b[1])), Rules.fmt_thousands(int(b[2]))]
+	if int(d.unknown) > 0:
+		txt += "  -  %d senza PE non contati" % int(d.unknown)
+	l.text = txt + extra

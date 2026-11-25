@@ -508,6 +508,43 @@ func monsters() -> Array:
 	return data.get("monsters", [])
 
 
+## Encounter difficulty (2024 rules) of the given monsters (ids; monsters at
+## 0 PF do not count) plus extra_xp, against the given characters, by default
+## every character of the campaign. Adds "unknown": monsters without XP (made
+## by hand, challenge rating unknown) and "party": number of characters.
+func encounter(monster_ids: Array, pc_ids: Array = [], extra_xp := 0) -> Dictionary:
+	var levels: Array = []
+	for c in characters():
+		if pc_ids.is_empty() or pc_ids.has(c.id):
+			levels.append(int(c.get("level", 1)))
+	var xp := extra_xp
+	var unknown := 0
+	for m in monsters():
+		if not monster_ids.has(m.id) or int(m.hp) <= 0:
+			continue
+		if int(m.get("xp", 0)) > 0:
+			xp += int(m.xp)
+		else:
+			unknown += 1
+	var d := Rules.encounter_difficulty(levels, xp)
+	d.unknown = unknown
+	d.party = levels.size()
+	return d
+
+
+## Encounter difficulty of the fight in progress: monsters and characters in
+## the initiative order (every character when none is in it yet).
+func combat_encounter() -> Dictionary:
+	var mons: Array = []
+	var pcs: Array = []
+	for c in ini().combatants:
+		if c.type == "monster":
+			mons.append(c.ref)
+		else:
+			pcs.append(c.ref)
+	return encounter(mons, pcs)
+
+
 func find_entity(id: String) -> Dictionary:
 	for c in characters():
 		if c.id == id:

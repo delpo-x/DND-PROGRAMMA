@@ -94,6 +94,26 @@ func _init() -> void:
 	var order: Array = st.ini().combatants.map(func(x): return x.ref)
 	st.sort_combatants()
 	ok = ok and order[0] == a.id and order == st.ini().combatants.map(func(x): return x.ref)
+	# encounter difficulty, 2024 rules: four level-5 characters have budgets
+	# 2000 / 3000 / 4400; the monsters' XP is added without a multiplier
+	var e := Rules.encounter_difficulty([5, 5, 5, 5], 1800 + 3 * 200)
+	var e_ok: bool = e.budget == [2000, 3000, 4400] and e.name == "Moderata"
+	e_ok = e_ok and Rules.encounter_difficulty([5, 5, 5, 5], 2000).name == "Bassa"
+	e_ok = e_ok and Rules.encounter_difficulty([5, 5, 5, 5], 4401).name == "Oltre il limite"
+	e_ok = e_ok and Rules.encounter_difficulty([1], 0).level == -1 and Rules.encounter_difficulty([], 500).level == -1
+	e_ok = e_ok and Rules.encounter_difficulty([0, 25], 100).budget == [6450, 13275, 22100]
+	e_ok = e_ok and Rules.fmt_thousands(155000) == "155.000" and Rules.fmt_thousands(900) == "900"
+	# in the state: the ogre (450 PE) counts, the hand-made goblin (no PE) is
+	# reported, a monster at 0 PF does not count
+	var og: Dictionary = st.add_monster({"name": "Ogre", "hp": 68, "xp": 450})
+	var dead: Dictionary = st.add_monster({"name": "Lupo", "hp": 11, "xp": 50})
+	st.change_hp(dead.id, -20)
+	var se: Dictionary = st.encounter([og.id, dead.id, m.id])
+	e_ok = e_ok and int(se.xp) == 450 and int(se.unknown) == 1 and int(se.party) == st.characters().size()
+	var ce: Dictionary = st.combat_encounter()
+	e_ok = e_ok and int(ce.party) == 1 and int(ce.unknown) == 2
+	print("encounter: ", "ok" if e_ok else "FAIL", " ", e, " ", se, " ", ce)
+	ok = ok and e_ok
 	var v: Dictionary = st.player_view(a.id)
 	ok = ok and v.chronicle.size() >= 4
 	print("rules test: ", "OK" if ok else "FAIL", "  cond=", a.conditions, " chron=", v.chronicle.size())
