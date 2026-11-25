@@ -7,8 +7,9 @@ extends RefCounted
 ## (with PNG predictors), page trees with inherited resources, Form XObjects,
 ## simple / Type3 / Type0 (CID) fonts with ToUnicode maps.
 ## Output: per page, a list of "chunks" = pieces of text on one baseline
-## separated by large gaps (table cells), with position and font size:
-##   {pages: [{w, h, chunks: [{t, x0, x1, y, s}]}], error: ""}
+## separated by large gaps (table cells), with position and font size, plus
+## the values of a fillable form (AcroForm), which are not in the page text:
+##   {pages: [{w, h, chunks: [{t, x0, x1, y, s}]}], fields: {name: value}, error: ""}
 ## y grows downward from the top of the page, units are PDF points.
 
 const WS := [0, 9, 10, 12, 13, 32]
@@ -74,7 +75,68 @@ func _run(bytes: PackedByteArray) -> Dictionary:
 	_collect_pages(_get(root.get(&"Pages")), {}, pages, 0)
 	for pg in pages:
 		pages_out.append(_page_text(pg))
-	return {"pages": pages_out, "error": error}
+	return {"pages": pages_out, "fields": _form_fields(root), "error": error}
+
+
+# ------------------------------------------------------------------ forms
+## Filled-in fields of a fillable PDF (exported character sheets keep their
+## values here): full field name ("parent.child") -> value as text. Empty
+## fields and check boxes that are off are left out; a check box that is on
+## gives the name of its on state (usually "Yes").
+func _form_fields(root: Dictionary) -> Dictionary:
+	var out := {}
+	var form = _get(root.get(&"AcroForm"))
+	if form is Dictionary:
+		var fl = _get(form.get(&"Fields"))
+		if fl is Array:
+			for f in fl:
+				_form_field(_get(f), "", out, 0)
+	return out
+
+
+func _form_field(node, parent: String, out: Dictionary, depth: int) -> void:
+	if not node is Dictionary or depth > 12 or out.size() >= 3000:
+		return
+	var name := parent
+	var t = _get(node.get(&"T"))
+	if t is PackedByteArray:
+		var part := pdf_string(t)
+		name = part if parent == "" else parent + "." + part
+	if node.has(&"V") and name != "":
+		var v = _get(node[&"V"])
+		var s := ""
+		if v is PackedByteArray:
+			s = pdf_string(v)
+		elif v is StringName:
+			s = "" if str(v) == "Off" else str(v)
+		elif v is int or v is float:
+			s = str(v)
+		elif v is Array:
+			var parts := PackedStringArray()
+			for x in v:
+				x = _get(x)
+				if x is PackedByteArray:
+					parts.append(pdf_string(x))
+			s = ", ".join(parts)
+		if s.strip_edges() != "":
+			out[name] = s.replace("\r\n", "\n").replace("\r", "\n")
+	var kids = _get(node.get(&"Kids"))
+	if kids is Array:
+		for k in kids:
+			_form_field(_get(k), name, out, depth + 1)
+
+
+## Text string of a PDF: UTF-16 with its byte order mark, UTF-8 with its
+## mark, otherwise PDFDocEncoding (taken as Latin-1).
+static func pdf_string(b: PackedByteArray) -> String:
+	if b.size() >= 2 and b[0] == 0xFE and b[1] == 0xFF:
+		return _utf16(b.slice(2))
+	if b.size() >= 3 and b[0] == 0xEF and b[1] == 0xBB and b[2] == 0xBF:
+		return b.slice(3).get_string_from_utf8()
+	var s := ""
+	for x in b:
+		s += char(x)
+	return s
 
 
 # ------------------------------------------------------------------ objects

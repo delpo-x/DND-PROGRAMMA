@@ -3,6 +3,9 @@ extends RefCounted
 ## Turns the text of a character-sheet PDF (see PdfText) into a character
 ## dictionary compatible with Rules.merge_sheet. Works on Italian and English
 ## sheets by looking for labels and the values next to / below them.
+## Fillable sheets (for example the PDF export of online character builders)
+## keep their values in form fields: those are read by field name and win
+## over what the page text suggests.
 ## Everything is a best guess: the master reviews the sheet before saving.
 
 const AB_LABELS := {
@@ -174,7 +177,227 @@ func _parse(doc: Dictionary) -> Dictionary:
 		if l != "" and not footer.search(l):
 			lines.append(l)
 	ch.notes = ("Importato da PDF.\n" + "\n".join(lines)).left(4000)
+	var fields: Dictionary = doc.get("fields", {})
+	if not fields.is_empty():
+		_apply_fields(fields, ch, found)
 	return {"char": ch, "found": found}
+
+
+# ------------------------------------------------------------ form fields
+## Ability names as they appear in field names (lower case, letters only).
+const AB_KEYS := {
+	"FOR": ["str", "strength", "for", "forza"], "DES": ["dex", "dexterity", "des", "destrezza"],
+	"COS": ["con", "constitution", "cos", "costituzione"], "INT": ["int", "intelligence", "intelligenza"],
+	"SAG": ["wis", "wisdom", "sag", "saggezza"], "CAR": ["cha", "charisma", "car", "carisma"],
+}
+const SAVE_PREFIXES := ["savingthrow", "tirosalvezza", "save", "st", "ts"]
+
+
+## Last part of a field name, lower-case letters and digits only
+## ("Wpn1 AtkBonus " -> "wpn1atkbonus").
+static func _fkey(name: String) -> String:
+	var s := name.to_lower()
+	if s.contains("."):
+		s = s.get_slice(".", s.count("."))
+	for pair in [["à", "a"], ["è", "e"], ["é", "e"], ["ì", "i"], ["ò", "o"], ["ù", "u"]]:
+		s = s.replace(pair[0], pair[1])
+	var out := ""
+	for c in s:
+		if (c >= "a" and c <= "z") or (c >= "0" and c <= "9"):
+			out += c
+	return out
+
+
+static func _first_int(s: String, signed := false) -> String:
+	var m := _re("[+-]?\\d+" if signed else "\\d+").search(s)
+	return m.get_string() if m else ""
+
+
+## Ability of a saving-throw field ("ststrength", "dexsave"), "" otherwise.
+static func _save_ability(k: String) -> String:
+	var rest := ""
+	for pre in SAVE_PREFIXES:
+		if k.begins_with(pre):
+			rest = k.substr(pre.length())
+			break
+	if rest == "" and k.ends_with("save"):
+		rest = k.trim_suffix("save")
+	for a in AB_KEYS:
+		if rest != "" and AB_KEYS[a].has(rest):
+			return a
+	return ""
+
+
+## Level of a proficiency from a total bonus: 2 = expertise, 1 = proficient.
+static func _prof_level(total: int, base: int, prof: int) -> int:
+	if prof > 0 and total >= base + 2 * prof:
+		return 2
+	if prof > 0 and total >= base + prof:
+		return 1
+	return 0
+
+
+func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
+	var by := {}  # reduced name -> value (first one wins: page 1 before page 2)
+	for n in fields:
+		var k := _fkey(str(n))
+		if k != "" and not by.has(k):
+			by[k] = str(fields[n]).strip_edges()
+	var pick := func(keys: Array) -> String:
+		for k in keys:
+			if by.has(k) and str(by[k]) != "":
+				return str(by[k])
+		return ""
+	var mark := func(what: String):
+		if not found.has(what):
+			found.append(what)
+	var v: String = pick.call(["charactername", "charname", "name", "nome", "nomepersonaggio", "nomedelpersonaggio"])
+	if v != "":
+		ch.name = v.left(40)
+		mark.call("nome")
+	v = pick.call(["playername", "player", "giocatore", "nomegiocatore", "nomedelgiocatore"])
+	if v != "":
+		ch.player = v.left(40)
+	v = pick.call(["race", "species", "razza", "specie"])
+	if v != "":
+		ch.race = v.left(40)
+		mark.call("razza")
+	# class and level: "Fighter 5", "Guerriero 3 / Mago 2" (multiclass: first
+	# class, levels added up)
+	v = pick.call(["classlevel", "classandlevel", "classelivello", "classeelivello", "class", "classe"])
+	if v != "":
+		var cname := _re("\\s*\\d+").sub(v.get_slice("/", 0), "", true).strip_edges()
+		if cname != "":
+			ch.cls = cname.left(40)
+			mark.call("classe")
+		var total := 0
+		for m in _re("\\d+").search_all(v):
+			total += int(m.get_string())
+		if total > 0:
+			ch.level = clampi(total, 1, 20)
+			mark.call("livello")
+	v = _first_int(pick.call(["level", "livello", "characterlevel", "totallevel"]))
+	if v != "":
+		ch.level = clampi(int(v), 1, 20)
+		mark.call("livello")
+	v = _first_int(pick.call(["profbonus", "proficiencybonus", "proficiency", "bonuscompetenza", "competenza", "pb"]))
+	if v != "":
+		ch.prof = clampi(int(v), 1, 9)
+		mark.call("competenza")
+	elif not found.has("competenza"):
+		ch.prof = Rules.prof_for(int(ch.level))
+	# ability scores ("STR"); the modifier fields are not needed
+	for a in AB_KEYS:
+		for alias in AB_KEYS[a]:
+			var sc := _first_int(str(by.get(alias, "")))
+			if sc != "" and int(sc) >= 1 and int(sc) <= 30:
+				ch.ab[a] = int(sc)
+				mark.call("caratteristiche")
+				break
+	# saving throws and skills: proficiency read from the total bonus
+	var saves: Array = []
+	var save_fields := false
+	for k in by:
+		var a := _save_ability(k)
+		var val := _first_int(str(by[k]), true)
+		if a == "" or val == "":
+			continue
+		save_fields = true
+		if not saves.has(a) and _prof_level(int(val), Rules.mod(ch.ab[a]), int(ch.prof)) > 0:
+			saves.append(a)
+	if save_fields:
+		ch.saves = saves
+		mark.call("tiri salvezza")
+	var skills := {}
+	var skill_fields := false
+	for sid in SKILL_ALIASES:
+		var keys: Array = []
+		for alias in SKILL_ALIASES[sid]:
+			keys.append(_fkey(alias))
+		if sid == "addestrare":
+			keys.append("animal")
+		var val := _first_int(pick.call(keys), true)
+		if val == "":
+			continue
+		skill_fields = true
+		var lv := _prof_level(int(val), Rules.mod(ch.ab[Rules.skill_info(sid)[2]]), int(ch.prof))
+		if lv > 0:
+			skills[sid] = lv
+	if skill_fields:
+		ch.skills = skills
+		mark.call("abilità")
+	# armour class, hit points, speed, initiative
+	v = _first_int(pick.call(["ac", "armorclass", "armourclass", "ca", "classearmatura"]))
+	if v != "":
+		ch.ac = clampi(int(v), 1, 40)
+		mark.call("CA")
+	v = _first_int(pick.call(["hpmax", "maxhp", "hitpointmaximum", "hitpointsmax", "maxhitpoints", "pfmax", "puntiferitamassimi"]))
+	if v != "":
+		ch.hp_max = clampi(int(v), 1, 999)
+		ch.hp = ch.hp_max
+		mark.call("PF")
+		var cur := _first_int(pick.call(["hpcurrent", "currenthp", "currenthitpoints", "pfattuali", "puntiferitaattuali"]))
+		if cur != "" and int(cur) <= int(ch.hp_max):
+			ch.hp = int(cur)
+	var spd: String = pick.call(["speed", "walkspeed", "velocita"])
+	if spd != "":
+		var m := _re("(\\d{1,3})\\s*(m|metri|ft|piedi|feet|')?").search(spd)
+		if m:
+			var n := int(m.get_string(1))
+			var unit := m.get_string(2).to_lower()
+			if unit in ["ft", "piedi", "feet", "'"] or (unit == "" and n >= 20):
+				n = int(round(n * 0.3))
+			ch.speed = clampi(n, 0, 60)
+			mark.call("velocità")
+	v = _first_int(pick.call(["initiative", "init", "iniziativa"]), true)
+	if v != "":
+		ch.init_bonus = clampi(int(v) - Rules.mod(ch.ab.DES), -20, 20)
+	# weapons: "Wpn Name" / "Wpn1 AtkBonus" / "Wpn1 Damage", "Wpn Name 2" ...
+	var rows := {}
+	var dice_re := _re("(\\d+d\\d+(?:\\s*[+-]\\s*\\d+)?)")
+	for k in by:
+		var weapon := false
+		for pre in ["wpn", "weapon", "arma", "attack", "attacco"]:
+			weapon = weapon or k.begins_with(pre)
+		if not weapon:
+			continue
+		var idx := _first_int(k)
+		var i := int(idx) if idx != "" else 1
+		var role := ""
+		if k.contains("name") or k.contains("nome"):
+			role = "name"
+		elif k.contains("atk") or k.contains("bonus") or k.contains("hit") or k.contains("colpire"):
+			role = "bonus"
+		elif k.contains("damage") or k.contains("dmg") or k.contains("dann"):
+			role = "damage"
+		if role == "":
+			continue
+		if not rows.has(i):
+			rows[i] = {}
+		rows[i][role] = str(by[k])
+	var idxs := rows.keys()
+	idxs.sort()
+	var atk: Array = []
+	for i in idxs:
+		var r: Dictionary = rows[i]
+		if str(r.get("name", "")) == "":
+			continue
+		var dm := dice_re.search(str(r.get("damage", "")))
+		atk.append({"name": str(r.name).left(40), "bonus": clampi(int(_first_int(str(r.get("bonus", "0")), true)), -20, 30),
+			"damage": dm.get_string(1).replace(" ", "") if dm else "1d6"})
+		if atk.size() >= 12:
+			break
+	if not atk.is_empty():
+		ch.attacks = atk
+		mark.call("attacchi")
+	# long text fields (features, equipment, proficiencies) go to the notes
+	var notes := PackedStringArray()
+	for n in fields:
+		var t := str(fields[n]).strip_edges()
+		if t.length() >= 40 or t.contains("\n"):
+			notes.append(t)
+	if not notes.is_empty():
+		ch.notes = ("Importato da PDF compilabile.\n" + "\n\n".join(notes)).left(4000)
 
 
 static func _esc(s: String) -> String:

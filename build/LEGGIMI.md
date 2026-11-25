@@ -230,6 +230,8 @@ si possono ritoccare se la "sensazione" non convince.
 
 **Scheda di un personaggio.** Nella scheda *Giocatori* premi **Importa da PDF** e scegli il file. L'app legge nome, razza, classe, livello, bonus di competenza, caratteristiche, tiri salvezza, abilità, PF, CA, velocità, iniziativa e attacchi. Poi apre la scheda perché tu la controlli: quello che non trova resta al valore base. Il testo completo del PDF finisce nelle note del personaggio.
 
+**Schede PDF compilabili.** Molti PDF di schede (per esempio quelli esportati dai siti che creano il personaggio online, o la scheda ufficiale compilata a computer) tengono i valori nei campi del modulo, non nel testo della pagina. L'app legge anche quei campi: nome, classe e livello (con un multiclasse prende la prima classe e somma i livelli), razza, caratteristiche, bonus di competenza, CA, PF massimi e attuali, velocità (i piedi diventano metri), iniziativa e armi con bonus d'attacco e danni. La competenza nei tiri salvezza e nelle abilità si ricava dai totali: se il bonus scritto supera il modificatore di almeno il bonus di competenza il personaggio è competente, se lo supera del doppio ha la maestria. I campi di testo lunghi (privilegi, equipaggiamento, competenze) finiscono nelle note.
+
 Anche un giocatore può farlo dal telefono: nella pagina di scelta del personaggio c'è **Carica scheda PDF**. Il personaggio viene creato e assegnato a quel telefono.
 
 **Storia della campagna.** Nella scheda *Campagne*, sezione *Storia della campagna*, premi **Importa storia da PDF**. Il testo viene diviso in capitoli in base ai titoli più grandi, mentre i titoli più piccoli diventano sottotitoli. Intestazioni e numeri di pagina ripetuti vengono tolti. La storia resta visibile solo al master.
