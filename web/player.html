@@ -75,6 +75,7 @@
     <button id="rollBtn" class="primary">LANCIA</button>
     <div id="shortcutsBox">
       <h2>Scorciatoie</h2>
+      <p class="dim" style="margin:-4px 0 8px">Tocca per tirare. Tieni premuto (o clic destro) per scegliere vantaggio, svantaggio o critico solo per quel tiro.</p>
       <div class="shortcuts"><button id="initBtn" class="blue"><span>Iniziativa</span><b id="initMod">+0</b></button></div>
       <h3>Attacchi e danni</h3>
       <div class="row" style="margin-bottom:6px"><label style="margin:0"><input type="checkbox" id="critToggle" style="width:auto;min-height:0;vertical-align:middle"> Danni da colpo critico (dadi raddoppiati)</label></div>
@@ -124,6 +125,7 @@
 </nav>
 <div id="reqModal" class="modal hidden"><div class="box" id="reqBox"></div></div>
 <div id="pickModal" class="modal hidden"><div class="box pick" id="pickBox"></div></div>
+<div id="rollMenu" class="modal hidden"><div class="box" id="rollMenuBox"></div></div>
 <div id="toast" class="toast hidden"></div>
 
 <script src="/common.js"></script>
@@ -355,7 +357,10 @@
   $('modMinus').addEventListener('click', function () { S.mod = Math.max(-30, S.mod - 1); renderDice(); });
   $('modPlus').addEventListener('click', function () { S.mod = Math.min(30, S.mod + 1); renderDice(); });
   $('advSeg').addEventListener('click', function (ev) {
-    var b = ev.target.closest('button'); if (!b) return; S.adv = b.getAttribute('data-adv'); if (S.adv !== 'adv') S.insp = false; renderDice();
+    var b = ev.target.closest('button'); if (!b) return;
+    var v = b.getAttribute('data-adv');
+    S.adv = (v === S.adv && v !== 'none') ? 'none' : v;  // a second tap on the active one turns it off
+    if (S.adv !== 'adv') S.insp = false; renderDice();
   });
   function currentLogical() {
     var out = [];
@@ -447,6 +452,11 @@
       return '<span class="' + cls + '">' + d.v + '</span>';
     }).join('') + (o.mod ? ' <span class="dim">' + T.fmtMod(o.mod) + '</span>' : '') + ' <span class="big">= ' + total + '</span></div>';
     if (!sent) html += '<div class="ko">Non connesso: il tiro non è arrivato al master</div>';
+    var atk = o.atk !== undefined && S.me && (S.me.attacks || [])[o.atk];
+    if (atk && parseFormula(atk.damage) && !(kept20.length === 1 && kept20[0] === 1)) {
+      var crit20 = kept20.length === 1 && kept20[0] === 20;
+      html += '<button class="dmgnext' + (crit20 ? ' primary' : '') + '" data-dmg="' + o.atk + '" data-crit="' + (crit20 ? 1 : 0) + '">Se colpisci: tira i danni' + (crit20 ? ' CRITICI' : '') + ' (' + esc(atk.damage) + ')</button>';
+    }
     $('result').innerHTML = html;
     if (kept20.length === 1 && kept20[0] === 20) { if (!manual) tray.celebrate('crit'); T.flash('crit', $('trayWrap')); T.buzz([80, 60, 80, 60, 200]); if (!DiceSfx.play('crit', 0.9)) T.beep(880, 0.5); }
     else if (kept20.length === 1 && kept20[0] === 1) { if (!manual) tray.celebrate('fumble'); T.flash('fumble', $('trayWrap')); T.buzz([400]); if (!DiceSfx.play('fumble', 0.9)) T.beep(160, 0.6); }
@@ -549,25 +559,86 @@
     if (!ah) ah = '<p class="dim">Aggiungi gli attacchi nella tua Scheda.</p>';
     $('atkBtns').innerHTML = ah;
   }
-  $('shortcutsBox').addEventListener('click', function (ev) {
-    var b = ev.target.closest('button'); if (!b || !S.me) return;
+  // A button that rolls something from the character: initiative, skill,
+  // save, ability, attack or damage. Returns null for any other button.
+  function rollButton(el) {
+    var b = el && el.closest ? el.closest('button') : null;
+    if (!b || b.closest('.atk, .spl') || !b.closest('#shortcutsBox, #sheet, #result')) return null;
+    return (b.id === 'initBtn' || b.matches('[data-skill],[data-save],[data-ab],[data-atk],[data-dmg]')) ? b : null;
+  }
+  function rollTitle(b) {
     var me = S.me, s;
-    if (b.id === 'initBtn') doRoll({ logical: [{ s: 20 }], mod: T.initMod(me), adv: S.adv, kind: 'Iniziativa', reason: 'Iniziativa' });
-    else if ((s = b.getAttribute('data-skill'))) doRoll({ logical: [{ s: 20 }], mod: T.skillMod(me, s), adv: S.adv, kind: 'Prova', reason: 'Prova di ' + T.skill(s)[1] });
-    else if ((s = b.getAttribute('data-save'))) doRoll({ logical: [{ s: 20 }], mod: T.saveMod(me, s), adv: S.adv, kind: 'Tiro salvezza', reason: 'Tiro salvezza su ' + T.abName(s) });
-    else if ((s = b.getAttribute('data-ab'))) doRoll({ logical: [{ s: 20 }], mod: T.abMod((me.ab || {})[s]), adv: S.adv, kind: 'Prova', reason: 'Prova di ' + T.abName(s) });
+    if (b.id === 'initBtn') return 'Iniziativa';
+    if ((s = b.getAttribute('data-skill'))) return 'Prova di ' + T.skill(s)[1];
+    if ((s = b.getAttribute('data-save'))) return 'Tiro salvezza su ' + T.abName(s);
+    if ((s = b.getAttribute('data-ab'))) return 'Prova di ' + T.abName(s);
+    if ((s = b.getAttribute('data-atk')) !== null) return 'Attacco: ' + ((me.attacks || [])[Number(s)] || {}).name;
+    if ((s = b.getAttribute('data-dmg')) !== null) return 'Danni: ' + ((me.attacks || [])[Number(s)] || {}).name;
+    return '';
+  }
+  // adv: 'none' | 'adv' | 'dis' for this roll only (undefined = the switch on
+  // the Dadi tab); crit: damage with doubled dice (undefined = the check box).
+  function rollFrom(b, adv, crit) {
+    if (!S.me) { toast('Scegli prima il tuo personaggio'); return; }
+    var me = S.me, s, a = adv === undefined ? S.adv : adv;
+    if (adv !== undefined && adv !== 'adv') S.insp = false;
+    if (b.id === 'initBtn') doRoll({ logical: [{ s: 20 }], mod: T.initMod(me), adv: a, kind: 'Iniziativa', reason: 'Iniziativa' });
+    else if ((s = b.getAttribute('data-skill'))) doRoll({ logical: [{ s: 20 }], mod: T.skillMod(me, s), adv: a, kind: 'Prova', reason: 'Prova di ' + T.skill(s)[1] });
+    else if ((s = b.getAttribute('data-save'))) doRoll({ logical: [{ s: 20 }], mod: T.saveMod(me, s), adv: a, kind: 'Tiro salvezza', reason: 'Tiro salvezza su ' + T.abName(s) });
+    else if ((s = b.getAttribute('data-ab'))) doRoll({ logical: [{ s: 20 }], mod: T.abMod((me.ab || {})[s]), adv: a, kind: 'Prova', reason: 'Prova di ' + T.abName(s) });
     else if ((s = b.getAttribute('data-atk')) !== null) {
       var at = me.attacks[Number(s)];
-      doRoll({ logical: [{ s: 20 }], mod: Number(at.bonus) || 0, adv: S.adv, kind: 'Attacco', reason: 'Attacco: ' + at.name });
+      if (!at) return;
+      doRoll({ logical: [{ s: 20 }], mod: Number(at.bonus) || 0, adv: a, kind: 'Attacco', reason: 'Attacco: ' + at.name, atk: Number(s) });
     } else if ((s = b.getAttribute('data-dmg')) !== null) {
-      var at2 = me.attacks[Number(s)], f = parseFormula(at2.damage);
-      if (!f) { toast('Formula dei danni non valida: ' + at2.damage); return; }
-      var crit = $('critToggle').checked;
-      var lg = crit ? f.logical.concat(f.logical) : f.logical;
+      var at2 = me.attacks[Number(s)], f = at2 && parseFormula(at2.damage);
+      if (!f) { toast('Formula dei danni non valida: ' + (at2 ? at2.damage : '')); return; }
+      var cr = crit === undefined ? (b.hasAttribute('data-crit') ? b.getAttribute('data-crit') === '1' : $('critToggle').checked) : crit;
+      var lg = cr ? f.logical.concat(f.logical) : f.logical;
       if (!lg.length) { toast('Nessun dado nella formula dei danni'); return; }
-      doRoll({ logical: lg, mod: f.mod, adv: 'none', kind: 'Danni', reason: 'Danni' + (crit ? ' critici' : '') + ': ' + at2.name });
+      doRoll({ logical: lg, mod: f.mod, adv: 'none', kind: 'Danni', reason: 'Danni' + (cr ? ' critici' : '') + ': ' + at2.name });
       $('critToggle').checked = false;
     }
+  }
+  // Long press or right click: normal / advantage / disadvantage (or normal /
+  // critical for damage) just for this roll.
+  function openRollMenu(b) {
+    var dmg = b.hasAttribute('data-dmg');
+    var opts = dmg ? [['n', 'Normale'], ['c', 'Critico (dadi raddoppiati)']] : [['none', 'Normale'], ['adv', 'Vantaggio'], ['dis', 'Svantaggio']];
+    $('rollMenuBox').innerHTML = '<h2>' + esc(rollTitle(b)) + '</h2><div class="rollopts">' +
+      opts.map(function (o) { return '<button data-ro="' + o[0] + '">' + o[1] + '</button>'; }).join('') +
+      '</div><button data-ro="x" style="width:100%;margin-top:10px">Annulla</button>';
+    $('rollMenuBox').onclick = function (ev) {
+      var o = ev.target.closest('button'); if (!o) return;
+      var v = o.getAttribute('data-ro');
+      press.fired = false;
+      $('rollMenu').classList.add('hidden');
+      if (v === 'x') return;
+      if (dmg) rollFrom(b, 'none', v === 'c'); else rollFrom(b, v);
+    };
+    $('rollMenu').classList.remove('hidden');
+  }
+  var press = { tm: 0, fired: false, x: 0, y: 0 };
+  document.addEventListener('pointerdown', function (ev) {
+    var b = rollButton(ev.target); press.fired = false;
+    if (!b || ev.button > 0) return;
+    press.x = ev.clientX; press.y = ev.clientY;
+    clearTimeout(press.tm);
+    press.tm = setTimeout(function () { press.fired = true; T.buzz([30]); openRollMenu(b); }, 550);
+  });
+  function cancelPress(ev) {
+    if (ev && ev.type === 'pointermove' && Math.abs(ev.clientX - press.x) + Math.abs(ev.clientY - press.y) < 12) return;
+    clearTimeout(press.tm);
+  }
+  ['pointerup', 'pointercancel', 'pointermove'].forEach(function (t) { document.addEventListener(t, cancelPress); });
+  document.addEventListener('contextmenu', function (ev) {
+    var b = rollButton(ev.target); if (!b) return;
+    ev.preventDefault(); clearTimeout(press.tm); press.fired = true; openRollMenu(b);
+  });
+  document.addEventListener('click', function (ev) {
+    var b = rollButton(ev.target); if (!b) return;
+    if (press.fired) { press.fired = false; ev.preventDefault(); return; }  // the long press opened the menu
+    if (b.closest('#shortcutsBox, #sheet, #result')) rollFrom(b);
   });
 
   // ---------- richieste del master
@@ -646,22 +717,23 @@
       h += '<div><label>' + f[1] + '</label><input data-k="' + f[0] + '" type="' + f[2] + '" ' + (f[2] === 'number' && f[0] !== 'init_bonus' ? 'inputmode="numeric" ' : '') + 'value="' + esc(me[f[0]]) + '"></div>';
     });
     h += '</div><label style="margin-top:8px">Condizioni</label><input data-k="conditions" value="' + esc(me.conditions || '') + '" placeholder="Es. avvelenato, prono">' + ((me.resist || me.vuln || me.immune) ? '<p class="dim" style="margin:8px 0 0">' + [me.resist ? 'Resistenze: ' + esc(me.resist) : '', me.vuln ? 'Vulnerabilità: ' + esc(me.vuln) : '', me.immune ? 'Immunità: ' + esc(me.immune) : ''].filter(Boolean).join(' · ') + '</p>' : '') + '</div>';
+    h += '<p class="dim" style="margin:10px 2px 0">Tocca un valore dorato per tirarlo (tieni premuto per vantaggio o svantaggio).</p>';
     h += '<h2>Caratteristiche</h2><div class="abil">';
     T.ABILITIES.forEach(function (a) {
       var sc = (me.ab || {})[a[0]] || 10;
-      h += '<div class="card"><label>' + a[1] + '</label><div class="m" data-abm="' + a[0] + '">' + T.fmtMod(T.abMod(sc)) + '</div><input data-k="ab.' + a[0] + '" type="number" inputmode="numeric" value="' + sc + '"></div>';
+      h += '<div class="card"><label>' + a[1] + '</label><button class="m rollv" data-abm="' + a[0] + '" data-ab="' + a[0] + '" aria-label="Tira prova di ' + a[1] + '">' + T.fmtMod(T.abMod(sc)) + '</button><input data-k="ab.' + a[0] + '" type="number" inputmode="numeric" value="' + sc + '"></div>';
     });
     h += '</div><h2>Tiri salvezza</h2><div class="card">';
     T.ABILITIES.forEach(function (a) {
       var p = (me.saves || []).indexOf(a[0]) >= 0;
-      h += '<div class="skillrow"><span class="nm">' + a[1] + '</span><label style="margin:0"><input type="checkbox" data-k="save.' + a[0] + '"' + (p ? ' checked' : '') + ' aria-label="Competente nel tiro salvezza su ' + a[1] + '" style="width:auto;min-height:0"> competente</label><span class="v" data-sv="' + a[0] + '">' + T.fmtMod(T.saveMod(me, a[0])) + '</span></div>';
+      h += '<div class="skillrow"><span class="nm">' + a[1] + '</span><label style="margin:0"><input type="checkbox" data-k="save.' + a[0] + '"' + (p ? ' checked' : '') + ' aria-label="Competente nel tiro salvezza su ' + a[1] + '" style="width:auto;min-height:0"> competente</label><button class="v rollv" data-sv="' + a[0] + '" data-save="' + a[0] + '" aria-label="Tira tiro salvezza su ' + a[1] + '">' + T.fmtMod(T.saveMod(me, a[0])) + '</button></div>';
     });
     h += '</div><h2>Abilità</h2><div class="card">';
     T.SKILLS.forEach(function (s) {
       var lv = (me.skills || {})[s[0]] || 0;
       h += '<div class="skillrow"><span class="nm">' + esc(s[1]) + ' <span class="dim">(' + s[2] + ')</span></span><select data-k="skill.' + s[0] + '">' +
         ['-', 'Competente', 'Maestria'].map(function (o, i) { return '<option value="' + i + '"' + (i === lv ? ' selected' : '') + '>' + o + '</option>'; }).join('') +
-        '</select><span class="v" data-skv="' + s[0] + '">' + T.fmtMod(T.skillMod(me, s[0])) + '</span></div>';
+        '</select><button class="v rollv" data-skv="' + s[0] + '" data-skill="' + s[0] + '" aria-label="Tira ' + esc(s[1]) + '">' + T.fmtMod(T.skillMod(me, s[0])) + '</button></div>';
     });
     h += '</div><h2>Attacchi</h2><div class="card" id="atkList">';
     (me.attacks || []).forEach(function (at, i) { h += atkRow(at, i); });

@@ -169,6 +169,8 @@ si possono ritoccare se la "sensazione" non convince.
 | **Missioni** | Solo le missioni e le prove rese visibili dal master |
 | **Registro** | Tiri pubblici del gruppo |
 
+**Tiri toccabili.** Nella scheda *Scheda* i modificatori delle caratteristiche, dei tiri salvezza e delle abilità sono pulsanti: un tocco tira subito il d20 con quel modificatore. Tenendo premuto (o con il tasto destro) si apre un menu con *Normale*, *Vantaggio* e *Svantaggio*. Dopo un attacco compare il pulsante **Se colpisci: tira i danni**: con un 20 naturale tira i danni critici (dadi raddoppiati), con un 1 naturale non compare. Sui danni il menu offre *Normale* e *Critico*. Toccando di nuovo *Vantaggio* o *Svantaggio* già attivi si torna al tiro normale.
+
 ---
 
 ## 8. Dati e salvataggi
