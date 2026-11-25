@@ -359,7 +359,18 @@ static func monster_defenses(name: String) -> Dictionary:
 	for k in MONSTER_DEFENSES:
 		if name.begins_with(k):
 			return MONSTER_DEFENSES[k]
-	return {}
+	return MonsterManual.DEFENSES.get(name, {})
+
+
+static var _all_monsters: Array = []
+
+
+## Ready-made creatures: the 2024 SRD ones first, then the Monster Manual
+## list (estimated values), each group sorted by challenge rating.
+static func all_monsters() -> Array:
+	if _all_monsters.is_empty():
+		_all_monsters = MONSTERS + MonsterManual.LIST
+	return _all_monsters
 
 
 static func _has_type(list: String, dtype: String) -> bool:

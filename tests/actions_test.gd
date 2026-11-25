@@ -18,11 +18,18 @@ func names(list: Array) -> Array:
 
 func _init() -> void:
 	# parsing of every ready-made monster
-	for mm in Rules.MONSTERS:
+	for mm in Rules.all_monsters():
 		var acts := Actions.parse_monster(str(mm[6]))
 		print("     %s -> %s" % [mm[0], acts.map(func(a): return "%s[%s %s %s %s%s%s x%d]" % [a.name, a.mode, a.bonus if a.mode == "attack" else "CD%d %s" % [a.dc, a.save], a.dmg, a.type,
 			(" +" + a.dmg2 + " " + a.type2) if a.dmg2 != "" else "", (" cond " + a.cond) if a.cond != "" else "", a.times])])
 		check("parsed %s" % mm[0], not acts.is_empty())
+	check("monster manual list", Rules.all_monsters().size() > 300 and Rules.monster_defenses("Drago nero adulto").get("immune", "") == "Acido")
+	var ard: Array = []
+	for mm in Rules.all_monsters():
+		if mm[0] == "Drago rosso antico":
+			ard = Actions.parse_monster(str(mm[6]))
+	check("ancient red dragon: claws x4 and fire breath", ard.size() == 2 and ard[0].times == 4 and ard[1].mode == "save"
+		and ard[1].type == "Fuoco" and ard[1].targets == 0, ard.map(func(a): return [a.name, a.mode, a.type, a.times]))
 	var gob := Actions.parse_monster("Scimitarra +4, 1d6+2; arco corto +4, 1d6+2; +1d4 se l'attacco aveva vantaggio")
 	check("goblin: two attacks", names(gob) == ["Scimitarra", "Arco corto"] and gob[0].type == "Tagliente" and gob[1].ranged, names(gob))
 	var drag := Actions.parse_monster("Due attacchi: squarcio +6, 1d10+4 + 1d6 fuoco. Soffio di fuoco (ricarica 5-6): cono 4,5 m, 7d6, TS Des CD 13")

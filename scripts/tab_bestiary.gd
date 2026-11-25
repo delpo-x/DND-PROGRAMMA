@@ -13,6 +13,8 @@ var f_notes: LineEdit
 var f_rev: CheckBox
 var f_qty: SpinBox
 var f_preset: OptionButton
+var f_search: LineEdit
+var preset_idx: Array = []  # option index - 1 -> index in Rules.all_monsters()
 var f_xp := 0
 var diff_lbl: Label  # difficulty of the living monsters, plus the ones in the form
 var f_defs := {}
@@ -30,14 +32,14 @@ func setup(a) -> void:
 	f_notes = UI.edit("", "Note private (attacchi, tattiche...)")
 	f_rev = UI.check("Visibile ai giocatori", false)
 	f_qty = UI.spin(1, 20, 1, func(_v): _show_difficulty(), 90)
-	var names: Array = ["Dal Manuale dei Mostri…"]
-	for mm in Rules.MONSTERS:
-		names.append("%s  (GS %s, %d PE)" % [mm[0], mm[5], Rules.cr_xp(mm[5])])
-	f_preset = UI.option(names, 0, _preset, 420)
+	f_preset = UI.option([], 0, _preset, 420)
 	f_preset.accessibility_name = "Creatura dal Manuale dei Mostri"
+	f_search = UI.edit("", "Cerca (nome, tipo o GS)", func(_t): _fill_presets(), 260)
+	f_search.accessibility_name = "Cerca una creatura"
+	_fill_presets()
 	var form := UI.vbox([
 		UI.title("Aggiungi mostro o PNG"),
-		UI.hbox([f_preset]),
+		UI.hbox([f_search, f_preset]),
 		UI.flow([f_name, f_kind, UI.lbl("CA", 18, UI.DIM), f_ac, UI.lbl("PF", 18, UI.DIM), f_hp,
 			UI.lbl("Mod. iniz.", 18, UI.DIM), f_init, UI.lbl("Quanti", 18, UI.DIM), f_qty]),
 		UI.hbox([f_notes, f_rev, UI.color_btn("Aggiungi", Color(0.18, 0.42, 0.25), _add, 52)]),
@@ -193,11 +195,38 @@ func _save(id, n, kind, ac, hp, hpm, ini, rev, notes, tmp, defs: Dictionary, cr:
 	app.close_modal()
 
 
-## Fills the form from a ready-made Monster Manual (SRD) creature.
+## Ready-made creatures matching the search box: every word must appear in
+## the name or the type, or be the challenge rating ("gs 5" or "5").
+func _fill_presets() -> void:
+	var words := f_search.text.strip_edges().to_lower().replace("gs ", "gs").split(" ", false) if f_search else PackedStringArray()
+	var all: Array = Rules.all_monsters()
+	preset_idx.clear()
+	f_preset.clear()
+	f_preset.add_item("Dal Manuale dei Mostri… (%d)" % all.size())
+	for i in all.size():
+		var mm: Array = all[i]
+		var hay := (str(mm[0]) + " " + str(mm[1])).to_lower()
+		var ok := true
+		for w in words:
+			var cr := w.trim_prefix("gs")
+			if not (hay.contains(w) or cr == str(mm[5])):
+				ok = false
+				break
+		if ok:
+			preset_idx.append(i)
+			f_preset.add_item("%s  (GS %s, %d PE)" % [mm[0], mm[5], Rules.cr_xp(mm[5])])
+	if words.size() > 0:
+		f_preset.set_item_text(0, "%d risultati…" % preset_idx.size())
+	f_preset.select(0)
+
+
+## Fills the form from a ready-made creature.
 func _preset(i: int) -> void:
 	if i <= 0:
 		return
-	var mm: Array = Rules.MONSTERS[i - 1]
+	if i - 1 >= preset_idx.size():
+		return
+	var mm: Array = Rules.all_monsters()[preset_idx[i - 1]]
 	f_name.text = str(mm[0]).get_slice(" (", 0)
 	f_kind.selected = 0
 	f_ac.value = int(mm[2])
