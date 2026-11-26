@@ -992,7 +992,7 @@
     if (!ai) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
     if (!$('aiFeed')) {
-      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="aivoice" id="aiVoice"></button><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
+      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="aivoice" id="aiVoice"></button><button class="airead hidden" id="aiRead"></button></div><div id="aiLobby" class="ailobby hidden"></div><div id="aiFeed" class="aifeed"></div>' +
         '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Interagisci: scrivi, o tocca Parla"></textarea><div class="aibtns"><button id="aiMic">Parla</button><button class="primary" id="aiSend">Invia</button></div></div>' +
         '<label class="aisec"><input type="checkbox" id="aiSecret"> In segreto: lo sa solo il master</label><div id="aiSecrets" class="aisecrets"></div>';
       $('aiMic').addEventListener('click', toggleMic);
@@ -1011,15 +1011,23 @@
       });
       // start, pause or resume the reading of the chapter text, for everyone
       $('aiRead').addEventListener('click', function () {
-        var r = S.view && S.view.ai && S.view.ai.reading;
-        if (!link.send({ t: 'read', on: r !== 'on' })) toast('Non collegato al tavolo');
+        var ai2 = S.view && S.view.ai, r = ai2 && ai2.reading;
+        var on = r !== 'on';
+        if (r === 'start') on = !(ai2.lobby || []).some(function (x) { return x.id === S.myId && x.ready; });
+        if (!link.send({ t: 'read', on: on })) toast('Non collegato al tavolo');
         else T.buzz([20]);
       });
     }
     var rd = ai.reading || '', rb = $('aiRead');
+    // before the start: Pronto, and who else is ready; the game starts when all are
+    var lobby = ai.lobby || [], meReady = lobby.some(function (x) { return x.id === S.myId && x.ready; });
     rb.classList.toggle('hidden', !rd);
-    rb.classList.toggle('start', rd === 'start');
-    rb.textContent = rd === 'start' ? "Inizia l'avventura" : (rd === 'on' ? 'Pausa' : 'Riprendi lettura');
+    rb.classList.toggle('start', rd === 'start' && !meReady);
+    rb.textContent = rd === 'start' ? (meReady ? 'Pronto ✓ (annulla)' : 'Sono pronto') : (rd === 'on' ? 'Pausa' : 'Riprendi lettura');
+    var lb = $('aiLobby');
+    lb.classList.toggle('hidden', rd !== 'start' || !lobby.length);
+    lb.innerHTML = rd === 'start' ? 'Pronti ' + lobby.filter(function (x) { return x.ready; }).length + ' di ' + lobby.length + ': ' +
+      lobby.map(function (x) { return '<span class="' + (x.ready ? 'ok' : 'dim') + '">' + esc(x.name) + (x.ready ? ' ✓' : '') + '</span>'; }).join(', ') : '';
     $('aiVoice').textContent = Say.on ? 'Voce: sì' : 'Voce: no';
     $('aiVoice').classList.toggle('on', Say.on);
     var feed = ai.feed || [], live = feed.filter(function (x) { return x.live; })[0];

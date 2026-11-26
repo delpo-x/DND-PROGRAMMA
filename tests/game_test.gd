@@ -425,9 +425,16 @@ Altro.".repeat(300)}
 	# the game waits for Inizia; a phone can press it too
 	g._wait_start("Pronti?", "Inizia l'avventura.")
 	check("start waits", g._start_event != "" and st.ai_reading == "start" and g.btn_start.visible)
+	st.online_chars = {c0: true, c1: true}
+	g._on_player_read(c0, true)
+	check("one ready: still waiting", g._start_event != "" and st.ai_lobby.size() == 2 and st.player_view(c0).ai.lobby.size() == 2)
+	g._on_player_read(c0, false)
+	g._on_player_read(c1, true)
+	check("ready taken back", g._start_event != "" and not g._ready_chars.has(c0))
 	var tn: int = g.story.transcript.size()
 	g._on_player_read(c0, true)
-	check("phone starts the game", g._start_event == "" and st.ai_reading != "start" and (g.story.transcript.size() > tn or g._reading or g._adapting), [st.ai_reading, g.story.transcript.size() - tn, g._reading, g._adapting])
+	check("all ready: the game starts", g._start_event == "" and st.ai_reading != "start" and st.ai_lobby.is_empty() and (g.story.transcript.size() > tn or g._reading or g._adapting))
+	st.online_chars = {}
 
 	# a reply without a question goes on by itself, at most twice
 	g._auto_more = 0

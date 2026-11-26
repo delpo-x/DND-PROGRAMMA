@@ -51,6 +51,7 @@ var _rev_hold := false  # the revised reply: the first words wait until any prea
 var btn_read: Button
 var btn_start: Button
 var _start_event := ""  # the opening waits for Inizia (PC or phone)
+var _ready_chars := {}  # char id -> true: phones that pressed Pronto
 var _auto_more := 0  # replies in a row the narrator went on by itself
 const NARRATION_TOKENS := 400  # one or two full paragraphs
 const MORE_MAX := 2  # replies without a question that go on by themselves
@@ -137,7 +138,10 @@ func _ready() -> void:
 		add_feed(title, "\n".join(lines), "combat")
 		voice.say(spoken(lines)))
 	state.roll_added.connect(_on_roll)
-	net.clients_changed.connect(func(): _ui_dirty = true)
+	net.clients_changed.connect(func():
+		_ui_dirty = true
+		if _start_event != "":
+			_check_ready.call_deferred())
 	net.player_message.connect(toast)
 	net.player_said.connect(_on_player_said)
 	net.player_secret.connect(_on_player_secret)
@@ -200,10 +204,10 @@ func _open_story() -> void:
 	_check_chapter()
 	_start_event = ""
 	if story.is_new():
-		_wait_start("Benvenuti. Quando siete tutti pronti premete Inizia l'avventura, qui o sul telefono.",
+		_wait_start("Benvenuti. Ognuno prema Pronto sul telefono: quando tutti sono pronti si parte. Oppure premete Inizia l'avventura qui.",
 			"Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
 	elif story.transcript.is_empty():
-		_wait_start("Capitolo %d. Premete Inizia quando siete pronti." % story.chapter,
+		_wait_start("Capitolo %d. Premete Pronto sul telefono, o Inizia qui, quando siete pronti." % story.chapter,
 			"Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 	else:
 		add_feed("Tavolo", "Bentornati al capitolo %d. Scrivete cosa fate, o premete %s." % [story.chapter,
@@ -1055,10 +1059,32 @@ func _make_read_btn() -> Button:
 ## The game does not start by itself: the table presses Inizia first.
 func _wait_start(msg: String, event_text: String) -> void:
 	_start_event = event_text
+	_ready_chars.clear()
 	add_feed("Tavolo", msg, "info")
+	_check_ready()
 	if not test_mode:
 		narrator.warm_up()  # the model loads while the players get ready
 	_refresh_read_btn()
+
+
+## Players on a phone press Pronto; when every one of them has, the game
+## starts by itself. The PC button starts it anyway.
+func _check_ready() -> void:
+	var lobby: Array = []
+	var all := true
+	for cid in state.online_chars:
+		var e := state.find_entity(str(cid))
+		if e.is_empty() or not state.is_pc(str(cid)):
+			continue
+		var r := _ready_chars.has(str(cid))
+		all = all and r
+		lobby.append({"id": str(cid), "name": str(e.name), "ready": r})
+	if lobby != state.ai_lobby:
+		state.ai_lobby = lobby
+		state.changed.emit()
+	if _start_event != "" and all and not lobby.is_empty():
+		add_feed("Tavolo", "Tutti pronti: si comincia!", "info")
+		begin_game()
 
 
 func begin_game() -> void:
@@ -1066,6 +1092,8 @@ func begin_game() -> void:
 		return
 	var ev := _start_event
 	_start_event = ""
+	_ready_chars.clear()
+	state.ai_lobby = []
 	_refresh_read_btn()
 	_start_chapter(ev)
 
@@ -1073,9 +1101,14 @@ func begin_game() -> void:
 ## A phone pressed Pausa, Riprendi lettura or Inizia.
 func _on_player_read(cid: String, on: bool) -> void:
 	var who := str(state.find_entity(cid).get("name", "Un giocatore"))
-	if on and _start_event != "":
-		add_feed("Tavolo", "%s dà il via all'avventura." % who, "info")
-		begin_game()
+	if _start_event != "":
+		if on and not _ready_chars.has(cid):
+			_ready_chars[cid] = true
+			add_feed("Tavolo", "%s è pronto." % who, "info")
+		elif not on and _ready_chars.has(cid):
+			_ready_chars.erase(cid)
+			add_feed("Tavolo", "%s non è più pronto." % who, "info")
+		_check_ready()
 	elif on and not _reading and story.reading_left():
 		add_feed("Tavolo", "%s riprende la lettura." % who, "info")
 		start_reading()

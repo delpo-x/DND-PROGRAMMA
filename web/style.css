@@ -431,3 +431,5 @@ button.dmgnext { display: block; width: 100%; margin-top: 8px; font-size: 15px; 
 /* on your own turn only the turn panel: free dice come back on request */
 body.myturn #shortcutsBox, body.myturn .dicegrid, body.myturn .formula-bar, body.myturn #advSeg,
 body.myturn #modeSeg, body.myturn #rollBtn, body.myturn #inspBtn, body.myturn #slotCard{display:none}
+.ailobby{margin:0 0 8px;font-size:15px}
+.ailobby .ok{color:var(--good,#7fc97f)}
