@@ -1,6 +1,6 @@
 # Test Drive: prova di un quarto d'ora
 
-A small adventure for trying Dnd The Game alone before the real evening. It has no secrets, so this file can be read freely.
+Una piccola avventura per provare Dnd The Game da soli prima della serata vera. Non ha segreti: questo file e la campagna si possono leggere.
 
 ## Cosa contiene
 - **Due capitoli brevi.** Nella locanda Lanterna Storta la locandiera Berta chiede di controllare la cantina; giù c'è un Ratto gigante (CA 13, 7 PF), molto più debole del gruppo. Poi si torna su per la ricompensa e un brindisi.
