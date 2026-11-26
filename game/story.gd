@@ -450,6 +450,7 @@ func route_messages() -> Array:
 		"cd: solo per prova, la difficoltà: 10 facile, 12-13 media, 15 difficile, 18-20 molto difficile; altrimenti 0.",
 		"mostri: solo per attacco, chi viene attaccato, con i nomi dei mostri qui sotto e x2 se sono più di uno, ad esempio Goblin x2; altrimenti vuoto.",
 		"Parlare, guardarsi attorno o avvicinarsi senza pericolo non sono prove.",
+		"Abilità: scassinare, borseggiare, disinnescare = Rapidità di Mano; nascondersi, muoversi senza farsi sentire = Furtività; arrampicarsi, saltare, nuotare, forzare = Atletica; ascoltare, origliare, notare qualcosa di nascosto = Percezione; esaminare, cercare indizi = Indagare; convincere = Persuasione; mentire = Inganno; minacciare = Intimidire; capire se uno mente = Intuizione; equilibrio, capriole = Acrobazia.",
 		"Mostri della campagna: " + (", ".join(mons) if not mons.is_empty() else "nessuno") + "."])
 	var user := ("Scena: " + before + "\n" if before != "" else "") + "Azione di %s: %s" % [last.who, last.text]
 	return [{"role": "system", "content": "\n".join(lines)}, {"role": "user", "content": user}]
