@@ -121,6 +121,7 @@ static func parse_adapt(full: String) -> Dictionary:
 
 ## Off only in tests/llm_bench.gd --no-hint, to measure the narrator alone.
 static var check_hints := true
+var route := {}  # the router's reading of the last player line (see route_messages)
 
 ## Words of a player's action that call for a check, and which skill.
 ## Just looking ("osservo", "con attenzione") is left out: in the playtest it
@@ -167,6 +168,11 @@ func pending_check() -> Dictionary:
 	var last: Dictionary = transcript.back()
 	if str(last.role) != "user" or str(last.who) in ["Tavolo", "Master"]:
 		return {}
+	# the router read this very line: its answer wins over the word list
+	if not route.is_empty() and str(route.get("line", "")) == str(last.text):
+		if str(route.tipo) != "prova" or str(route.abilita) == "":
+			return {}
+		return {"skill": str(route.abilita), "who": "tutti" if str(last.who) == "Il gruppo" else str(last.who), "dc": int(route.cd)}
 	var skill := check_hint(str(last.text))
 	if skill == "":
 		return {}
@@ -399,12 +405,73 @@ func messages(extra := "") -> Array:
 	if not pc.is_empty():
 		last = ("[L'azione di %s ha un esito incerto e serve una prova. Descrivi in una o due frasi solo l'ambiente e il rischio, " % pc.who
 			+ "senza far muovere il personaggio e senza dire come finisce. Poi scrivi Cosa fate? e, su una riga a parte, "
-			+ "la prova, ad esempio [[PROVA: %s CD 15: %s]], con la difficoltà che scegli tu da 10 a 20.]\n" % [pc.skill, pc.who]) + last
+			+ ("la prova, esattamente [[PROVA: %s CD %d: %s]].]\n" % [pc.skill, int(pc.dc), pc.who] if pc.has("dc")
+				else "la prova, ad esempio [[PROVA: %s CD 15: %s]], con la difficoltà che scegli tu da 10 a 20.]\n" % [pc.skill, pc.who])) + last
 	if extra != "":
 		last = extra + "\n" + last
 	last = _secrets_note() + last
 	out.append({"role": "user", "content": last})
 	return out
+
+
+# ----------------------------------------------------------------- router
+## JSON schema of the router's answer: Ollama keeps the model inside it.
+static func route_schema() -> Dictionary:
+	var skills: Array = [""]
+	for s in Rules.SKILLS:
+		skills.append(str(s[1]))
+	return {"type": "object", "properties": {
+		"tipo": {"type": "string", "enum": ["parla", "esplora", "prova", "attacco", "altro"]},
+		"abilita": {"type": "string", "enum": skills},
+		"cd": {"type": "integer", "minimum": 0, "maximum": 25},
+		"mostri": {"type": "string"}},
+		"required": ["tipo", "abilita", "cd", "mostri"]}
+
+
+## A short request before the story: what kind of action the last player
+## line is. The table then asks the check or starts the fight by itself,
+## and the narrator only tells what happens.
+func route_messages() -> Array:
+	var last: Dictionary = transcript.back()
+	var before := ""
+	for i in range(transcript.size() - 2, -1, -1):
+		if transcript[i].role == "assistant":
+			before = str(transcript[i].text).right(600)
+			break
+	var mons: Array = []
+	for m in st.monsters():
+		var b: String = st._base_name(str(m.name))
+		if not mons.has(b):
+			mons.append(b)
+	var lines := PackedStringArray([
+		"Sei l'arbitro delle regole di una partita di Dungeons & Dragons 5ª edizione. Leggi l'azione di un giocatore e rispondi solo con il JSON richiesto.",
+		"tipo: parla (dialogo o domanda), esplora (guardarsi attorno o muoversi senza pericolo), prova (esito incerto con un rischio: serve una prova di abilità), attacco (attacca qualcuno o qualcosa), altro.",
+		"abilita: solo per prova, l'abilità giusta; altrimenti vuota.",
+		"cd: solo per prova, la difficoltà: 10 facile, 12-13 media, 15 difficile, 18-20 molto difficile; altrimenti 0.",
+		"mostri: solo per attacco, chi viene attaccato, con i nomi dei mostri qui sotto e x2 se sono più di uno, ad esempio Goblin x2; altrimenti vuoto.",
+		"Parlare, guardarsi attorno o avvicinarsi senza pericolo non sono prove.",
+		"Mostri della campagna: " + (", ".join(mons) if not mons.is_empty() else "nessuno") + "."])
+	var user := ("Scena: " + before + "\n" if before != "" else "") + "Azione di %s: %s" % [last.who, last.text]
+	return [{"role": "system", "content": "\n".join(lines)}, {"role": "user", "content": user}]
+
+
+## The router's JSON, checked: {} when it is not usable.
+static func parse_route(text: String) -> Dictionary:
+	var js := JSON.new()  # quietly: a broken answer is not an error of the app
+	if js.parse(text.strip_edges()) != OK:
+		return {}
+	var j = js.data
+	if not j is Dictionary or not str(j.get("tipo", "")) in ["parla", "esplora", "prova", "attacco", "altro"]:
+		return {}
+	var skill := ""
+	for s in Rules.SKILLS:
+		if str(s[1]).to_lower() == str(j.get("abilita", "")).to_lower():
+			skill = str(s[1])
+	var r := {"tipo": str(j.tipo), "abilita": skill, "cd": clampi(int(j.get("cd", 0)), 0, 25),
+		"mostri": str(j.get("mostri", "")).strip_edges().left(80)}
+	if r.tipo == "prova" and r.cd < 5:
+		r.cd = 15
+	return r
 
 
 # ------------------------------------------------------------ second pass

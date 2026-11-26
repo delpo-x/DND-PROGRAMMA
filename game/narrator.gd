@@ -48,8 +48,12 @@ func ask(messages: Array, opts := {}) -> bool:
 		"num_predict": int(opts.get("max", 170)), "repeat_penalty": 1.1}
 	# think false: models that reason before answering (qwen3.5, gemma4...)
 	# would spend most of the time on hidden thoughts; the others ignore it
-	_body = JSON.stringify({"model": model, "messages": messages, "stream": true,
-		"think": false, "keep_alive": "60m", "options": options})
+	var body := {"model": model, "messages": messages, "stream": true,
+		"think": false, "keep_alive": "60m", "options": options}
+	# a JSON schema: Ollama makes the model answer only with JSON of that shape
+	if opts.has("format"):
+		body["format"] = opts.format
+	_body = JSON.stringify(body)
 	_connect()
 	return true
 

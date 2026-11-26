@@ -465,6 +465,30 @@ Altro.".repeat(300)}
 	var am := st.find_map(str(st.data.map_active))
 	check("cellar map active", str(am.get("name", "")) == "Scena: Cantina" and float(am.cell) == 48.0 and am.tokens.size() >= 2, am.get("name", ""))
 	st.combat_end()
+
+	# router: the JSON answer is checked, a check gets its difficulty, an
+	# attack on a monster of the campaign starts the fight
+	check("route parsed", GameStory.parse_route('{"tipo":"prova","abilita":"rapidità di mano","cd":15,"mostri":""}') == {"tipo": "prova", "abilita": "Rapidità di Mano", "cd": 15, "mostri": ""})
+	check("route garbage", GameStory.parse_route("non è JSON").is_empty() and GameStory.parse_route('{"tipo":"vola"}').is_empty())
+	check("route schema lists skills", (GameStory.route_schema().properties.abilita.enum as Array).has("Percezione"))
+	g.story.transcript.append({"role": "user", "who": "Aria", "text": "Scassino il forziere."})
+	g.story.route = {"tipo": "prova", "abilita": "Rapidità di Mano", "cd": 17, "mostri": "", "line": "Scassino il forziere."}
+	var pck: Dictionary = g.story.pending_check()
+	check("router check with its difficulty", pck.get("skill") == "Rapidità di Mano" and int(pck.get("dc", 0)) == 17, pck)
+	check("narrator told the exact check", str(g.story.messages().back().content).contains("[[PROVA: Rapidità di Mano CD 17: Aria]]"))
+	g.story.transcript.append({"role": "user", "who": "Aria", "text": "Mi arrampico sul muro."})
+	g.story.route = {"tipo": "parla", "abilita": "", "cd": 0, "mostri": "", "line": "Mi arrampico sul muro."}
+	check("router says no check: no hint", g.story.pending_check().is_empty())
+	g.story.route = {}
+	check("no router: word list", g.story.pending_check().get("skill", "") == "Atletica")
+	check("campaign monster", g.campaign_monsters("Goblin x2") and not g.campaign_monsters("Drago rosso") and not g.campaign_monsters(""))
+	g._want_fight = "Goblin"
+	g._ensure_fight([])
+	check("router attack starts the fight", st.ini().active)
+	st.combat_end()
+	g._want_fight = "Goblin"
+	g._ensure_fight([["combattimento", "Goblin"]])
+	check("narrator's own fight tag wins", not st.ini().active and g._want_fight == "")
 	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

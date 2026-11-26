@@ -63,6 +63,7 @@ var _read_quiet := 0.0  # time the voice has been silent
 var _read_min := 0.0    # time to leave a paragraph on screen without voice
 var _secret_queue: Array = []  # char ids waiting for a private answer
 var _secret_cid := ""
+var _want_fight := ""  # monsters the router saw attacked (see _ensure_fight)
 var _want_check := {}  # check the last player's action needs (see GameStory.pending_check)
 var _adapting := false  # the narrator is checking the next paragraph
 var _adapt_raw := ""
@@ -609,21 +610,43 @@ func narrate() -> void:
 	var filler := filler_line()
 	if filler != "":
 		voice.say(filler)
+	# first the router reads the player's line (JSON, a second or two), then
+	# the story; the filler line and the dots cover the wait
+	var last: Dictionary = story.transcript.back() if not story.transcript.is_empty() else {}
+	if bool(settings.refine) and not state.ini().active and str(last.get("role", "")) == "user" and not str(last.get("who", "")) in ["Tavolo", "Master"]:
+		if narrator.ask(story.route_messages(), {"max": 80, "temp": 0.1, "tag": "route", "format": GameStory.route_schema()}):
+			_sync_phones()
+			return
+	_ask_story()
+	_sync_phones()
+
+
+func _ask_story() -> void:
 	_want_check = story.pending_check()
 	# two passes: a hidden draft, then the draft checked against the rules
-	# and the story; the filler line and the dots cover the wait
+	# and the story
 	if bool(settings.refine):
 		narrator.ask(story.messages(), {"max": NARRATION_TOKENS, "tag": "draft"})
 	else:
 		narrator.ask(story.messages(), {"max": NARRATION_TOKENS})
-	_sync_phones()
+
+
+## The router answered: keep its reading for the check and the fight.
+func _route_done(full: String, ok: bool) -> void:
+	var r := GameStory.parse_route(full) if ok else {}
+	if not r.is_empty() and not story.transcript.is_empty():
+		r["line"] = str(story.transcript.back().text)
+	story.route = r
+	_want_fight = str(r.get("mostri", "")) if str(r.get("tipo", "")) == "attacco" else ""
+	_ask_story()
 
 
 ## A reply that ends without a question and without a check or a fight
 ## goes on by itself (twice at most): the players are asked only when they
 ## have something to decide.
 func _go_on(clean: String, tags: Array) -> void:
-	if not tags.is_empty() or clean.strip_edges().ends_with("?") or clean.strip_edges() == "" 			or _auto_more >= MORE_MAX or not checks.is_empty() or state.ini().active or _closing or _want_narration:
+	if not tags.is_empty() or clean.strip_edges().ends_with("?") or clean.strip_edges() == "" \
+			or _auto_more >= MORE_MAX or not checks.is_empty() or state.ini().active or _closing or _want_narration:
 		_auto_more = 0
 		return
 	_auto_more += 1
@@ -653,7 +676,7 @@ func filler_line() -> String:
 
 
 func _on_chunk(piece: String) -> void:
-	if _live.is_empty() or narrator.current_tag() == "draft":
+	if _live.is_empty() or narrator.current_tag() in ["draft", "route"]:
 		return
 	var raw := str(_live.get("raw", "")) + piece
 	_live["raw"] = raw
@@ -706,6 +729,9 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			_adapt_done(full, ok)
 		"prep":
 			_prep_done(full, ok)
+		"route":
+			_route_done(full, ok)
+			return
 		"draft":
 			# the draft is ready: the narrator checks it and tells the final text
 			var draft := GameStory.strip_tags(full).strip_edges() if ok else ""
@@ -747,6 +773,7 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 				for t in tags:
 					_on_tag(str(t[0]), str(t[1]))
 				_ensure_check(tags)
+				_ensure_fight(tags)
 				_go_on(clean, tags)
 	_sync_phones()
 	if _want_narration and not narrator.busy:
@@ -767,7 +794,44 @@ func _ensure_check(tags: Array) -> void:
 	for t in tags:
 		if str(t[0]) in ["prova", "combattimento", "fine capitolo"]:
 			return
-	ask_check("%s CD 15: %s" % [pc.skill, pc.who])
+	ask_check("%s CD %d: %s" % [pc.skill, int(pc.get("dc", 15)), pc.who])
+
+
+## The router read an attack on monsters of the campaign and the narrator
+## did not start the fight: the table starts it.
+func _ensure_fight(tags: Array) -> void:
+	var who := _want_fight
+	_want_fight = ""
+	if who == "" or state.ini().active or not checks.is_empty():
+		return
+	for t in tags:
+		if str(t[0]) in ["prova", "combattimento", "fine capitolo"]:
+			return
+	if not campaign_monsters(who):
+		return
+	add_feed("Tavolo", "Si combatte!", "info")
+	start_combat(who)
+
+
+## Every name in "Goblin x2, Lupo" is a monster prepared in the campaign
+## (the router may not pull monsters out of the bestiary by itself).
+func campaign_monsters(arg: String) -> bool:
+	var names: Array = []
+	for m in state.monsters():
+		names.append(Actions.norm(state._base_name(str(m.name))))
+	var any := false
+	for part in arg.split(","):
+		var p := part.strip_edges()
+		var mx := RegEx.create_from_string("(?i)^(.*?)\\s*[x×]\\s*[0-9]+$").search(p)
+		if mx:
+			p = mx.get_string(1)
+		p = Actions.norm(p)
+		if p == "":
+			continue
+		if not names.has(p):
+			return false
+		any = true
+	return any
 
 
 func _on_tag(name: String, arg: String) -> void:
