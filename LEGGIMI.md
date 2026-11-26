@@ -8,9 +8,12 @@ Una piccola avventura per provare Dnd The Game da soli prima della serata vera. 
 - Una prova di Percezione, un combattimento, un cambio di capitolo e la fine dell'avventura: i pezzi principali dell'app.
 
 ## Come provarla
-1. Avvia `1-APP\Dnd_The_Game.exe`.
-2. Scheda **Campagne** → **Importa campagna da file** → `0-TEST-DRIVE\Test_Drive.json`.
+1. Avvia `Dnd_The_Game.exe`. Se a casa non ce l'hai, è nel ramo `ultimo-disgelo`, cartella `1-APP`.
+2. Scheda **Campagne** → **Importa campagna da file** → `Test_Drive.json`, scaricato da questo ramo.
 3. Gioca dal PC, oppure premi **QR Giocatori** e scegli Bruna o Lio dal telefono.
 4. Scendete in cantina: il narratore avvia il combattimento con il ratto.
 
 Quando hai finito puoi cancellare la campagna Test Drive dalla scheda Campagne: L'Ultimo Disgelo resta separata.
+
+## Scaricarla sul PC di casa
+Su GitHub apri il ramo `test-drive`, clicca `Test_Drive.json` e poi il pulsante di download (Download raw file). Oppure **Code → Download ZIP**.
