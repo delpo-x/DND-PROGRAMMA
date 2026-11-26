@@ -141,7 +141,7 @@
     reqs: [], seenReq: {}, dismissed: {}, sheetDirty: false, sheetTimer: 0, sheetFor: '', wasMyTurn: false, campaign: '',
     manual: T.store('dnd_tavolo_manual') === '1',
     // turn panel: chosen action, targets, advantage, slot; last outcome
-    act: { name: '', targets: {}, adv: 'auto', slot: 0, key: '', busy: false, result: null } };
+    act: { name: '', cat: '', targets: {}, adv: 'auto', slot: 0, key: '', busy: false, result: null, dice: false } };
   var tray = new DiceTray($('tray'), { hint: 'Tocca i dadi e premi LANCIA' });
 
   // ---------- rete
@@ -181,6 +181,7 @@
     } else if (m.t === 'act_result') {
       S.act.busy = false;
       S.act.result = { title: m.title, lines: m.lines || [] };
+      S.act.name = ''; S.act.cat = '';
       T.buzz([60]);
       renderTurn();
     } else if (m.t === 'toast') {
@@ -962,12 +963,36 @@
     r.start();
   }
 
+  // The master's voice on this phone (off by default: at the table the PC
+  // speaks for everyone). Browser speech synthesis, Italian voice if any.
+  var Say = {
+    on: T.store('dnd_tavolo_voice') === '1', seen: null,
+    ok: function () { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'; },
+    speak: function (text) {
+      if (!this.ok()) { toast('Questo browser non sa leggere ad alta voce'); return; }
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'it-IT';
+      var vs = speechSynthesis.getVoices().filter(function (v) { return /^it/i.test(v.lang); });
+      if (vs.length) u.voice = vs[0];
+      speechSynthesis.speak(u);
+    },
+    stop: function () { if (this.ok()) speechSynthesis.cancel(); },
+    // speaks the master lines that are complete and new since the last look
+    feed: function (feed) {
+      var done = feed.filter(function (x) { return x.who === 'Master' && !x.live && x.text; }).map(function (x) { return x.text; });
+      if (this.seen === null) { this.seen = done; return; }
+      var self = this, fresh = done.filter(function (t) { return self.seen.indexOf(t) < 0; });
+      this.seen = done;
+      if (this.on) fresh.forEach(function (t) { self.speak(t.replace(/\[\[[^\]]*\]\]/g, '').replace(/\([^)]*\d[^)]*\)/g, '')); });
+    }
+  };
+
   function renderAI() {
     var ai = S.view && S.view.ai, box = $('aiBox');
     if (!ai) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
     if (!$('aiFeed')) {
-      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
+      box.innerHTML = '<div class="aihead"><b>Il master</b><span class="dim" id="aiState"></span><button class="aivoice" id="aiVoice"></button><button class="airead hidden" id="aiRead"></button></div><div id="aiFeed" class="aifeed"></div>' +
         '<div class="aiask"><textarea id="aiText" rows="2" maxlength="400" placeholder="Interagisci: scrivi, o tocca Parla"></textarea><div class="aibtns"><button id="aiMic">Parla</button><button class="primary" id="aiSend">Invia</button></div></div>' +
         '<label class="aisec"><input type="checkbox" id="aiSecret"> In segreto: lo sa solo il master</label><div id="aiSecrets" class="aisecrets"></div>';
       $('aiMic').addEventListener('click', toggleMic);
@@ -978,7 +1003,13 @@
         if (link.send({ t: 'say', text: t, secret: sec })) { $('aiText').value = ''; $('aiSecret').checked = false; T.buzz([30]); if (sec) toast('Inviato in segreto al master'); }
         else toast('Non collegato al tavolo');
       });
-      // pause or resume the reading of the chapter text, for everyone
+      $('aiVoice').addEventListener('click', function () {
+        Say.on = !Say.on;
+        T.store('dnd_tavolo_voice', Say.on ? '1' : '0');
+        if (Say.on) Say.speak('Voce del master attiva su questo telefono.'); else Say.stop();
+        renderAI();
+      });
+      // start, pause or resume the reading of the chapter text, for everyone
       $('aiRead').addEventListener('click', function () {
         var r = S.view && S.view.ai && S.view.ai.reading;
         if (!link.send({ t: 'read', on: r !== 'on' })) toast('Non collegato al tavolo');
@@ -987,9 +1018,13 @@
     }
     var rd = ai.reading || '', rb = $('aiRead');
     rb.classList.toggle('hidden', !rd);
-    rb.textContent = rd === 'on' ? 'Pausa' : 'Riprendi lettura';
+    rb.classList.toggle('start', rd === 'start');
+    rb.textContent = rd === 'start' ? "Inizia l'avventura" : (rd === 'on' ? 'Pausa' : 'Riprendi lettura');
+    $('aiVoice').textContent = Say.on ? 'Voce: sì' : 'Voce: no';
+    $('aiVoice').classList.toggle('on', Say.on);
     var feed = ai.feed || [], live = feed.filter(function (x) { return x.live; })[0];
     $('aiState').textContent = !ai.busy ? '' : (live && live.text ? 'sta raccontando...' : 'sta pensando...');
+    Say.feed(feed);
     var f = $('aiFeed');
     f.innerHTML = feed.map(function (x) {
       if (x.live && !x.text) return '<p class="aim"><b>Master</b> <span class="aidots"><i></i><i></i><i></i></span></p>';
@@ -1004,6 +1039,12 @@
     }).join('') : '';
   }
 
+  // The turn is a few short steps: a category (Attacco, Incantesimi, Speciali,
+  // Movimento), then one action of it, then targets and TIRA. Indietro goes
+  // one step back.
+  var CATS = [['Attacchi', 'Attacco', 'armi e attacchi'], ['Incantesimi', 'Incantesimi', 'trucchetti e incantesimi'],
+    ['Speciali', 'Speciali', 'capacità della classe'], ['Personalizzata', 'Altro', 'azione libera']];
+  function catLabel(g) { for (var i = 0; i < CATS.length; i++) if (CATS[i][0] === g) return CATS[i][1]; return g; }
   function renderTurn() {
     var boxes = document.querySelectorAll('.turnbox');
     var tr = S.view && S.view.turn, st = S.act, h = '';
@@ -1012,56 +1053,73 @@
       return '<div class="rl' + cls + '">' + esc(l) + '</div>';
     }).join('') + '</div>' : '';
     if (!tr || !tr.actions) {
+      document.body.classList.remove('myturn');
       boxes.forEach(function (b) { b.innerHTML = res; });
       st.key = '';
       return;
     }
     var key = tr.round + ':' + S.myId;
-    if (key !== st.key) { st.key = key; st.name = ''; st.busy = false; }
-    h += '<div class="card turnpanel"><div class="turnhead"><b>Cosa fai?</b><span class="dim">Round ' + tr.round + '</span></div>';
+    if (key !== st.key) { st.key = key; st.name = ''; st.cat = ''; st.busy = false; st.dice = false; }
+    document.body.classList.toggle('myturn', !st.dice);
+    h += '<div class="card turnpanel"><div class="turnhead"><b>Il tuo turno</b><span class="dim">Round ' + tr.round + '</span></div>';
     if (tr.concentration) h += '<div class="conc">Concentrato su ' + esc(tr.concentration) + ' <button class="tendc">Fine</button></div>';
-    if (!tr.actions.length) {
-      h += '<p class="dim">Nessun attacco o incantesimo nella scheda: aggiungili nella Scheda o chiedi al master.</p></div>';
-      boxes.forEach(function (b) { b.innerHTML = h + res; });
-      return;
-    }
-    var ai = turnAction(tr);
-    if (ai < 0) { chooseAction(tr, 0); ai = 0; }
-    h += '<div class="tacts">' + tr.actions.map(function (a, i) {
-      var c = i === ai ? ' sel' : (a.group === 'Incantesimi' ? ' spell' : '');
-      return '<button class="tact' + c + '" data-i="' + i + '"><span>' + esc(a.name) + (a.lvl > 0 ? ' <small>' + a.lvl + '&deg;</small>' : (a.lvl === 0 ? ' <small>T</small>' : '')) + '</span><b>' + esc(actSummary(a)) + '</b></button>';
-    }).join('') + '</div>';
-    var a = tr.actions[ai];
-    h += '<p class="tdet">' + esc(actDetail(a)) + '</p>';
-    if (a.lvl > 0) {
-      var mx = S.me.slots_max || [], used = S.me.slots_used || [], sl = '';
-      for (var l = a.lvl; l <= 9; l++) {
-        if (!(mx[l - 1] > 0)) continue;
-        var free = mx[l - 1] - (used[l - 1] || 0);
-        sl += '<button class="tslot' + (st.slot === l ? ' sel' : '') + '" data-l="' + l + '"' + (free > 0 ? '' : ' disabled') + '>' + l + '&deg; <small>(' + free + ' liberi)</small></button>';
+    var mv = tr.move || {}, ai = turnAction(tr), a = ai >= 0 ? tr.actions[ai] : null;
+    if (!a) st.name = '';
+    if (!st.cat) {
+      // step 1: what kind of action
+      h += '<div class="tlabel">Cosa fai?</div><div class="tcats">';
+      CATS.forEach(function (c) {
+        var n = tr.actions.filter(function (x) { return x.group === c[0]; }).length;
+        if (n) h += '<button class="tcat' + (c[0] === 'Incantesimi' ? ' spell' : '') + '" data-cat="' + c[0] + '"><span>' + c[1] + '</span><small>' + n + ' · ' + c[2] + '</small></button>';
+      });
+      h += '<button class="tcat move" data-cat="Movimento"><span>Movimento</span><small>' + (mv.map ? esc(mv.left) + ' m rimasti · ' : '') + 'scatto, disimpegno</small></button></div>';
+      if (!tr.actions.length) h += '<p class="dim">Nessun attacco o incantesimo nella scheda: aggiungili nella Scheda o chiedi al master.</p>';
+    } else if (st.cat === 'Movimento') {
+      h += '<button class="tback">&lsaquo; Indietro</button><div class="tlabel">Movimento' + (mv.map ? ': ' + esc(mv.left) + ' m rimasti (sposta la pedina nella Mappa)' : '') + '</div>';
+      h += '<div class="tmoves"><button class="tmv" data-k="dash"' + (mv.dash ? ' disabled' : '') + '>Scatto<small>raddoppia il movimento</small></button>' +
+        '<button class="tmv" data-k="disengage"' + (mv.dis ? ' disabled' : '') + '>Disimpegno<small>niente attacchi di opportunità</small></button>' +
+        (mv.prone ? '<button class="tmv" data-k="stand">Rialzati</button>' : '') + '</div>';
+    } else if (!a) {
+      // step 2: which action of the category
+      h += '<button class="tback">&lsaquo; Indietro</button><div class="tlabel">' + esc(catLabel(st.cat)) + '</div><div class="tacts">';
+      tr.actions.forEach(function (x, i) {
+        if (x.group !== st.cat) return;
+        h += '<button class="tact' + (x.group === 'Incantesimi' ? ' spell' : '') + '" data-i="' + i + '"><span>' + esc(x.name) + (x.lvl > 0 ? ' <small>' + x.lvl + '&deg;</small>' : (x.lvl === 0 ? ' <small>T</small>' : '')) + '</span><b>' + esc(actSummary(x)) + '</b></button>';
+      });
+      h += '</div>';
+    } else {
+      // step 3: slot, targets, advantage, roll
+      h += '<button class="tback">&lsaquo; Indietro</button><div class="tchosen"><b>' + esc(a.name) + '</b><span>' + esc(actDetail(a)) + '</span></div>';
+      if (a.lvl > 0) {
+        var mx = S.me.slots_max || [], used = S.me.slots_used || [], sl = '';
+        for (var l = a.lvl; l <= 9; l++) {
+          if (!(mx[l - 1] > 0)) continue;
+          var free = mx[l - 1] - (used[l - 1] || 0);
+          sl += '<button class="tslot' + (st.slot === l ? ' sel' : '') + '" data-l="' + l + '"' + (free > 0 ? '' : ' disabled') + '>' + l + '&deg; <small>(' + free + ' liberi)</small></button>';
+        }
+        h += sl ? '<div class="tlabel">Slot</div><div class="seg tslots">' + sl + '</div>' : '<p class="bad">Nessuno slot di questo livello</p>';
       }
-      h += sl ? '<div class="tlabel">Slot</div><div class="seg tslots">' + sl + '</div>' : '<p class="bad">Nessuno slot di questo livello</p>';
+      var hint = 'Su chi';
+      if (a.targets === 0) hint += ' (area: tocca tutti quelli presi)';
+      else if (a.targets > 1) hint += ' (fino a ' + a.targets + ')';
+      else if (a.times > 1) hint += ' (gli attacchi vanno a turno ai bersagli scelti)';
+      h += '<div class="tlabel">' + hint + '</div><div class="ttargets">';
+      tr.targets.filter(function (t) { return !t.ally; }).concat(tr.targets.filter(function (t) { return t.ally; })).forEach(function (t) {
+        h += '<button class="ttarget' + (st.targets[t.ref] ? ' sel' : '') + (t.ally ? ' ally' : ' foe') + (t.down ? ' down' : '') + '" data-ref="' + esc(t.ref) + '">' + T.avatar(t.img) +
+          '<span>' + esc(t.name) + (t.me ? ' (tu)' : '') + '<small class="' + T.statusClass(t.status) + '">' + esc(t.status) + (t.cond ? ' · ' + esc(t.cond) : '') + '</small></span></button>';
+      });
+      h += '</div>';
+      if (a.mode === 'attack') {
+        var advName = ADV_LABELS.filter(function (x) { return x[0] === st.adv; })[0];
+        h += '<details class="tmore"' + (st.adv !== 'auto' ? ' open' : '') + '><summary>Vantaggio o svantaggio' + (st.adv !== 'auto' && advName ? ': ' + advName[1] : '') + '</summary><div class="seg tadv">' +
+          ADV_LABELS.map(function (x) { return '<button data-adv="' + x[0] + '"' + (st.adv === x[0] ? ' class="sel"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>' +
+          (S.me.inspiration ? '<button class="tinsp insp' + (st.insp ? ' sel' : '') + '">&#10022; Usa ispirazione: vantaggio</button>' : '') + '</details>';
+      }
+      var n = Object.keys(st.targets).length;
+      h += '<button class="primary tgo"' + (st.busy || !n ? ' disabled' : '') + '>' + (st.busy ? 'Tiro in corso...' : (n ? 'TIRA!' : 'Scegli un bersaglio')) + '</button>';
     }
-    if (a.mode === 'attack') h += '<div class="seg tadv">' + ADV_LABELS.map(function (x) { return '<button data-adv="' + x[0] + '"' + (st.adv === x[0] ? ' class="sel"' : '') + '>' + x[1] + '</button>'; }).join('') + '</div>';
-    if (a.mode === 'attack' && S.me.inspiration) h += '<button class="tinsp insp' + (st.insp ? ' sel' : '') + '">&#10022; Usa ispirazione: vantaggio</button>';
-    var hint = 'Su chi';
-    if (a.targets === 0) hint += ' (area: tocca tutti quelli presi)';
-    else if (a.targets > 1) hint += ' (fino a ' + a.targets + ')';
-    else if (a.times > 1) hint += ' (gli attacchi vanno a turno ai bersagli scelti)';
-    h += '<div class="tlabel">' + hint + '</div><div class="ttargets">';
-    tr.targets.filter(function (t) { return !t.ally; }).concat(tr.targets.filter(function (t) { return t.ally; })).forEach(function (t) {
-      h += '<button class="ttarget' + (st.targets[t.ref] ? ' sel' : '') + (t.ally ? ' ally' : ' foe') + (t.down ? ' down' : '') + '" data-ref="' + esc(t.ref) + '">' + T.avatar(t.img) +
-        '<span>' + esc(t.name) + (t.me ? ' (tu)' : '') + '<small class="' + T.statusClass(t.status) + '">' + esc(t.status) + (t.cond ? ' · ' + esc(t.cond) : '') + '</small></span></button>';
-    });
-    h += '</div>';
-    var n = Object.keys(st.targets).length;
-    h += '<button class="primary tgo"' + (st.busy || !n ? ' disabled' : '') + '>' + (st.busy ? 'Tiro in corso...' : (n ? 'TIRA!' : 'Scegli un bersaglio')) + '</button>';
-    var mv = tr.move || {};
-    h += '<div class="tmoves">' + (mv.map ? '<span class="dim">Movimento: ' + esc(mv.left) + ' m</span>' : '') +
-      '<button class="tmv" data-k="dash"' + (mv.dash ? ' disabled' : '') + '>Scatto</button>' +
-      '<button class="tmv" data-k="disengage"' + (mv.dis ? ' disabled' : '') + '>Disimpegno</button>' +
-      (mv.prone ? '<button class="tmv" data-k="stand">Rialzati</button>' : '') + '</div>';
     if (S.view.ai) h += '<button class="tend">Fine turno</button>';
+    h += '<button class="tdice">' + (st.dice ? 'Nascondi i dadi liberi' : 'Dadi liberi e scorciatoie') + '</button>';
     h += '<p class="dim tfoot">I dadi li tira il tavolo e applica tutto: colpi, danni, tiri salvezza, condizioni, slot.</p></div>';
     boxes.forEach(function (b) { b.innerHTML = h + res; });
   }
@@ -1070,10 +1128,13 @@
     if (!b || b.disabled) return;
     var tr = S.view && S.view.turn, st = S.act;
     if (b.classList.contains('tendc')) { link.send({ t: 'end_conc' }); return; }
-    if (b.classList.contains('tend')) { st.result = null; link.send({ t: 'end_turn' }); return; }
+    if (b.classList.contains('tend')) { st.result = null; st.cat = ''; st.name = ''; link.send({ t: 'end_turn' }); return; }
     if (b.classList.contains('tmv')) { link.send({ t: 'maneuver', k: b.getAttribute('data-k') }); T.buzz(15); return; }
+    if (b.classList.contains('tdice')) { st.dice = !st.dice; renderTurn(); return; }
     if (!tr || !tr.actions) return;
-    if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
+    if (b.classList.contains('tback')) { if (st.name) st.name = ''; else st.cat = ''; }
+    else if (b.classList.contains('tcat')) { st.cat = b.getAttribute('data-cat'); st.name = ''; st.result = null; }
+    else if (b.classList.contains('tact')) { chooseAction(tr, +b.getAttribute('data-i')); }
     else if (b.classList.contains('tslot')) { st.slot = +b.getAttribute('data-l'); }
     else if (b.hasAttribute('data-adv')) { st.adv = b.getAttribute('data-adv'); st.insp = false; }
     else if (b.classList.contains('tinsp')) { st.insp = !st.insp; st.adv = st.insp ? 'adv' : 'auto'; }

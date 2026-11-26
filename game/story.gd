@@ -310,10 +310,10 @@ func system_prompt() -> String:
 	var p := PackedStringArray()
 	p.append("Sei il Dungeon Master di una partita di Dungeons & Dragons 5ª edizione. Parli sempre in italiano, a un gruppo di amici seduti attorno al tavolo.")
 	p.append("Regole del tuo modo di narrare:")
-	p.append("- Al massimo 4 frasi, un solo paragrafo: la tua voce viene letta ad alta voce.")
+	p.append("- Da 4 a 8 frasi, in uno o due paragrafi: racconta con calma e con dettagli concreti (luce, rumori, odori, gesti dei PNG). La tua voce viene letta ad alta voce.")
 	p.append("- Comincia da come il luogo e i PNG reagiscono a quello che il giocatore ha appena fatto o detto, senza raccontare di nuovo la sua azione.")
 	p.append("- Parla solo di luoghi, rumori, PNG e mostri. I personaggi dei giocatori fanno e dicono soltanto ciò che scrivono i giocatori: non farli muovere, parlare o pensare.")
-	p.append("- Chiudi sempre con la domanda: Cosa fate?")
+	p.append("- Chiedi Cosa fate? solo quando i giocatori devono davvero decidere qualcosa. Se la scena va avanti da sola, chiudi senza domande: il racconto prosegue.")
 	p.append("- Non tirare dadi e non inventare numeri: dadi, danni e punti ferita li gestisce il tavolo.")
 	p.append("- Chiedi una prova solo se fallire cambierebbe la scena: parlare, guardarsi attorno o avvicinarsi senza pericolo riescono e basta.")
 	p.append("- Se un'azione ha un esito incerto chiedi una prova scrivendo alla fine, su una riga a parte, ad esempio: [[PROVA: Percezione CD 15: Aria]] (abilità, difficoltà da 10 a 20, chi la tira oppure tutti).")
@@ -327,7 +327,7 @@ func system_prompt() -> String:
 	p.append("- Se la traccia ha una linea temporale, porta il gruppo da un momento al successivo seguendo le loro scelte, senza saltare avanti. Quando arriva il momento indicato come fine, chiudi il capitolo.")
 	p.append("- Le battute del Master che vengono dal testo da leggere sono già state lette ai giocatori: non ripeterle, riprendi da lì.")
 	p.append("- A volte ricevi un brano dal testo dell'avventura: usalo per luoghi, dialoghi e indizi, riassumendolo con parole tue.")
-	p.append("Esempio di risposta giusta. Giocatore: Entriamo nella grotta. Master: L'aria si fa umida e un odore di fumo vi punge la gola. Oltre una curva tremola la luce di un fuoco e si sentono voci gracchianti. Cosa fate?")
+	p.append("Esempio di risposta giusta. Giocatore: Entriamo nella grotta. Master: L'aria si fa umida e fredda, e un odore di fumo e di carne bruciata vi punge la gola. Le pareti sono coperte di muschio scuro e l'acqua gocciola da qualche parte nel buio, con un ritmo lento. Dopo una curva il passaggio si allarga: tremola la luce rossastra di un fuoco e si sentono voci gracchianti che litigano in una lingua aspra. Una delle voci ride, poi qualcosa di metallico cade a terra con un clangore. Cosa fate?")
 	p.append("")
 	p.append("Il gruppo: " + "; ".join(party) + ".")
 	if not known.is_empty():
@@ -405,6 +405,35 @@ func messages(extra := "") -> Array:
 	last = _secrets_note() + last
 	out.append({"role": "user", "content": last})
 	return out
+
+
+# ------------------------------------------------------------ second pass
+## The narrator reads its own draft again and writes the final reply: small
+## local models make fewer mistakes when they check a text than when they
+## write it at once.
+func revise_messages(draft: String) -> Array:
+	var out := messages()
+	out.append({"role": "assistant", "content": draft})
+	out.append({"role": "user", "content": "[Rileggi la tua bozza qui sopra e scrivi la versione finale. Controlla che: "
+		+ "i personaggi dei giocatori non facciano, dicano o pensino nulla che i giocatori non hanno scritto; "
+		+ "luoghi, PNG e fatti siano quelli della storia e del capitolo; non ci siano dadi, numeri di danni o punti ferita; "
+		+ "i mostri abbiano i nomi della lista; la domanda Cosa fate? ci sia solo se i giocatori devono decidere; "
+		+ "i marcatori tra doppie parentesi quadre siano alla fine e solo se servono; l'italiano sia scorrevole. "
+		+ "Correggi gli errori e tieni il resto. Scrivi solo il testo finale per i giocatori, senza commenti e senza titoli.]"})
+	return out
+
+
+## Cuts what a model writes before or around the final text of a revision
+## ("Ecco la versione finale:", "Versione corretta:", quotes).
+static func clean_revision(text: String) -> String:
+	var t := text.strip_edges()
+	var re := RegEx.create_from_string("(?i)^\\s*(\\*\\*)?(ecco|versione|testo|bozza|risposta)[^\\n:]{0,60}:\\s*(\\*\\*)?\\s*")
+	var m := re.search(t)
+	if m:
+		t = t.substr(m.get_end()).strip_edges()
+	if t.length() > 1 and t.begins_with("\"") and t.ends_with("\""):
+		t = t.substr(1, t.length() - 2).strip_edges()
+	return t
 
 
 # ---------------------------------------------------------------- passages

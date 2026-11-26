@@ -421,6 +421,43 @@ Altro.".repeat(300)}
 	check("public request keeps the secret out", not str(msgs.back().content).contains("rubo la mappa") and str(msgs.back().content).contains("mosse segrete"))
 	check("private request remembers the secret", str(g.story.secret_messages(str(st.find_entity(c0).name), "e poi?").back().content).contains("rubo la mappa"))
 	g._secret_queue.clear()
+
+	# the game waits for Inizia; a phone can press it too
+	g._wait_start("Pronti?", "Inizia l'avventura.")
+	check("start waits", g._start_event != "" and st.ai_reading == "start" and g.btn_start.visible)
+	var tn: int = g.story.transcript.size()
+	g._on_player_read(c0, true)
+	check("phone starts the game", g._start_event == "" and st.ai_reading != "start" and (g.story.transcript.size() > tn or g._reading or g._adapting), [st.ai_reading, g.story.transcript.size() - tn, g._reading, g._adapting])
+
+	# a reply without a question goes on by itself, at most twice
+	g._auto_more = 0
+	g._want_narration = false
+	g._go_on("La porta si apre su un corridoio buio.", [])
+	check("reply without question goes on", g._want_narration and str(g.story.transcript.back().text) == g.MORE_TEXT)
+	g._want_narration = false
+	g._go_on("Il corridoio scende ancora.", [])
+	g._want_narration = false
+	g._go_on("E ancora.", [])
+	check("goes on twice at most", not g._want_narration and g._auto_more == 0)
+	g._go_on("Un goblin vi sbarra la strada. Cosa fate?", [])
+	check("a question stops it", not g._want_narration)
+
+	# second pass of the narrator: the preamble is cut
+	check("revision preamble cut", GameStory.clean_revision("Ecco la versione finale:\nLa nebbia sale dal fiume.") == "La nebbia sale dal fiume.")
+	check("revision text kept", GameStory.clean_revision("La nebbia sale. Cosa fate?") == "La nebbia sale. Cosa fate?")
+	var rv: Array = g.story.revise_messages("Bozza di prova.")
+	check("revision request has the draft", str(rv[rv.size() - 2].content) == "Bozza di prova." and str(rv.back().content).contains("versione finale"))
+
+	# battle map: a picture of the place, aligned to the 48 px squares
+	check("place of the fight", SceneArt.detect("La locanda è piena. Scendete in cantina tra le botti.") == "cantina")
+	check("default place", SceneArt.detect("Nulla di speciale.") == "strada")
+	var pic := SceneArt.make("cantina", 24, 16)
+	check("scene picture size", pic.get_width() == 24 * 48 and pic.get_height() == 16 * 48)
+	g.story.transcript.append({"role": "assistant", "who": "Master", "text": "Nella cantina, tra le botti, qualcosa si muove."})
+	check("fight in the cellar", g.start_combat("Goblin"))
+	var am := st.find_map(str(st.data.map_active))
+	check("cellar map active", str(am.get("name", "")) == "Scena: Cantina" and float(am.cell) == 48.0 and am.tokens.size() >= 2, am.get("name", ""))
+	st.combat_end()
 	st.set_story({})
 	print("game test: " + ("OK" if fails == 0 else "%d FAIL" % fails))
 	quit()

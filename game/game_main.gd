@@ -28,7 +28,7 @@ var voice := Voice.new()
 var ambience := Ambience.new()
 var story := GameStory.new()
 var rng := RandomNumberGenerator.new()
-var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true, "ambience_on": true}
+var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true, "ambience_on": true, "refine": true}
 
 var test_mode := false  # no files, no network outside this PC, no window tweaks
 var llm_in_tests := false  # tests: ask the real local model too
@@ -46,7 +46,15 @@ var lbl_status: Label
 var lbl_clients: Label
 var chk_voice: CheckBox
 var chk_ambience: CheckBox
+var chk_refine: CheckBox
+var _rev_hold := false  # the revised reply: the first words wait until any preamble is cut
 var btn_read: Button
+var btn_start: Button
+var _start_event := ""  # the opening waits for Inizia (PC or phone)
+var _auto_more := 0  # replies in a row the narrator went on by itself
+const NARRATION_TOKENS := 400  # one or two full paragraphs
+const MORE_MAX := 2  # replies without a question that go on by themselves
+const MORE_TEXT := "Continua il racconto da dove ti sei fermato, senza ripetere."
 var btn_undo: Button
 var _reading := false   # reading the "Da leggere" text of the chapter aloud
 var _read_clock := 0.0  # time since the paragraph started
@@ -190,11 +198,13 @@ func _open_story() -> void:
 		add_feed(str(t.who), str(t.text), "master" if t.role == "assistant" else "player")
 	_guess_place()
 	_check_chapter()
+	_start_event = ""
 	if story.is_new():
-		add_feed("Tavolo", "Benvenuti. Il master è pronto: tra poco descrive la scena iniziale.", "info")
-		_start_chapter("Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
+		_wait_start("Benvenuti. Quando siete tutti pronti premete Inizia l'avventura, qui o sul telefono.",
+			"Inizia l'avventura. Presenta il luogo e la situazione iniziale ai personaggi.")
 	elif story.transcript.is_empty():
-		_start_chapter("Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
+		_wait_start("Capitolo %d. Premete Inizia quando siete pronti." % story.chapter,
+			"Inizia il capitolo %d. Riprendi la storia da dove si era interrotta." % story.chapter)
 	else:
 		add_feed("Tavolo", "Bentornati al capitolo %d. Scrivete cosa fate, o premete %s." % [story.chapter,
 			"Riprendi lettura" if story.reading_left() else "Continua"], "info")
@@ -244,7 +254,9 @@ func _build_ui() -> void:
 	chk_voice.tooltip_text = ("Voce: " + voice.voice_name) if voice.available else "Nessuna voce di sintesi trovata su questo dispositivo"
 	chk_ambience = UI.check("Ambiente", bool(settings.ambience_on), _toggle_ambience)
 	chk_ambience.tooltip_text = "Suoni di sottofondo del luogo (grotta, locanda, bosco...)"
-	root.add_child(UI.hbox([title, UI.expand(lbl_campaign), lbl_clients, chk_voice, chk_ambience,
+	chk_refine = UI.check("Ragiona", bool(settings.refine), _toggle_refine)
+	chk_refine.tooltip_text = "Il narratore scrive una bozza e poi la ricontrolla prima di raccontare: più lento, più preciso"
+	root.add_child(UI.hbox([title, UI.expand(lbl_campaign), lbl_clients, chk_voice, chk_ambience, chk_refine,
 		UI.btn("Telefoni", _show_qr, 44), UI.btn("Campagna", _show_campaigns, 44),
 		_make_undo_btn(), UI.btn("Diario", _open_diary, 44), UI.btn("Impostazioni", _show_settings, 44)], 12))
 	lbl_status = UI.lbl(narrator.status, 17, UI.DIM)
@@ -281,7 +293,7 @@ func _build_ui() -> void:
 	input.text_submitted.connect(func(_t): _send_input())
 	root.add_child(UI.hbox([input, UI.color_btn("Invia", Color(0.18, 0.42, 0.25), _send_input, 54),
 		UI.btn("Continua", func(): _event("Continua la storia."), 54),
-		_make_read_btn(),
+		_make_start_btn(), _make_read_btn(),
 		UI.color_btn("Fine capitolo", UI.WINE, _ask_close_chapter, 54)], 10))
 	# overlays
 	toast_box = UI.vbox([], 8)
@@ -301,6 +313,11 @@ func _toggle_voice(on: bool) -> void:
 	_save_settings()
 	if not on:
 		voice.stop()
+
+
+func _toggle_refine(on: bool) -> void:
+	settings.refine = on
+	_save_settings()
 
 
 func _toggle_ambience(on: bool) -> void:
@@ -557,6 +574,10 @@ func _run_secret() -> void:
 
 
 func _player_says(who: String, text: String) -> void:
+	if _start_event != "":  # speaking first also starts the game
+		_start_event = ""
+		_refresh_read_btn()
+	_auto_more = 0
 	add_feed(who, text, "player")
 	story.add("user", who, text)
 	narrate()
@@ -585,13 +606,30 @@ func narrate() -> void:
 	if filler != "":
 		voice.say(filler)
 	_want_check = story.pending_check()
-	narrator.ask(story.messages())
+	# two passes: a hidden draft, then the draft checked against the rules
+	# and the story; the filler line and the dots cover the wait
+	if bool(settings.refine):
+		narrator.ask(story.messages(), {"max": NARRATION_TOKENS, "tag": "draft"})
+	else:
+		narrator.ask(story.messages(), {"max": NARRATION_TOKENS})
 	_sync_phones()
+
+
+## A reply that ends without a question and without a check or a fight
+## goes on by itself (twice at most): the players are asked only when they
+## have something to decide.
+func _go_on(clean: String, tags: Array) -> void:
+	if not tags.is_empty() or clean.strip_edges().ends_with("?") or clean.strip_edges() == "" 			or _auto_more >= MORE_MAX or not checks.is_empty() or state.ini().active or _closing or _want_narration:
+		_auto_more = 0
+		return
+	_auto_more += 1
+	story.add("user", "Tavolo", MORE_TEXT)
+	_want_narration = true
 
 
 ## A filler line that suits what just happened at the table ("" = none).
 func filler_line() -> String:
-	if story.transcript.is_empty():
+	if story.transcript.is_empty() or str(story.transcript.back().text) == MORE_TEXT:
 		return ""
 	var last: Dictionary = story.transcript.back()
 	var txt := str(last.text)
@@ -611,11 +649,25 @@ func filler_line() -> String:
 
 
 func _on_chunk(piece: String) -> void:
-	if _live.is_empty():
+	if _live.is_empty() or narrator.current_tag() == "draft":
 		return
-	voice.feed(piece)
 	var raw := str(_live.get("raw", "")) + piece
 	_live["raw"] = raw
+	if narrator.current_tag() == "rev":
+		# "Ecco il testo corretto:" must not be read aloud: the start of the
+		# revision waits until a preamble can be recognised and cut
+		var cut := GameStory.clean_revision(raw)
+		if _rev_hold:
+			if raw.length() < 60 and not raw.contains("\n"):
+				return
+			_rev_hold = false
+			voice.feed(cut)
+		else:
+			voice.feed(piece)
+		_set_feed_text(_live, GameStory.strip_tags(cut))
+		_scroll_down.call_deferred()
+		return
+	voice.feed(piece)
 	_set_feed_text(_live, GameStory.strip_tags(raw))
 	_scroll_down.call_deferred()
 
@@ -650,6 +702,19 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			_adapt_done(full, ok)
 		"prep":
 			_prep_done(full, ok)
+		"draft":
+			# the draft is ready: the narrator checks it and tells the final text
+			var draft := GameStory.strip_tags(full).strip_edges() if ok else ""
+			_rev_hold = true
+			if not _live.is_empty():
+				_live["raw"] = ""
+			var msgs := story.revise_messages(full.strip_edges()) if draft != "" else story.messages()
+			if narrator.ask(msgs, {"max": NARRATION_TOKENS, "temp": 0.4, "tag": "rev" if draft != "" else ""}):
+				return
+			if ok:
+				voice.feed(full)
+			_on_finished(full, ok, "")
+			return
 		"secret":
 			var reply := GameStory.clean_secret(full) if ok else ""
 			story.set_secret_reply(_secret_cid, reply if reply != "" else "(Il master ora non riesce a rispondere: riprova tra poco.)")
@@ -664,6 +729,11 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 					_set_feed_text(e, "(Il narratore non risponde: %s)" % narrator.status)
 					e.kind = "info"
 			else:
+				if tag == "rev":
+					if _rev_hold:  # short reply: nothing was read yet
+						voice.feed(GameStory.clean_revision(full))
+					_rev_hold = false
+					full = GameStory.clean_revision(full)
 				var clean := GameStory.strip_tags(full)
 				_set_feed_text(e, clean)
 				UI.announce(sr, "Master: " + clean)
@@ -673,6 +743,7 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 				for t in tags:
 					_on_tag(str(t[0]), str(t[1]))
 				_ensure_check(tags)
+				_go_on(clean, tags)
 	_sync_phones()
 	if _want_narration and not narrator.busy:
 		narrate()
@@ -813,8 +884,8 @@ func _read_next() -> void:
 	if story.read_pos >= paras.size():
 		_reading = false
 		_refresh_read_btn()
-		add_feed("Tavolo", "Fine del testo da leggere: ora tocca a voi. Cosa fate?", "info")
-		voice.say("Cosa fate?")
+		add_feed("Tavolo", "Fine del testo da leggere: ora tocca a voi. Dite al master cosa fanno i vostri personaggi.", "info")
+		voice.say("Ora tocca a voi.")
 		_sync_phones()
 		return
 	var raw := str(paras[story.read_pos])
@@ -969,16 +1040,43 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _make_start_btn() -> Button:
+	btn_start = UI.color_btn("Inizia l'avventura", Color(0.55, 0.4, 0.12), begin_game, 54)
+	btn_start.visible = false
+	return btn_start
+
+
 func _make_read_btn() -> Button:
 	btn_read = UI.btn("Riprendi lettura", _toggle_reading, 54)
 	btn_read.visible = false
 	return btn_read
 
 
-## A phone pressed Pausa or Riprendi lettura.
+## The game does not start by itself: the table presses Inizia first.
+func _wait_start(msg: String, event_text: String) -> void:
+	_start_event = event_text
+	add_feed("Tavolo", msg, "info")
+	if not test_mode:
+		narrator.warm_up()  # the model loads while the players get ready
+	_refresh_read_btn()
+
+
+func begin_game() -> void:
+	if _start_event == "":
+		return
+	var ev := _start_event
+	_start_event = ""
+	_refresh_read_btn()
+	_start_chapter(ev)
+
+
+## A phone pressed Pausa, Riprendi lettura or Inizia.
 func _on_player_read(cid: String, on: bool) -> void:
 	var who := str(state.find_entity(cid).get("name", "Un giocatore"))
-	if on and not _reading and story.reading_left():
+	if on and _start_event != "":
+		add_feed("Tavolo", "%s dà il via all'avventura." % who, "info")
+		begin_game()
+	elif on and not _reading and story.reading_left():
 		add_feed("Tavolo", "%s riprende la lettura." % who, "info")
 		start_reading()
 	elif not on and _reading:
@@ -995,11 +1093,16 @@ func _toggle_reading() -> void:
 
 
 func _refresh_read_btn() -> void:
-	var mode := "on" if _reading else ("paused" if story.reading_left() else "")
+	var mode := "start" if _start_event != "" else ("on" if _reading else ("paused" if story.reading_left() else ""))
 	if mode != state.ai_reading:
 		state.ai_reading = mode
-		state.changed.emit()  # the phones show Pausa / Riprendi
+		state.changed.emit()  # the phones show Inizia / Pausa / Riprendi
+	if btn_start != null:
+		btn_start.visible = _start_event != ""
 	if btn_read == null:
+		return
+	if _start_event != "":
+		btn_read.visible = false
 		return
 	btn_read.visible = _reading or story.reading_left()
 	btn_read.text = "Pausa" if _reading else "Riprendi lettura"
@@ -1384,23 +1487,23 @@ func _monster_move(ref: String, a: Dictionary, targets: Array) -> Dictionary:
 ## Dnd The Game has no map tab: every fight gets a plain battle grid on the
 ## phones, characters on the left and monsters 9 m away on the right.
 func _battle_map() -> void:
-	var mp: Dictionary = {}
-	for m2 in state.data.maps:
-		if str(m2.get("name", "")) == "Campo di battaglia":
-			mp = m2
+	# a picture the master loaded for this scene wins; otherwise one is drawn
+	# for the place of the fight, square by square on the grid
+	var mp: Dictionary = state.find_map(str(state.data.get("map_active", "")))
+	if not mp.is_empty() and (str(mp.name).begins_with("Scena: ") or str(mp.name) == "Campo di battaglia"):
+		mp = {}
 	if mp.is_empty():
-		var img := Image.create(24 * 48, 16 * 48, false, Image.FORMAT_RGB8)
-		var base := Color(0.42, 0.36, 0.27)
-		img.fill(base)
-		var r := RandomNumberGenerator.new()
-		r.seed = 7
-		for i in 2600:  # trodden earth, so it is not a blank sheet
-			img.fill_rect(Rect2i(r.randi_range(0, img.get_width() - 4), r.randi_range(0, img.get_height() - 4), r.randi_range(2, 4), r.randi_range(2, 4)),
-				base.darkened(r.randf_range(-0.1, 0.15)))
-		mp = state.add_map("Campo di battaglia", img)
+		var place := SceneArt.detect(_scene_text())
+		var map_name := "Scena: " + SceneArt.title(place)
+		for m2 in state.data.maps:
+			if str(m2.get("name", "")) == map_name:
+				mp = m2
 		if mp.is_empty():
-			return
-		state.update_map(str(mp.id), {"cell": 48.0, "ox": 0.0, "oy": 0.0, "grid": true})
+			mp = state.add_map(map_name, SceneArt.make(place, 24, 16, _scene_text().to_lower().contains("notte")))
+			if mp.is_empty():
+				return
+			state.update_map(str(mp.id), {"cell": float(SceneArt.CELL), "ox": 0.0, "oy": 0.0, "grid": true})
+			mp = state.find_map(str(mp.id))
 	mp.tokens = []
 	var n := GameState.map_size(mp)
 	var pcs: Array = []
@@ -1415,6 +1518,22 @@ func _battle_map() -> void:
 			if sq.x >= 0:
 				state.place_token(str(mp.id), str(refs[i]), sq.x, sq.y)
 	state.set_map_active(str(mp.id))
+
+
+## Where the fight is: the chapter outline, then the last master lines (the
+## place word said last wins).
+func _scene_text() -> String:
+	var parts: Array = []
+	var ch := story.chapter_info()
+	if not ch.is_empty():
+		parts.append(str(ch.get("title", "")) + " " + str(ch.get("text", "")).left(1400))
+	var said: Array = []
+	for i in range(story.transcript.size() - 1, -1, -1):
+		if story.transcript[i].role == "assistant":
+			said.push_front(str(story.transcript[i].text))
+			if said.size() >= 3:
+				break
+	return " ".join(parts + said)
 
 
 ## Outcome lines as they are read aloud: the first three, without numbers in brackets.

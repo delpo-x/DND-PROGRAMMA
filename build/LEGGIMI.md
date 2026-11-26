@@ -348,13 +348,18 @@ Dungeon Master è il PC. Le campagne sono in comune con `DnD_Tavolo_Master.exe`:
 prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 
 **Cosa fa da solo, senza Internet:**
+- La partita non parte da sola: quando tutti sono collegati premete **Inizia l'avventura**
+  (sul PC o sul telefono). Se un giocatore scrive prima, parte con la sua azione.
 - I mostri giocano il loro turno con regole fisse: scelgono l'attacco migliore, colpiscono
   chi è più ferito o chi mantiene la concentrazione, usano i soffi a ricarica (d6 a inizio
   turno) e a volte scappano quando sono quasi morti. Non morti, costrutti, draghi e capi non
   scappano mai.
 - Iniziativa, tiri salvezza contro morte e fine del combattimento sono automatici.
 - La voce legge il racconto con la sintesi vocale di Windows (casella "Voce" in alto, voce
-  scelta in "Impostazioni").
+  scelta in "Impostazioni"). Voce e sottofondo escono dalle casse del PC, per tutto il tavolo.
+  Chi vuole sentire il master anche nel proprio telefono (per esempio con le cuffie) tocca
+  **Voce: no** nel riquadro del master del telefono: diventa "Voce: sì" e il telefono legge le
+  nuove battute con la voce italiana del browser.
 - Mentre il narratore pensa, la voce dice una frase breve ("Mmh, vediamo...") e sui telefoni
   compare "il master sta pensando...", poi il racconto parola per parola.
 - Un sottofondo del luogo (grotta, locanda, bosco, pioggia, mare...) parte quando il narratore
@@ -363,6 +368,18 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
   aspettare il narratore. "Pausa" la ferma, "Riprendi lettura" continua (anche dai telefoni); se un giocatore agisce,
   risponde il narratore. Quando la lettura riprende dopo le scelte dei giocatori, il narratore
   legge il paragrafo successivo così com'è, lo adatta a ciò che è successo o lo salta.
+  Finito un paragrafo parte subito il successivo, senza domande.
+- Il narratore racconta in uno o due paragrafi (da 4 a 8 frasi) e chiede "Cosa fate?" solo
+  quando i giocatori devono decidere qualcosa: se la scena va avanti da sola, prosegue da sé
+  (al massimo due volte di fila, poi aspetta i giocatori).
+- **Ragiona** (casella in alto, accesa di serie): il narratore scrive prima una bozza che non
+  si vede, poi la rilegge e la corregge (personaggi che agiscono da soli, nomi, numeri,
+  marcatori) e racconta la versione finale. È più lento, ma con un modello piccolo sbaglia
+  meno. Spegnila se la risposta arriva troppo tardi.
+- Quando parte un combattimento, la mappa dei telefoni e dello schermo mostra il luogo della
+  scena disegnato casella per casella (cantina, locanda, grotta, cripta, bosco, spiaggia o
+  strada, scelto dalle parole del capitolo e del racconto). Se il master ha caricato e
+  attivato una sua mappa, si usa quella.
 - Il "Tono" dell'avventura (in "Impostazioni" o nella scheda Campagne del master) dice al
   narratore che atmosfera tenere. All'import del PDF il master vede quali capitoli vanno
   sistemati per il narratore (vedi `GUIDA_STORIE.md`).
@@ -386,7 +403,11 @@ bestiario.
 
 **Dal telefono.** Ogni giocatore vede le ultime righe del racconto e una casella per dire cosa
 fa il suo personaggio. Per parlare invece di scrivere usa il microfono della tastiera del
-telefono (dettatura). Durante il suo turno di combattimento ha il pulsante **Fine turno**.
+telefono (dettatura). Nel suo turno di combattimento il telefono mostra solo il pannello del
+turno, a passi: prima **Attacco**, **Incantesimi**, **Speciali** o **Movimento**, poi l'azione
+di quella categoria, poi il bersaglio e **TIRA!** ("Indietro" torna al passo prima). Vantaggio
+e svantaggio sono dentro "Vantaggio o svantaggio"; i dadi liberi tornano con "Dadi liberi e
+scorciatoie". In fondo c'è **Fine turno**.
 
 **Capitoli e diario.** "Fine capitolo" (o il narratore stesso) chiude il capitolo: l'app
 scrive un riassunto e lo salva come file `.md`, così il narratore ricorda la storia senza
