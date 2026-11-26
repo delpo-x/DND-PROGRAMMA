@@ -116,9 +116,9 @@
 	"claims": {
 
 	},
-	"created": "2026-11-26 09:05:50",
-	"csv_token": "637447c96f110071",
-	"id": "camp_1795680350_22148",
+	"created": "2026-11-26 13:58:28",
+	"csv_token": "960b6203bacc1d5c",
+	"id": "camp_1795697908_44980",
 	"initiative": {
 		"active": false,
 		"combatants": [],
@@ -158,7 +158,7 @@
 		}
 	],
 	"pinned": [
-		"È un'avventura di prova di un quarto d'ora: tienila breve.",
+		"È un'avventura di prova di circa un quarto d'ora: due scene, la cantina e il brindisi.",
 		"Berta Mezzaluna paga 5 monete d'oro a testa per liberare la cantina."
 	],
 	"quests": [],
@@ -166,7 +166,7 @@
 	"session": 1,
 	"sessions": [
 		{
-			"date": "2026-11-26 09:05:50",
+			"date": "2026-11-26 13:58:28",
 			"n": 1,
 			"notes": ""
 		}
@@ -174,11 +174,11 @@
 	"story": {
 		"chapters": [
 			{
-				"text": "Obiettivo: scendere nella cantina della locanda e scoprire cosa fa rumore.\nLuoghi: la locanda Lanterna Storta, sala calda e fumosa; la scala di legno che scende in cantina; la cantina, botti di birra e sacchi di farina rosicchiati.\nPNG: Berta Mezzaluna, amichevole, locandiera robusta col grembiule infarinato, ha paura dei topi ma non lo ammette.\nMostri: Ratto gigante x1 in cantina. Attacca appena il gruppo scende, fugge sotto le botti se resta con 2 punti ferita o meno.\nProve: Percezione CD 10 per sentire da dove viene il rumore; chi la supera vede il ratto prima che attacchi.\nMomenti: Berta chiede aiuto; la scala buia; il rumore dietro le botti; il combattimento.\nIl capitolo finisce quando il ratto è morto o scappato.\n\n## Da leggere\n\nÈ una sera di pioggia e la Lanterna Storta è piena di gente e di fumo. Berta Mezzaluna, la locandiera, vi pianta davanti due boccali di birra e abbassa la voce: da tre notti qualcosa rosicchia i sacchi in cantina e lei, dice, non ha tempo di andare a guardare. Vi porge una lanterna e indica la botola dietro il bancone.\n\nLa scala scricchiola a ogni gradino. Giù l'aria è fredda e sa di muffa e di birra rovesciata. Tra le botti, nel buio, qualcosa raschia il legno e poi si ferma, come se vi stesse ascoltando.",
+				"text": "Obiettivo: scendere nella cantina della locanda e scoprire cosa fa rumore.\nLuoghi: la locanda Lanterna Storta, sala calda e fumosa; la scala di legno che scende in cantina; la cantina, botti di birra e sacchi di farina rosicchiati.\nPNG: Berta Mezzaluna, amichevole, locandiera robusta col grembiule infarinato, ha paura dei topi ma non lo ammette.\nMostri: Ratto gigante x1 in cantina. Attacca appena il gruppo scende, fugge sotto le botti se resta con 2 punti ferita o meno.\nProve: Percezione CD 10 per sentire da dove viene il rumore; chi la supera vede il ratto prima che attacchi.\nMomenti: Berta chiede aiuto; la scala buia; il rumore dietro le botti; il combattimento.\nIl capitolo finisce quando il ratto è morto o scappato.\n\n## Da leggere\n\nÈ una sera di pioggia fitta e la Lanterna Storta è piena fino alla porta. Il fumo delle pipe resta appeso alle travi basse, il fuoco scoppietta nel camino e un bardo stonato prova la stessa canzone per la terza volta, tra le risate dei carrettieri. L'aria sa di lana bagnata, di cipolle fritte e di birra scura. Ai tavoli si gioca a dadi, si litiga sui prezzi del grano e si brinda a ogni cosa.\n\nBerta Mezzaluna, la locandiera, si fa largo tra i tavoli con due boccali in ogni mano e il grembiule bianco di farina. Ne pianta due davanti a voi, si pulisce le mani sui fianchi e abbassa la voce. Da tre notti, dice, qualcosa rosicchia i sacchi in cantina: ha perso mezzo sacco di farina e una forma di formaggio intera. Lei, naturalmente, non ha paura di niente, ma stasera ha troppa gente da servire. Vi porge una lanterna già accesa e indica con il mento la botola dietro il bancone. Cinque monete d'oro a testa, aggiunge, e la cena è offerta.\n\nLa botola si apre con un cigolo e una scala di legno scende nel buio. A ogni gradino il chiasso della sala si allontana, finché resta solo il tamburellare della pioggia sopra le vostre teste. Giù l'aria è fredda e umida, sa di muffa, di terra e di birra rovesciata. La luce della lanterna scivola su file di botti, su casse accatastate e su sacchi squarciati, con la farina sparsa sul pavimento come neve. In fondo, tra le botti più grosse, qualcosa raschia il legno, poi si ferma di colpo, come se vi stesse ascoltando.",
 				"title": "Capitolo 1: La cantina"
 			},
 			{
-				"text": "Obiettivo: tornare da Berta e prendere la ricompensa.\nLuoghi: la sala della Lanterna Storta.\nPNG: Berta Mezzaluna, alleata se il ratto è morto, amichevole se è scappato.\nMostri: nessuno.\nProve: nessuna, salvo Persuasione CD 12 se il gruppo chiede più soldi.\nMomenti: il racconto a Berta; la ricompensa di 5 monete d'oro a testa e una cena calda; un brindisi.\nIl capitolo finisce quando il gruppo ha brindato con Berta: l'avventura di prova è conclusa.\n\n## Da leggere\n\nQuando risalite, la sala si zittisce per un momento. Berta vi guarda le mani, la lanterna e le facce, poi scoppia a ridere e batte il pugno sul bancone: stasera la cena la offre la casa.",
+				"text": "Obiettivo: tornare da Berta e prendere la ricompensa.\nLuoghi: la sala della Lanterna Storta.\nPNG: Berta Mezzaluna, alleata se il ratto è morto, amichevole se è scappato.\nMostri: nessuno.\nProve: nessuna, salvo Persuasione CD 12 se il gruppo chiede più soldi.\nMomenti: il racconto a Berta; la ricompensa di 5 monete d'oro a testa e una cena calda; un brindisi.\nIl capitolo finisce quando il gruppo ha brindato con Berta: l'avventura di prova è conclusa.\n\n## Da leggere\n\nQuando risalite dalla botola, coperti di farina e di ragnatele, la sala si zittisce per un momento. Il bardo smette di suonare a metà di una nota e perfino i giocatori di dadi alzano la testa. Berta vi guarda le mani, la lanterna e le facce, poi scoppia in una risata che fa tremare i boccali e batte il pugno sul bancone. Stasera, annuncia a tutta la sala, la cena la offre la casa a chi le ha liberato la cantina.\n\nIn pochi minuti sul tavolo arrivano pane caldo, una zuppa di cipolle fumante e una brocca della birra buona, quella che Berta tiene da parte per i giorni di festa. I carrettieri vogliono sapere ogni dettaglio e ognuno racconta la sua storia di topi grossi come cani. Berta conta le monete sul bancone, una per una, e le spinge verso di voi con un sorriso soddisfatto.",
 				"title": "Capitolo 2: La ricompensa"
 			}
 		],
@@ -267,8 +267,8 @@
 		"source": "Avventura di prova",
 		"title": "Test Drive"
 	},
-	"tone": "Leggero e un po' comico: una locanda accogliente, una locandiera brusca ma di buon cuore, un pericolo piccolo. Risposte brevi.",
-	"updated": "2026-11-26 09:05:50",
+	"tone": "Leggero e un po' comico: una locanda accogliente, una locandiera brusca ma di buon cuore, un pericolo piccolo. Descrizioni vivaci e calde, con qualche battuta.",
+	"updated": "2026-11-26 13:58:28",
 	"version": 1,
 	"xp_total": 0
 }
