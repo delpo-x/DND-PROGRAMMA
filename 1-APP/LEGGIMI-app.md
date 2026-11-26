@@ -348,8 +348,10 @@ Dungeon Master è il PC. Le campagne sono in comune con `DnD_Tavolo_Master.exe`:
 prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 
 **Cosa fa da solo, senza Internet:**
-- La partita non parte da sola: quando tutti sono collegati premete **Inizia l'avventura**
-  (sul PC o sul telefono). Se un giocatore scrive prima, parte con la sua azione.
+- La partita non parte da sola. Ogni giocatore collegato preme **Sono pronto** sul telefono
+  (si vede chi è pronto e chi no; ritoccandolo si annulla): quando tutti sono pronti parte da
+  sola. Sul PC **Inizia l'avventura** fa partire subito, per chi gioca senza telefono. Se un
+  giocatore scrive prima, parte con la sua azione.
 - I mostri giocano il loro turno con regole fisse: scelgono l'attacco migliore, colpiscono
   chi è più ferito o chi mantiene la concentrazione, usano i soffi a ricarica (d6 a inizio
   turno) e a volte scappano quando sono quasi morti. Non morti, costrutti, draghi e capi non
