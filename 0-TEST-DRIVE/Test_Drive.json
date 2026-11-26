@@ -1,0 +1,319 @@
+{
+	"characters": [
+		{
+			"ab": {
+				"CAR": 8,
+				"COS": 16,
+				"DES": 12,
+				"FOR": 16,
+				"INT": 10,
+				"SAG": 12
+			},
+			"ac": 16,
+			"attacks": [
+				{
+					"bonus": 5,
+					"damage": "1d8+3",
+					"name": "Ascia da battaglia"
+				},
+				{
+					"bonus": 5,
+					"damage": "1d6+3",
+					"name": "Ascia da lancio"
+				}
+			],
+			"cls": "Guerriero",
+			"conditions": "",
+			"hp": 13,
+			"hp_max": 13,
+			"hp_temp": 0,
+			"id": "c1",
+			"immune": "",
+			"init_bonus": 0,
+			"level": 1,
+			"name": "Bruna Ferrocorto",
+			"notes": "PG pronto dell'avventura \"Test Drive\". Completa la scheda.",
+			"player": "",
+			"portrait": "",
+			"prof": 2,
+			"race": "Nana",
+			"res_custom": [],
+			"res_used": {
+
+			},
+			"resist": "",
+			"saves": [
+				"FOR",
+				"COS"
+			],
+			"skills": {
+				"atletica": 1,
+				"percezione": 1
+			},
+			"slots_auto": true,
+			"slots_max": [
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"slots_used": [
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"speed": 8,
+			"spells": [],
+			"vuln": ""
+		},
+		{
+			"ab": {
+				"CAR": 12,
+				"COS": 12,
+				"DES": 16,
+				"FOR": 8,
+				"INT": 12,
+				"SAG": 14
+			},
+			"ac": 14,
+			"attacks": [
+				{
+					"bonus": 5,
+					"damage": "1d8+3",
+					"name": "Stocco"
+				},
+				{
+					"bonus": 5,
+					"damage": "1d6+3",
+					"name": "Arco corto"
+				}
+			],
+			"cls": "Ladro",
+			"conditions": "",
+			"hp": 9,
+			"hp_max": 9,
+			"hp_temp": 0,
+			"id": "c3",
+			"immune": "",
+			"init_bonus": 0,
+			"level": 1,
+			"name": "Lio Svelto",
+			"notes": "PG pronto dell'avventura \"Test Drive\". Completa la scheda.",
+			"player": "",
+			"portrait": "",
+			"prof": 2,
+			"race": "Halfling",
+			"res_custom": [],
+			"res_used": {
+
+			},
+			"resist": "",
+			"saves": [
+				"DES",
+				"INT"
+			],
+			"skills": {
+				"acrobazia": 1,
+				"furtivita": 2,
+				"percezione": 1,
+				"rapidita": 1
+			},
+			"slots_auto": true,
+			"slots_max": [
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"slots_used": [
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"speed": 8,
+			"spells": [],
+			"vuln": ""
+		}
+	],
+	"chronicle": [],
+	"claims": {
+
+	},
+	"created": "2026-11-26 08:58:57",
+	"csv_token": "c3218ed622735c86",
+	"id": "camp_1795679937_32358",
+	"initiative": {
+		"active": false,
+		"combatants": [],
+		"current": "",
+		"round": 1
+	},
+	"log": [],
+	"map_active": "",
+	"maps": [],
+	"monsters": [
+		{
+			"ac": 13,
+			"conditions": "",
+			"hp": 7,
+			"hp_max": 7,
+			"hp_temp": 0,
+			"id": "m5",
+			"immune": "",
+			"init_mod": 3,
+			"kind": "Mostro",
+			"name": "Ratto gigante",
+			"notes": "Bestia, GS 1/8. Morso +5, 1d4+3 perforanti. Tattica di branco",
+			"resist": "",
+			"revealed": false,
+			"vuln": "",
+			"xp": 25
+		}
+	],
+	"name": "Test Drive",
+	"next_id": 6,
+	"notes": "",
+	"npcs": [
+		{
+			"att": "amichevole",
+			"name": "Berta Mezzaluna",
+			"note": "locandiera della Lanterna Storta"
+		}
+	],
+	"pinned": [
+		"È un'avventura di prova di un quarto d'ora: tienila breve.",
+		"Berta Mezzaluna paga 5 monete d'oro a testa per liberare la cantina."
+	],
+	"quests": [],
+	"requests": [],
+	"session": 1,
+	"sessions": [
+		{
+			"date": "2026-11-26 08:58:57",
+			"n": 1,
+			"notes": ""
+		}
+	],
+	"story": {
+		"chapters": [
+			{
+				"text": "Obiettivo: scendere nella cantina della locanda e scoprire cosa fa rumore.\nLuoghi: la locanda Lanterna Storta, sala calda e fumosa; la scala di legno che scende in cantina; la cantina, botti di birra e sacchi di farina rosicchiati.\nPNG: Berta Mezzaluna, amichevole, locandiera robusta col grembiule infarinato, ha paura dei topi ma non lo ammette.\nMostri: Ratto gigante x1 in cantina. Attacca appena il gruppo scende, fugge sotto le botti se resta con 2 punti ferita o meno.\nProve: Percezione CD 10 per sentire da dove viene il rumore; chi la supera vede il ratto prima che attacchi.\nMomenti: Berta chiede aiuto; la scala buia; il rumore dietro le botti; il combattimento.\nIl capitolo finisce quando il ratto è morto o scappato.\n\n## Da leggere\n\nÈ una sera di pioggia e la Lanterna Storta è piena di gente e di fumo. Berta Mezzaluna, la locandiera, vi pianta davanti due boccali di birra e abbassa la voce: da tre notti qualcosa rosicchia i sacchi in cantina e lei, dice, non ha tempo di andare a guardare. Vi porge una lanterna e indica la botola dietro il bancone.\n\nLa scala scricchiola a ogni gradino. Giù l'aria è fredda e sa di muffa e di birra rovesciata. Tra le botti, nel buio, qualcosa raschia il legno e poi si ferma, come se vi stesse ascoltando.",
+				"title": "Capitolo 1: La cantina"
+			},
+			{
+				"text": "Obiettivo: tornare da Berta e prendere la ricompensa.\nLuoghi: la sala della Lanterna Storta.\nPNG: Berta Mezzaluna, alleata se il ratto è morto, amichevole se è scappato.\nMostri: nessuno.\nProve: nessuna, salvo Persuasione CD 12 se il gruppo chiede più soldi.\nMomenti: il racconto a Berta; la ricompensa di 5 monete d'oro a testa e una cena calda; un brindisi.\nIl capitolo finisce quando il gruppo ha brindato con Berta: l'avventura di prova è conclusa.\n\n## Da leggere\n\nQuando risalite, la sala si zittisce per un momento. Berta vi guarda le mani, la lanterna e le facce, poi scoppia a ridere e batte il pugno sul bancone: stasera la cena la offre la casa.",
+				"title": "Capitolo 2: La ricompensa"
+			}
+		],
+		"pcs": [
+			{
+				"ab": {
+					"CAR": 8,
+					"COS": 16,
+					"DES": 12,
+					"FOR": 16,
+					"INT": 10,
+					"SAG": 12
+				},
+				"ac": 16,
+				"attacks": [
+					{
+						"bonus": 5,
+						"damage": "1d8+3",
+						"name": "Ascia da battaglia"
+					},
+					{
+						"bonus": 5,
+						"damage": "1d6+3",
+						"name": "Ascia da lancio"
+					}
+				],
+				"cls": "Guerriero",
+				"hp": 13,
+				"hp_max": 13,
+				"level": 1,
+				"name": "Bruna Ferrocorto",
+				"prof": 2,
+				"race": "Nana",
+				"saves": [
+					"FOR",
+					"COS"
+				],
+				"skills": {
+					"atletica": 1,
+					"percezione": 1
+				},
+				"speed": 8
+			},
+			{
+				"ab": {
+					"CAR": 12,
+					"COS": 12,
+					"DES": 16,
+					"FOR": 8,
+					"INT": 12,
+					"SAG": 14
+				},
+				"ac": 14,
+				"attacks": [
+					{
+						"bonus": 5,
+						"damage": "1d8+3",
+						"name": "Stocco"
+					},
+					{
+						"bonus": 5,
+						"damage": "1d6+3",
+						"name": "Arco corto"
+					}
+				],
+				"cls": "Ladro",
+				"hp": 9,
+				"hp_max": 9,
+				"level": 1,
+				"name": "Lio Svelto",
+				"prof": 2,
+				"race": "Halfling",
+				"saves": [
+					"DES",
+					"INT"
+				],
+				"skills": {
+					"acrobazia": 1,
+					"furtivita": 2,
+					"percezione": 1,
+					"rapidita": 1
+				},
+				"speed": 8
+			}
+		],
+		"source": "Avventura di prova",
+		"title": "Test Drive"
+	},
+	"tone": "Leggero e un po' comico: una locanda accogliente, una locandiera brusca ma di buon cuore, un pericolo piccolo. Risposte brevi.",
+	"updated": "2026-11-26 08:58:57",
+	"version": 1,
+	"xp_total": 0
+}

@@ -5,6 +5,7 @@ Preparata il 2026-11-26 da EPIC FANTASY WRITER v1.2.0. Contiene tutto ciò che s
 ## Cosa c'è
 | Cartella | Contenuto | Si può aprire? |
 |---|---|---|
+| `0-TEST-DRIVE` | `Test_Drive.json`: avventura di prova di 15 minuti con due eroi pronti e un ratto gigante, per provare l'app da soli | Sì |
 | `1-APP` | `Dnd_The_Game.exe` (il PC fa il DM), `DnD_Tavolo_Master.exe` (master umano), `DnD_Tavolo_Master.apk` (tablet Android, facoltativo), `LEGGIMI-app.md` (guida completa dell'app) | Sì |
 | `2-CAMPAGNA-NON-APRIRE` | `L_Ultimo_Disgelo.json`: la campagna per il narratore | **No**: contiene i segreti. Si importa senza aprirlo. |
 | `3-GIOCATORI` | Presentazione della valle e guida alla creazione dei personaggi | Sì, da dare a tutti i giocatori |
