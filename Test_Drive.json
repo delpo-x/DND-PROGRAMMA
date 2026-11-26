@@ -4,39 +4,59 @@
 			"ab": {
 				"CAR": 8,
 				"COS": 16,
-				"DES": 12,
+				"DES": 16,
 				"FOR": 16,
-				"INT": 10,
-				"SAG": 12
+				"INT": 8,
+				"SAG": 8
 			},
-			"ac": 16,
+			"ac": 15,
 			"attacks": [
 				{
-					"bonus": 5,
+					"bonus": 7,
 					"damage": "1d8+3",
-					"name": "Ascia da battaglia"
+					"name": "Longbow"
 				},
 				{
-					"bonus": 5,
+					"bonus": 7,
 					"damage": "1d6+3",
-					"name": "Ascia da lancio"
+					"name": "Scimitar"
+				},
+				{
+					"bonus": 7,
+					"damage": "1d6+3",
+					"name": "Shortbow"
+				},
+				{
+					"bonus": 7,
+					"damage": "1d6+3",
+					"name": "Shortsword"
+				},
+				{
+					"bonus": 7,
+					"damage": "1d6+3",
+					"name": "Spear"
+				},
+				{
+					"bonus": 7,
+					"damage": "4",
+					"name": "Unarmed Strike"
 				}
 			],
-			"cls": "Guerriero",
+			"cls": "Ranger",
 			"conditions": "",
-			"hp": 13,
-			"hp_max": 13,
+			"hp": 94,
+			"hp_max": 94,
 			"hp_temp": 0,
 			"id": "c1",
 			"immune": "",
 			"init_bonus": 0,
-			"level": 1,
-			"name": "Bruna Ferrocorto",
-			"notes": "PG pronto dell'avventura \"Test Drive\". Completa la scheda.",
+			"level": 10,
+			"name": "German",
+			"notes": "Importato da PDF compilabile.\nBackground: Soldier\n\nEquipaggiamento: Studded Leather, Scimitar, Shortsword, Longbow, Arrows (40), Quiver (2), Sprig of Mistletoe, Backpack, Bedroll, Oil (2), Rations (10), Rope, Tinderbox, Torch (10), Waterskin, Spear, Shortbow, Dice, Healer's Kit, Traveler's Clothes; monete: 21 mo\n\n45 ft. (Walking), 45 ft. (Climbing), 45 ft. (Swimming)\n\n=== ARMOR === \nLight Armor, Medium Armor, Shields \n\n=== WEAPONS === \nMartial Weapons, Simple Weapons \n\n=== TOOLS === \nDice Set \n\n=== LANGUAGES === \nCommon, Common Sign Language, Dwarvish, Elvish, Giant",
 			"player": "",
 			"portrait": "",
-			"prof": 2,
-			"race": "Nana",
+			"prof": 4,
+			"race": "Goliath",
 			"res_custom": [],
 			"res_used": {
 
@@ -44,17 +64,20 @@
 			"resist": "",
 			"saves": [
 				"FOR",
-				"COS"
+				"DES"
 			],
 			"skills": {
-				"atletica": 1,
-				"percezione": 1
+				"atletica": 2,
+				"furtivita": 2,
+				"intimidire": 1,
+				"percezione": 1,
+				"sopravvivenza": 2
 			},
 			"slots_auto": true,
 			"slots_max": [
-				0,
-				0,
-				0,
+				4,
+				3,
+				2,
 				0,
 				0,
 				0,
@@ -73,87 +96,19 @@
 				0,
 				0
 			],
-			"speed": 8,
-			"spells": [],
-			"vuln": ""
-		},
-		{
-			"ab": {
-				"CAR": 12,
-				"COS": 12,
-				"DES": 16,
-				"FOR": 8,
-				"INT": 12,
-				"SAG": 14
-			},
-			"ac": 14,
-			"attacks": [
+			"speed": 14,
+			"spells": [
 				{
-					"bonus": 5,
-					"damage": "1d8+3",
-					"name": "Stocco"
+					"lvl": 0,
+					"name": "Guidance",
+					"prep": true
 				},
 				{
-					"bonus": 5,
-					"damage": "1d6+3",
-					"name": "Arco corto"
+					"lvl": 1,
+					"name": "Hunter's Mark",
+					"prep": true
 				}
 			],
-			"cls": "Ladro",
-			"conditions": "",
-			"hp": 9,
-			"hp_max": 9,
-			"hp_temp": 0,
-			"id": "c3",
-			"immune": "",
-			"init_bonus": 0,
-			"level": 1,
-			"name": "Lio Svelto",
-			"notes": "PG pronto dell'avventura \"Test Drive\". Completa la scheda.",
-			"player": "",
-			"portrait": "",
-			"prof": 2,
-			"race": "Halfling",
-			"res_custom": [],
-			"res_used": {
-
-			},
-			"resist": "",
-			"saves": [
-				"DES",
-				"INT"
-			],
-			"skills": {
-				"acrobazia": 1,
-				"furtivita": 2,
-				"percezione": 1,
-				"rapidita": 1
-			},
-			"slots_auto": true,
-			"slots_max": [
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0
-			],
-			"slots_used": [
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0
-			],
-			"speed": 8,
-			"spells": [],
 			"vuln": ""
 		}
 	],
@@ -161,9 +116,9 @@
 	"claims": {
 
 	},
-	"created": "2026-11-26 08:58:57",
-	"csv_token": "c3218ed622735c86",
-	"id": "camp_1795679937_32358",
+	"created": "2026-11-26 09:05:50",
+	"csv_token": "637447c96f110071",
+	"id": "camp_1795680350_22148",
 	"initiative": {
 		"active": false,
 		"combatants": [],
@@ -180,7 +135,7 @@
 			"hp": 7,
 			"hp_max": 7,
 			"hp_temp": 0,
-			"id": "m5",
+			"id": "m3",
 			"immune": "",
 			"init_mod": 3,
 			"kind": "Mostro",
@@ -193,7 +148,7 @@
 		}
 	],
 	"name": "Test Drive",
-	"next_id": 6,
+	"next_id": 4,
 	"notes": "",
 	"npcs": [
 		{
@@ -211,7 +166,7 @@
 	"session": 1,
 	"sessions": [
 		{
-			"date": "2026-11-26 08:58:57",
+			"date": "2026-11-26 09:05:50",
 			"n": 1,
 			"notes": ""
 		}
@@ -313,7 +268,7 @@
 		"title": "Test Drive"
 	},
 	"tone": "Leggero e un po' comico: una locanda accogliente, una locandiera brusca ma di buon cuore, un pericolo piccolo. Risposte brevi.",
-	"updated": "2026-11-26 08:58:57",
+	"updated": "2026-11-26 09:05:50",
 	"version": 1,
 	"xp_total": 0
 }
