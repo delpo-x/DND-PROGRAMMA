@@ -374,10 +374,16 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
 - Il narratore racconta in uno o due paragrafi (da 4 a 8 frasi) e chiede "Cosa fate?" solo
   quando i giocatori devono decidere qualcosa: se la scena va avanti da sola, prosegue da sé
   (al massimo due volte di fila, poi aspetta i giocatori).
-- **Ragiona** (casella in alto, accesa di serie): il narratore scrive prima una bozza che non
-  si vede, poi la rilegge e la corregge (personaggi che agiscono da soli, nomi, numeri,
-  marcatori) e racconta la versione finale. È più lento, ma con un modello piccolo sbaglia
-  meno. Spegnila se la risposta arriva troppo tardi.
+- **Ragiona** (casella in alto, accesa di serie). A ogni azione di un giocatore:
+  1. un arbitro legge l'azione e risponde con dati fissi (un JSON che Ollama obbliga a
+     rispettare): parla, esplora, prova (con abilità e CD) o attacco (con i mostri). Se serve
+     una prova il tavolo la chiede con quella CD; se si attacca un mostro preparato nella
+     campagna e il narratore non fa partire lo scontro, lo fa partire il tavolo;
+  2. il narratore scrive una bozza che non si vede;
+  3. la rilegge, corregge (personaggi che agiscono da soli, nomi, numeri, marcatori) e
+     racconta la versione finale.
+  Dadi, bonus della scheda ed esiti li calcola sempre il codice, mai il modello. È più lento,
+  ma con un modello piccolo sbaglia meno. Spegnila se la risposta arriva troppo tardi.
 - Quando parte un combattimento, la mappa dei telefoni e dello schermo mostra il luogo della
   scena disegnato casella per casella (cantina, locanda, grotta, cripta, bosco, spiaggia o
   strada, scelto dalle parole del capitolo e del racconto). Se il master ha caricato e
