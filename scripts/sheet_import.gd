@@ -412,6 +412,10 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 	if not atk.is_empty():
 		ch.attacks = atk
 		mark.call("attacchi")
+	var spells := _spells(fields)
+	if not spells.is_empty():
+		ch.spells = spells
+		mark.call("incantesimi")
 	# long text fields (features, equipment, proficiencies) go to the notes
 	var notes := PackedStringArray()
 	v = pick.call(["background", "trasfondo"])
@@ -422,13 +426,49 @@ func _apply_fields(fields: Dictionary, ch: Dictionary, found: Array) -> void:
 		notes.append(gear)
 	for n in fields:
 		var k := _fkey(str(n))
-		if k.begins_with("wpn") or k.begins_with("weapon") or k.begins_with("eq"):
+		if k.begins_with("wpn") or k.begins_with("weapon") or k.begins_with("eq") or k.begins_with("spell"):
 			continue
 		var t := str(fields[n]).strip_edges()
 		if (t.length() >= 40 or t.contains("\n")) and not notes.has(t):
 			notes.append(t)
 	if not notes.is_empty():
 		ch.notes = ("Importato da PDF compilabile.\n" + "\n\n".join(notes)).left(4000)
+
+
+## Spell list of a D&D Beyond export: "spellHeader1" = "=== 1st LEVEL ===" opens
+## a level, then "spellName2" = "Hunter's Mark" and "spellPrepared2" = "P"
+## (prepared) or "O" (always ready, cantrips). The fields come in page order,
+## so each name belongs to the last header before it. Duplicates are dropped.
+static func _spells(fields: Dictionary) -> Array:
+	var out: Array = []
+	var seen := {}
+	var lvl := 0
+	var prep := {}
+	for n in fields:
+		var k := _fkey(str(n))
+		if k.begins_with("spellprepared"):
+			prep[k.trim_prefix("spellprepared")] = str(fields[n]).strip_edges().to_upper()
+	for n in fields:
+		var k := _fkey(str(n))
+		var v := str(fields[n]).strip_edges()
+		if k.begins_with("spellheader"):
+			var low := v.to_lower()
+			if low.contains("cantrip") or low.contains("trucchett"):
+				lvl = 0
+			else:
+				var m := _re("(\\d)").search(low)
+				if m:
+					lvl = int(m.get_string(1))
+		elif k.begins_with("spellname") and v != "" and v != "--":
+			var key := "%d|%s" % [lvl, v.to_lower()]
+			if seen.has(key):
+				continue
+			seen[key] = true
+			var pm := str(prep.get(k.trim_prefix("spellname"), ""))
+			out.append({"name": v.left(50), "lvl": lvl, "prep": pm != "" and pm != "OFF" and pm != "-"})
+			if out.size() >= 60:
+				break
+	return out
 
 
 ## Level of a proficiency mark: "E" expertise, "H" half (counted as none),

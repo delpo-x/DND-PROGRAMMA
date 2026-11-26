@@ -109,6 +109,11 @@ func _init() -> void:
 		["Wpn Notes 3", "(Simple, Light, Thrown, Vex, Range \\(20/60\\) and more)"],
 		["BACKGROUND", "(Farmer)"], ["GP", "(15)"], ["Eq Name0", "(Handaxe)"], ["Eq Qty0", "(1)"], ["Eq Name1", "(Handaxe)"],
 		["Eq Qty1", "(3)"], ["Eq Name2", "(Rope)"], ["Eq Qty2", "(1)"],
+		["spellHeader0", "(=== CANTRIPS ===)"], ["spellPrepared0", "(O)"], ["spellName0", "(Guidance)"],
+		["spellDuration0", "(Concentration, up to 1 minute, and a long note)"],
+		["spellPrepared1", "(O)"], ["spellName1", "(Guidance)"],
+		["spellHeader1", "(=== 1st LEVEL ===)"], ["spellPrepared2", "(P)"], ["spellName2", "(Hunter's Mark)"],
+		["spellHeader2", "(=== 2nd LEVEL ===)"], ["spellName3", "(Pass without Trace)"],
 	], true))
 	check("widget fields without /AcroForm", doc2.fields.size() >= 28 and doc2.fields.has("Extra.Notes"), doc2.fields.size())
 	var ch2: Dictionary = SheetImport.parse(doc2).char
@@ -117,5 +122,9 @@ func _init() -> void:
 	check("flat damage", ch2.attacks.size() == 1 and ch2.attacks[0].damage == "3", ch2.attacks)
 	check("equipment and background in the notes", str(ch2.notes).contains("Handaxe (4), Rope; monete: 15 mo")
 		and str(ch2.notes).contains("Background: Farmer") and not str(ch2.notes).contains("Thrown"), ch2.notes)
+	check("spells by level, duplicates dropped", ch2.spells.size() == 3 and ch2.spells[0].name == "Guidance"
+		and int(ch2.spells[0].lvl) == 0 and ch2.spells[1].name == "Hunter's Mark" and int(ch2.spells[1].lvl) == 1
+		and bool(ch2.spells[1].prep) and int(ch2.spells[2].lvl) == 2 and not bool(ch2.spells[2].prep), ch2.spells)
+	check("spell fields not in the notes", not str(ch2.notes).contains("Concentration"), ch2.notes)
 	print("sheet form test: ", "OK" if ok else "FAIL")
 	quit(0 if ok else 1)
