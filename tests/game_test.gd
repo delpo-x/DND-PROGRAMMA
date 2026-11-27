@@ -458,12 +458,14 @@ Altro.".repeat(300)}
 	# Gemini for the revision: request shape, stream lines, daily cap, fallback
 	var gb := Narrator.gemini_body([{"role": "system", "content": "Regole"}, {"role": "user", "content": "A"},
 		{"role": "user", "content": "B"}, {"role": "assistant", "content": "Bozza"}, {"role": "user", "content": "Rileggi"}],
-		{"max": 400, "temp": 0.4}, "gemini-3.5-flash", true)
+		{"max": 400, "temp": 0.4}, "gemini-4-hydrogen")
 	check("gemini system instruction", str(gb.systemInstruction.parts[0].text) == "Regole")
 	check("gemini turns joined and renamed", gb.contents.size() == 3 and str(gb.contents[0].parts[0].text) == "A\n\nB" and str(gb.contents[1].role) == "model", gb.contents)
-	check("gemini short thinking", str(gb.generationConfig.thinkingConfig.thinkingLevel) == "minimal" and int(gb.generationConfig.maxOutputTokens) == 600)
-	check("gemini 2.5 no thinking", int(Narrator.gemini_body([], {}, "gemini-2.5-flash", true).generationConfig.thinkingConfig.thinkingBudget) == 0)
-	check("gemini without thinking settings", not Narrator.gemini_body([], {}, "gemini-3.5-flash", false).generationConfig.has("thinkingConfig"))
+	check("gemini 4 thinking low", str(gb.generationConfig.thinkingConfig.thinkingLevel) == "LOW" and int(gb.generationConfig.maxOutputTokens) == 1000)
+	check("gemini 3 thinking minimal", str(Narrator.gemini_body([], {}, "gemini-3.8-flash").generationConfig.thinkingConfig.thinkingLevel) == "minimal")
+	check("gemini retry with low", str(Narrator.gemini_body([], {}, "gemini-3.8-flash", 1).generationConfig.thinkingConfig.thinkingLevel) == "low")
+	check("gemini 2.5 no thinking", int(Narrator.gemini_body([], {}, "gemini-2.5-flash").generationConfig.thinkingConfig.thinkingBudget) == 0)
+	check("gemini without thinking settings", not Narrator.gemini_body([], {}, "gemini-4-hydrogen", 2).generationConfig.has("thinkingConfig"))
 	check("gemini stream text", Narrator.gemini_piece('data: {"candidates":[{"content":{"parts":[{"text":"pensa","thought":true},{"text":"La nebbia"}]}}]}') == "La nebbia")
 	check("gemini other lines", Narrator.gemini_piece("") == "" and Narrator.gemini_piece("data: [rotto") == "")
 	var nr: Narrator = g.narrator

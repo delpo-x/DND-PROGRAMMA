@@ -23,7 +23,7 @@ var busy := false
 
 # --- Gemini (optional, see ask with opts.cloud)
 const GEMINI_HOST := "generativelanguage.googleapis.com"
-const GEMINI_MODEL := "gemini-3.5-flash"
+const GEMINI_MODEL := "gemini-4-hydrogen"  # with thinking LOW: quick and careful
 const GEMINI_CAP := 300  # calls per day: well under the free daily limit
 const GEMINI_TIMEOUT := 25.0  # seconds without the first words: give up
 const USAGE := "user://the_game/gemini_uso.json"
@@ -36,7 +36,7 @@ var gemini_blocked := ""  # why Gemini is off until tomorrow ("" = usable)
 var persist_usage := true
 var last_cloud := false  # the last request went to Gemini
 var _cloud := false
-var _cloud_retry := false  # asked again without the thinking settings
+var _cloud_retry := 0  # 1: asked again with "low", 2: without thinking settings
 var _cloud_msgs: Array = []
 var _cloud_opts := {}
 var status := "Narratore non ancora usato"
@@ -71,8 +71,8 @@ func ask(messages: Array, opts := {}) -> bool:
 	if _cloud:
 		_cloud_msgs = messages
 		_cloud_opts = opts
-		_cloud_retry = false
-		_body = JSON.stringify(gemini_body(messages, opts, gemini_model, true))
+		_cloud_retry = 0
+		_body = JSON.stringify(gemini_body(messages, opts, gemini_model, 0))
 		_count_call()
 		_connect()
 		return true
@@ -318,8 +318,9 @@ func _save_usage() -> void:
 
 ## The request for Gemini: the system lines become the system instruction,
 ## "assistant" becomes "model", and turns of the same role are joined.
-## think: ask for the shortest thinking (the first word must come quickly).
-static func gemini_body(messages: Array, opts: Dictionary, model_name: String, think: bool) -> Dictionary:
+## step: 0 the shortest thinking the model knows (the first word must come
+## quickly), 1 "low" (when the model refused the first), 2 no thinking settings.
+static func gemini_body(messages: Array, opts: Dictionary, model_name: String, step := 0) -> Dictionary:
 	var sys := PackedStringArray()
 	var contents: Array = []
 	for m in messages:
@@ -334,10 +335,15 @@ static func gemini_body(messages: Array, opts: Dictionary, model_name: String, t
 		else:
 			contents.append({"role": role, "parts": [{"text": text}]})
 	var config := {"temperature": float(opts.get("temp", 0.8)),
-		"maxOutputTokens": int(opts.get("max", 170)) + 200}
-	if think:
+		"maxOutputTokens": int(opts.get("max", 170)) + 600}  # thinking counts as output
+	if step == 1:
+		config["thinkingConfig"] = {"thinkingLevel": "low"}
+	elif step == 0:
 		if model_name.contains("2.5"):
 			config["thinkingConfig"] = {"thinkingBudget": 128 if model_name.contains("pro") else 0}
+		elif model_name.begins_with("gemini-4") or model_name.contains("hydrogen"):
+			# Gemini 4: LOW is the lowest level (MINIMAL and budgets are refused)
+			config["thinkingConfig"] = {"thinkingLevel": "LOW"}
 		else:
 			config["thinkingConfig"] = {"thinkingLevel": "minimal"}
 	var body := {"contents": contents, "generationConfig": config}
@@ -386,11 +392,11 @@ func _drain_cloud() -> void:
 func _cloud_failed() -> void:
 	var code := _http.get_response_code()
 	var txt := _err_body + _buf.get_string_from_utf8()
-	if code == 400 and not _cloud_retry and txt.to_lower().contains("think"):
-		_cloud_retry = true
+	if code == 400 and _cloud_retry < 2 and txt.to_lower().contains("think"):
+		_cloud_retry += 1
 		_buf = PackedByteArray()
 		_err_body = ""
-		_body = JSON.stringify(gemini_body(_cloud_msgs, _cloud_opts, gemini_model, false))
+		_body = JSON.stringify(gemini_body(_cloud_msgs, _cloud_opts, gemini_model, _cloud_retry))
 		_http.close()
 		_connect()
 		return
