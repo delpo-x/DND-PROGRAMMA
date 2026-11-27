@@ -384,6 +384,27 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
      racconta la versione finale.
   Dadi, bonus della scheda ed esiti li calcola sempre il codice, mai il modello. È più lento,
   ma con un modello piccolo sbaglia meno. Spegnila se la risposta arriva troppo tardi.
+- **Revisione con Gemini** (facoltativa, spenta di serie). Con Ragiona accesa, il passo 3 lo
+  fa Gemini di Google (modello `gemini-3.5-flash`): italiano e regole migliori, la voce parte
+  appena arrivano le prime parole. Tutto il resto (arbitro, bozza, dadi, combattimento) resta
+  su questo PC con gemma. Se Gemini non risponde (niente internet, chiave sbagliata, limite
+  raggiunto, più di 25 secondi di attesa) rilegge gemma come prima, senza fermare la partita.
+  Il tetto di chiamate al giorno (300 di serie, circa una per azione dei giocatori) evita di
+  sforare il limite gratuito; il conto riparte ogni giorno.
+  **Setup su un PC nuovo (una volta sola):**
+  1. Apri [Google AI Studio](https://aistudio.google.com/apikey) con il tuo account Google e
+     crea una chiave API ("Create API key"). Non serve la carta: si usa il livello gratuito,
+     che è separato dall'abbonamento Gemini e non lo consuma.
+  2. In Dnd The Game apri "Impostazioni", spunta "Revisione con Gemini", incolla la chiave,
+     lascia il modello `gemini-3.5-flash` e premi "Salva". In alternativa alla casella della
+     chiave puoi impostare la variabile di Windows `GEMINI_API_KEY`
+     (`setx GEMINI_API_KEY "la-tua-chiave"` e riavvia l'app).
+  3. Sotto le caselle si legge quante chiamate restano oggi; in basso la riga di stato dice
+     "Gemini rilegge la bozza (n di 300 oggi)" quando è al lavoro.
+  La chiave resta solo sul PC, in `%APPDATA%\Godot\app_userdata\D&D Tavolo Master\the_game\impostazioni.json`:
+  non va su GitHub. Nota: con il livello gratuito Google può usare i testi inviati per
+  migliorare i suoi modelli. Il Gemini CLI con l'account Google (senza chiave) non funziona
+  più per gli utenti privati.
 - Quando parte un combattimento, la mappa dei telefoni e dello schermo mostra il luogo della
   scena disegnato casella per casella (cantina, locanda, grotta, cripta, bosco, spiaggia o
   strada, scelto dalle parole del capitolo e del racconto). Se il master ha caricato e

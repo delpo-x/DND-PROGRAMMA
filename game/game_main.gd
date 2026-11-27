@@ -28,7 +28,8 @@ var voice := Voice.new()
 var ambience := Ambience.new()
 var story := GameStory.new()
 var rng := RandomNumberGenerator.new()
-var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true, "ambience_on": true, "refine": true}
+var settings := {"model": Narrator.DEFAULT_MODEL, "voice": "", "voice_on": true, "ambience_on": true, "refine": true,
+	"gemini_on": false, "gemini_key": "", "gemini_model": Narrator.GEMINI_MODEL, "gemini_cap": Narrator.GEMINI_CAP}
 
 var test_mode := false  # no files, no network outside this PC, no window tweaks
 var llm_in_tests := false  # tests: ask the real local model too
@@ -47,6 +48,7 @@ var lbl_clients: Label
 var chk_voice: CheckBox
 var chk_ambience: CheckBox
 var chk_refine: CheckBox
+var _draft := ""  # the last draft: Gemini failed, gemma revises it
 var _rev_hold := false  # the revised reply: the first words wait until any preamble is cut
 var btn_read: Button
 var btn_start: Button
@@ -123,6 +125,9 @@ func _ready() -> void:
 	add_child(net)
 	net.start("127.0.0.1" if test_mode else "*")
 	narrator.model = str(settings.model)
+	narrator.persist_usage = not test_mode
+	_apply_gemini()
+	narrator.load_usage()
 	add_child(narrator)
 	narrator.chunk.connect(_on_chunk)
 	narrator.finished.connect(_on_finished)
@@ -168,6 +173,16 @@ func _load_settings() -> void:
 		if j is Dictionary:
 			for k in j:
 				settings[k] = j[k]
+
+
+## Gemini for the revision: the key from the settings, or GEMINI_API_KEY.
+func _apply_gemini() -> void:
+	var key := str(settings.gemini_key).strip_edges()
+	if key == "" and not test_mode:
+		key = OS.get_environment("GEMINI_API_KEY").strip_edges()
+	narrator.gemini_key = key if bool(settings.gemini_on) else ""
+	narrator.gemini_model = str(settings.gemini_model).strip_edges() if str(settings.gemini_model).strip_edges() != "" else Narrator.GEMINI_MODEL
+	narrator.gemini_cap = maxi(1, int(settings.gemini_cap))
 
 
 func _save_settings() -> void:
@@ -451,6 +466,19 @@ func _show_settings() -> void:
 		UI.wrap_lbl("A fine capitolo il narratore scrive cosa ha fatto ogni fazione nel frattempo, e lo fa emergere nella storia con indizi.%s" % (("\nUltime mosse: " + " ".join(state.data.get("faction_moves", []))) if not state.data.get("faction_moves", []).is_empty() else ""), 17, UI.DIM),
 		UI.lbl("Modello del narratore (Ollama, su questo PC)", 20, UI.DIM), model,
 		UI.wrap_lbl("Più piccolo = più veloce ma racconta peggio. Provati: gemma4:e4b-it-q4_K_M (consigliato), qwen3.5:4b (più veloce), qwen2.5:7b. Per scaricarne uno: ollama pull nome", 17, UI.DIM)], 8)
+	var g_on := CheckBox.new()
+	g_on.text = "Revisione con Gemini (serve internet)"
+	g_on.button_pressed = bool(settings.gemini_on)
+	var g_key := UI.edit(str(settings.gemini_key), "chiave API di Google AI Studio (o variabile GEMINI_API_KEY)", Callable(), 300)
+	g_key.secret = true
+	var g_model := UI.edit(str(settings.gemini_model), Narrator.GEMINI_MODEL, Callable(), 300)
+	var g_cap := UI.edit(str(int(settings.gemini_cap)), str(Narrator.GEMINI_CAP), Callable(), 120)
+	box.add_child(UI.lbl("Gemini per la revisione", 20, UI.DIM))
+	box.add_child(g_on)
+	box.add_child(UI.hbox([UI.lbl("Chiave", 17, UI.DIM), UI.expand(g_key)], 8))
+	box.add_child(UI.hbox([UI.lbl("Modello", 17, UI.DIM), UI.expand(g_model), UI.lbl("Chiamate al giorno", 17, UI.DIM), g_cap], 8))
+	box.add_child(UI.wrap_lbl("Con Ragiona acceso gemma scrive la bozza e Gemini la rilegge: italiano e regole migliori. Oltre il tetto giornaliero, senza internet o se Google rifiuta, rilegge gemma come prima. La chiave resta solo su questo PC. " + narrator.cloud_text(), 17, UI.DIM))
+	var gem := [g_on, g_key, g_model, g_cap]
 	var opt: OptionButton = null
 	var vlist := voice.voices()
 	if not vlist.is_empty():
@@ -463,11 +491,17 @@ func _show_settings() -> void:
 		opt = UI.option(names, sel)
 		box.add_child(UI.lbl("Voce del master", 20, UI.DIM))
 		box.add_child(opt)
-	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone, pinned, factions, npcs), 50))
+	box.add_child(UI.color_btn("Salva", Color(0.18, 0.42, 0.25), func(): _apply_settings(model, opt, vlist, tone, pinned, factions, npcs, gem), 50))
 	_modal("Impostazioni", box, 640)
 
 
-func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit, pinned: TextEdit, factions: TextEdit, npcs: TextEdit) -> void:
+func _apply_settings(model: LineEdit, opt: OptionButton, vlist: Array, tone: LineEdit, pinned: TextEdit, factions: TextEdit, npcs: TextEdit, gem := []) -> void:
+	if gem.size() == 4:
+		settings.gemini_on = gem[0].button_pressed
+		settings.gemini_key = gem[1].text.strip_edges()
+		settings.gemini_model = gem[2].text.strip_edges()
+		settings.gemini_cap = int(gem[3].text) if gem[3].text.is_valid_int() and int(gem[3].text) > 0 else Narrator.GEMINI_CAP
+		_apply_gemini()
 	if tone.text.strip_edges() != str(state.data.get("tone", "")):
 		state.set_tone(tone.text)
 	if GameState.text_lines(pinned.text, GameState.PINNED_MAX) != state.data.get("pinned", []):
@@ -739,11 +773,15 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 			if not _live.is_empty():
 				_live["raw"] = ""
 			var msgs := story.revise_messages(full.strip_edges()) if draft != "" else story.messages()
-			if narrator.ask(msgs, {"max": NARRATION_TOKENS, "temp": 0.4, "tag": "rev" if draft != "" else ""}):
+			_draft = full.strip_edges() if draft != "" else ""
+			# the revision goes to Gemini when it is set up (see Narrator.ask)
+			if narrator.ask(msgs, {"max": NARRATION_TOKENS, "temp": 0.4, "tag": "rev" if draft != "" else "", "cloud": draft != ""}):
 				return
 			if ok:
 				voice.feed(full)
 			_on_finished(full, ok, "")
+			return
+		"rev" when not ok and narrator.last_cloud and _rev_fallback(full):
 			return
 		"secret":
 			var reply := GameStory.clean_secret(full) if ok else ""
@@ -782,6 +820,21 @@ func _on_finished(full: String, ok: bool, tag: String) -> void:
 		_run_secret()
 	else:
 		_prepare_next()
+
+
+## Gemini did not revise the draft (no internet, quota, timeout): gemma
+## revises it as before. When some words were already read, they stand.
+func _rev_fallback(partial: String) -> bool:
+	if partial.strip_edges() != "":
+		_on_finished(partial, true, "rev")
+		return true
+	if _draft == "":
+		return false
+	toast("Gemini non risponde (%s): rilegge il narratore su questo PC." % narrator.status)
+	_rev_hold = true
+	if not _live.is_empty():
+		_live["raw"] = ""
+	return narrator.ask(story.revise_messages(_draft), {"max": NARRATION_TOKENS, "temp": 0.4, "tag": "rev"})
 
 
 ## The player's action needed a check and the narrator forgot to ask for it:

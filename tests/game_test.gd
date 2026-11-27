@@ -455,6 +455,67 @@ Altro.".repeat(300)}
 	var rv: Array = g.story.revise_messages("Bozza di prova.")
 	check("revision request has the draft", str(rv[rv.size() - 2].content) == "Bozza di prova." and str(rv.back().content).contains("versione finale"))
 
+	# Gemini for the revision: request shape, stream lines, daily cap, fallback
+	var gb := Narrator.gemini_body([{"role": "system", "content": "Regole"}, {"role": "user", "content": "A"},
+		{"role": "user", "content": "B"}, {"role": "assistant", "content": "Bozza"}, {"role": "user", "content": "Rileggi"}],
+		{"max": 400, "temp": 0.4}, "gemini-3.5-flash", true)
+	check("gemini system instruction", str(gb.systemInstruction.parts[0].text) == "Regole")
+	check("gemini turns joined and renamed", gb.contents.size() == 3 and str(gb.contents[0].parts[0].text) == "A\n\nB" and str(gb.contents[1].role) == "model", gb.contents)
+	check("gemini short thinking", str(gb.generationConfig.thinkingConfig.thinkingLevel) == "minimal" and int(gb.generationConfig.maxOutputTokens) == 600)
+	check("gemini 2.5 no thinking", int(Narrator.gemini_body([], {}, "gemini-2.5-flash", true).generationConfig.thinkingConfig.thinkingBudget) == 0)
+	check("gemini without thinking settings", not Narrator.gemini_body([], {}, "gemini-3.5-flash", false).generationConfig.has("thinkingConfig"))
+	check("gemini stream text", Narrator.gemini_piece('data: {"candidates":[{"content":{"parts":[{"text":"pensa","thought":true},{"text":"La nebbia"}]}}]}') == "La nebbia")
+	check("gemini other lines", Narrator.gemini_piece("") == "" and Narrator.gemini_piece("data: [rotto") == "")
+	var nr: Narrator = g.narrator
+	nr.gemini_key = ""
+	check("gemini off without a key", not nr.cloud_ready())
+	nr.gemini_key = "chiave-di-prova"
+	nr.gemini_cap = 2
+	nr.gemini_used = 1
+	nr.gemini_day = Time.get_date_string_from_system()
+	check("gemini under the cap", nr.cloud_ready())
+	nr.gemini_used = 2
+	check("gemini over the cap", not nr.cloud_ready() and nr.cloud_text().contains("2 chiamate su 2"))
+	nr.gemini_day = "2000-01-01"
+	nr.gemini_blocked = "limite di uso raggiunto"
+	check("gemini new day starts again", nr.cloud_ready() and nr.gemini_used == 0)
+	nr.gemini_blocked = "limite di uso raggiunto"
+	check("gemini blocked for the day", not nr.cloud_ready())
+	nr.gemini_key = ""
+	nr.gemini_blocked = ""
+	# Gemini failed before any word: gemma revises the same draft
+	g._live = {}
+	g._draft = "Bozza di prova."
+	nr.last_cloud = true
+	g._on_finished("", false, "rev")
+	check("gemini failed, gemma revises", nr.busy and nr.current_tag() == "rev" and not nr.last_cloud)
+	nr.cancel()
+	# Gemini stopped after some words: they stand
+	nr.last_cloud = true
+	g._on_finished("La nebbia sale dal fiume.", false, "rev")
+	check("gemini partial text kept", g.story.transcript.slice(-2).any(func(t): return str(t.text) == "La nebbia sale dal fiume."))
+	nr.last_cloud = false
+	nr.cancel()
+	g._want_narration = false
+	# the settings window has the Gemini fields and saves them
+	g._show_settings()
+	var gem_box: Array = g.find_children("*", "CheckBox", true, false).filter(func(c): return c.text.begins_with("Revisione con Gemini"))
+	check("settings have Gemini", gem_box.size() == 1)
+	var gl: LineEdit = null
+	for e in g.find_children("*", "LineEdit", true, false):
+		if e.secret:
+			gl = e
+	gem_box[0].button_pressed = true
+	gl.text = "chiave-finta"
+	for b in g.find_children("*", "Button", true, false):
+		if b.text == "Salva":
+			b.pressed.emit()
+			break
+	check("Gemini settings saved", bool(g.settings.gemini_on) and g.narrator.gemini_key == "chiave-finta" and g.narrator.cloud_ready())
+	g.settings.gemini_on = false
+	g._apply_gemini()
+	check("Gemini off again", not g.narrator.cloud_ready())
+
 	# battle map: a picture of the place, aligned to the 48 px squares
 	check("place of the fight", SceneArt.detect("La locanda è piena. Scendete in cantina tra le botti.") == "cantina")
 	check("default place", SceneArt.detect("Nulla di speciale.") == "strada")
