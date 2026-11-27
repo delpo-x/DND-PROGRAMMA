@@ -385,8 +385,9 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
   Dadi, bonus della scheda ed esiti li calcola sempre il codice, mai il modello. È più lento,
   ma con un modello piccolo sbaglia meno. Spegnila se la risposta arriva troppo tardi.
 - **Revisione con Gemini** (facoltativa, spenta di serie). Con Ragiona accesa, il passo 3 lo
-  fa Gemini di Google (modello `gemini-3.5-flash`): italiano e regole migliori, la voce parte
-  appena arrivano le prime parole. Tutto il resto (arbitro, bozza, dadi, combattimento) resta
+  fa Gemini di Google (modello `gemini-4-hydrogen` con ragionamento LOW, il più basso che
+  accetta): italiano e regole migliori, la voce parte appena arrivano le prime parole. Con
+  un altro modello (es. `gemini-3.8-flash`) il ragionamento è il minimo che quel modello accetta. Tutto il resto (arbitro, bozza, dadi, combattimento) resta
   su questo PC con gemma. Se Gemini non risponde (niente internet, chiave sbagliata, limite
   raggiunto, più di 25 secondi di attesa) rilegge gemma come prima, senza fermare la partita.
   Il tetto di chiamate al giorno (300 di serie, circa una per azione dei giocatori) evita di
@@ -396,7 +397,7 @@ prepari con il master (personaggi, mostri, storia) lo ritrovi qui, e viceversa.
      crea una chiave API ("Create API key"). Non serve la carta: si usa il livello gratuito,
      che è separato dall'abbonamento Gemini e non lo consuma.
   2. In Dnd The Game apri "Impostazioni", spunta "Revisione con Gemini", incolla la chiave,
-     lascia il modello `gemini-3.5-flash` e premi "Salva". In alternativa alla casella della
+     lascia il modello `gemini-4-hydrogen` e premi "Salva". In alternativa alla casella della
      chiave puoi impostare la variabile di Windows `GEMINI_API_KEY`
      (`setx GEMINI_API_KEY "la-tua-chiave"` e riavvia l'app).
   3. Sotto le caselle si legge quante chiamate restano oggi; in basso la riga di stato dice
